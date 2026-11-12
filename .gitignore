@@ -1,0 +1,28 @@
+# Unreal Engine generated files (including plugin build output)
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Generated IDE project files and local settings
+.vs/
+.idea/
+.vscode/
+*.sln
+*.slnx
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.code-workspace
+*.xcodeproj/
+*.xcworkspace/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
