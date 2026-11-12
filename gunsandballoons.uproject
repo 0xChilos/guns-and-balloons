@@ -17,6 +17,25 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "MCPClientToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "UnrealCanvasBridge",
+			"Enabled": true
+		},
+		{
+			"Name": "UnrealCanvasAnnotations",
+			"Enabled": true
+		},
+		{
+			"Name": "Terminal",
+			"Enabled": true
 		}
+	],
+	"TargetPlatforms": [
+		"Windows"
 	]
 }
