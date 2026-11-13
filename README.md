@@ -11,3 +11,7 @@
 | `Textures` | Surface textures, masks, normal maps |
 | `UI` | Widgets, menus, HUDs, UI graphics |
 | `VFX` | Niagara effects, particles, visual-effect materials |
+
+## Документація
+
+Дизайн гри — у [docs/](docs/README.md). Інструкції для AI-агентів — [AGENTS.md](AGENTS.md).
