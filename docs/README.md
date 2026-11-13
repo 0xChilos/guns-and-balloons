@@ -16,7 +16,7 @@
 | [features/weapons.md](features/weapons.md) | Дієгетична зброя, перезарядка, балістика | Сокін |
 | [features/grappling-hook.md](features/grappling-hook.md) | Граплінг-хук і збір ресурсів | Сокін |
 | [features/nemesis-airship.md](features/nemesis-airship.md) | Дирижабль-переслідувач і його атаки | Вано |
-| [features/islands.md](features/islands.md) | Острови-біоми та їхні небезпеки | TBD |
+| [features/biomes.md](features/biomes.md) | Рівні-біоми та їхні небезпеки | TBD |
 | [features/safe-zone.md](features/safe-zone.md) | Безпечна зона між рівнями: ремонт, магазин, апгрейди | TBD |
 | [features/ui-menus.md](features/ui-menus.md) | Головне меню, навігаційна панель | Ростік |
 | [art-style.md](art-style.md) | Візуальний стиль і пост-обробка | Ростік |
