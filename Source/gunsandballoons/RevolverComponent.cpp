@@ -19,10 +19,11 @@ namespace
 {
 	constexpr float DegreesPerChamber = 360.f / URevolverComponent::NumChambers;
 
-	const FName ChamberBones[URevolverComponent::NumChambers] = {
-		TEXT("chamber_1"), TEXT("chamber_2"), TEXT("chamber_3"),
-		TEXT("chamber_4"), TEXT("chamber_5"), TEXT("chamber_6"),
-	};
+	/** Carries the ejected case in the reload clips. */
+	const FName CaseEjectBone(TEXT("case_eject"));
+
+	/** A casing never leaves faster than this (cm/s), whatever the frame timing. */
+	constexpr float MaxCasingSpeed = 600.f;
 
 	float LengthOf(const UAnimSequenceBase* Anim)
 	{
@@ -35,24 +36,24 @@ URevolverComponent::URevolverComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Idle(TEXT("/Game/Assets/SK_RevolverArmature_Idle.SK_RevolverArmature_Idle"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Fire(TEXT("/Game/Assets/SK_RevolverArmature_Fire.SK_RevolverArmature_Fire"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Open(TEXT("/Game/Assets/SK_RevolverArmature_Reload_Open.SK_RevolverArmature_Reload_Open"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> OpenKeepLive(TEXT("/Game/Assets/SK_RevolverArmature_Reload_Open_KeepLive.SK_RevolverArmature_Reload_Open_KeepLive"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Insert(TEXT("/Game/Assets/SK_RevolverArmature_Reload_InsertRound.SK_RevolverArmature_Reload_InsertRound"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Close(TEXT("/Game/Assets/SK_RevolverArmature_Reload_Close.SK_RevolverArmature_Reload_Close"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> Casing(TEXT("/Game/Assets/SM_RevolverCasing.SM_RevolverCasing"));
+	// Imported from SK_Pax.fbx: every take is bound to SK_Pax_Skeleton.
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Idle(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Idle.SK_PaxArmature_Idle"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Fire(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Fire.SK_PaxArmature_Fire"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Start(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_Start.SK_PaxArmature_Reload_Start"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Eject(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_EjectCase.SK_PaxArmature_Reload_EjectCase"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Insert(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_InsertRound.SK_PaxArmature_Reload_InsertRound"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> End(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_End.SK_PaxArmature_Reload_End"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Casing(TEXT("/Game/Assets/Revolver/SM_PaxCasing.SM_PaxCasing"));
 
 	IdleAnim = Idle.Object;
 	FireAnim = Fire.Object;
-	OpenAnim = Open.Object;
-	OpenKeepLiveAnim = OpenKeepLive.Object;
+	ReloadStartAnim = Start.Object;
+	EjectCaseAnim = Eject.Object;
 	InsertRoundAnim = Insert.Object;
-	CloseAnim = Close.Object;
+	ReloadEndAnim = End.Object;
 	CasingMesh = Casing.Object;
 
 	Chambers.Init(ERevolverChamber::Live, NumChambers);
-	Ejecting.Init(false, NumChambers);
 }
 
 void URevolverComponent::SetupWeapon(USkeletalMeshComponent* InMesh, UCameraComponent* InCamera)
@@ -85,6 +86,11 @@ int32 URevolverComponent::GetLiveRounds() const
 	return Count;
 }
 
+bool URevolverComponent::IsReloading() const
+{
+	return State != ERevolverState::Idle && State != ERevolverState::Firing;
+}
+
 void URevolverComponent::PullTrigger()
 {
 	switch (State)
@@ -95,13 +101,14 @@ void URevolverComponent::PullTrigger()
 			return;
 		}
 		// Double action: the trigger turns the cylinder to the next chamber while cocking the hammer.
-		CylinderStep = (CylinderStep + 1) % NumChambers;
+		++CylinderStep;
 		bShotDone = false;
 		SetState(ERevolverState::Firing, FireAnim, FirePlayRate);
 		break;
 
-	case ERevolverState::Opening:
-	case ERevolverState::Advancing:
+	case ERevolverState::ReloadStart:
+	case ERevolverState::Turning:
+	case ERevolverState::Ejecting:
 	case ERevolverState::Inserting:
 		bCancelReload = true;
 		break;
@@ -113,28 +120,13 @@ void URevolverComponent::PullTrigger()
 
 bool URevolverComponent::StartReload()
 {
-	if (State != ERevolverState::Idle)
+	if (State != ERevolverState::Idle || GetLiveRounds() == NumChambers)
 	{
 		return false;
 	}
 
-	bool bAnyLive = false;
-	bool bAnyNotLive = false;
-	for (int32 i = 0; i < NumChambers; ++i)
-	{
-		bAnyLive |= Chambers[i] == ERevolverChamber::Live;
-		bAnyNotLive |= Chambers[i] != ERevolverChamber::Live;
-		Ejecting[i] = Chambers[i] == ERevolverChamber::Spent;
-	}
-
-	if (!bAnyNotLive)
-	{
-		return false;
-	}
-
-	bCasingsEjected = false;
 	bCancelReload = false;
-	SetState(ERevolverState::Opening, bAnyLive ? OpenKeepLiveAnim : OpenAnim, ReloadPlayRate);
+	SetState(ERevolverState::ReloadStart, ReloadStartAnim, ReloadPlayRate);
 	OnReloadStarted.Broadcast();
 	return true;
 }
@@ -147,32 +139,56 @@ void URevolverComponent::SetState(ERevolverState NewState, UAnimSequenceBase* An
 	StateTime = 0.f;
 }
 
-int32 URevolverComponent::FindNextEmptyOffset() const
+void URevolverComponent::ContinueReload()
 {
-	for (int32 Offset = 0; Offset < NumChambers; ++Offset)
+	// Steps forward (the firing direction) until a chamber that is not live sits at the gate.
+	int32 Offset = INDEX_NONE;
+	if (!bCancelReload)
 	{
-		if (Chambers[(TopChamber() + Offset) % NumChambers] == ERevolverChamber::Empty)
+		for (int32 i = 0; i < NumChambers; ++i)
 		{
-			return Offset;
+			if (Chambers[(GateChamber() + i) % NumChambers] != ERevolverChamber::Live)
+			{
+				Offset = i;
+				break;
+			}
 		}
 	}
-	return INDEX_NONE;
-}
 
-void URevolverComponent::BeginAdvanceOrClose()
-{
-	const int32 Offset = bCancelReload ? INDEX_NONE : FindNextEmptyOffset();
-	if (Offset == INDEX_NONE || !InsertRoundAnim)
+	if (Offset == INDEX_NONE)
 	{
-		SetState(ERevolverState::Closing, CloseAnim, ReloadPlayRate);
+		SetState(ERevolverState::ReloadEnd, ReloadEndAnim, ReloadPlayRate);
 		return;
 	}
 
-	CylinderFromAngle = CylinderStep * DegreesPerChamber;
-	CylinderToAngle = CylinderFromAngle + Offset * DegreesPerChamber;
-	CylinderStep = (CylinderStep + Offset) % NumChambers;
-	AdvanceDuration = FMath::Max(MinAdvanceTime, Offset * DegreesPerChamber / AdvanceDegreesPerSecond);
-	SetState(ERevolverState::Advancing, InsertRoundAnim, ReloadPlayRate);
+	if (Offset == 0)
+	{
+		ServiceGateChamber();
+		return;
+	}
+
+	TurnFromStep = CylinderStep;
+	CylinderStep += Offset;
+	TurnDuration = FMath::Max(MinTurnTime, Offset * DegreesPerChamber / TurnDegreesPerSecond);
+	// The gate stays open while turning: hold the last frame of the opening clip.
+	SetState(ERevolverState::Turning, ReloadStartAnim, ReloadPlayRate);
+}
+
+void URevolverComponent::ServiceGateChamber()
+{
+	const int32 Gate = GateChamber();
+	if (Chambers[Gate] == ERevolverChamber::Spent && EjectCaseAnim)
+	{
+		// The case now rides on the case_eject bone; the chamber itself is empty.
+		Chambers[Gate] = ERevolverChamber::Empty;
+		bCasingReleased = false;
+		bHasLastCaseLocation = false;
+		SetState(ERevolverState::Ejecting, EjectCaseAnim, ReloadPlayRate);
+		return;
+	}
+
+	Chambers[Gate] = ERevolverChamber::Empty;
+	SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
 }
 
 void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -199,45 +215,64 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 		break;
 
-	case ERevolverState::Opening:
-		if (!bCasingsEjected && StateTime >= EjectStartTime)
+	case ERevolverState::ReloadStart:
+		if (StateTime >= LengthOf(ReloadStartAnim))
 		{
-			bCasingsEjected = true;
-			EjectSpentCasings();
-		}
-		if (StateTime >= LengthOf(StateAnim))
-		{
-			if (!bCasingsEjected)
-			{
-				bCasingsEjected = true;
-				EjectSpentCasings();
-			}
-			for (bool& bEjecting : Ejecting)
-			{
-				bEjecting = false;
-			}
-			BeginAdvanceOrClose();
+			ContinueReload();
 		}
 		break;
 
-	case ERevolverState::Advancing:
-		if (StateTime >= AdvanceDuration)
+	case ERevolverState::Turning:
+		if (StateTime >= TurnDuration)
 		{
-			SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
+			if (bCancelReload)
+			{
+				ContinueReload();
+			}
+			else
+			{
+				ServiceGateChamber();
+			}
+		}
+		break;
+
+	case ERevolverState::Ejecting:
+		if (!bCasingReleased && StateTime >= CaseReleaseTime)
+		{
+			bCasingReleased = true;
+			ReleaseCasing();
+			OnCaseEjected.Broadcast();
+		}
+		else if (!bCasingReleased && Mesh)
+		{
+			// Mesh poses are a frame behind this tick, which is fine for a velocity estimate.
+			LastCaseLocation = Mesh->GetSocketLocation(CaseEjectBone);
+			bHasLastCaseLocation = true;
+		}
+		if (StateTime >= LengthOf(EjectCaseAnim))
+		{
+			if (bCancelReload)
+			{
+				ContinueReload();
+			}
+			else
+			{
+				SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
+			}
 		}
 		break;
 
 	case ERevolverState::Inserting:
 		if (StateTime >= LengthOf(InsertRoundAnim))
 		{
-			Chambers[TopChamber()] = ERevolverChamber::Live;
+			Chambers[GateChamber()] = ERevolverChamber::Live;
 			OnRoundInserted.Broadcast();
-			BeginAdvanceOrClose();
+			ContinueReload();
 		}
 		break;
 
-	case ERevolverState::Closing:
-		if (StateTime >= LengthOf(CloseAnim))
+	case ERevolverState::ReloadEnd:
+		if (StateTime >= LengthOf(ReloadEndAnim))
 		{
 			SetState(ERevolverState::Idle, IdleAnim, 1.f);
 			OnReloadFinished.Broadcast();
@@ -259,7 +294,7 @@ void URevolverComponent::UpdatePose()
 	Anim->Sequence = StateAnim;
 	Anim->Time = StateTime;
 	Anim->CylinderAngle = CylinderStep * DegreesPerChamber;
-	Anim->RoundLoadScale = 0.f;
+	Anim->CaseEjectScale = State == ERevolverState::Ejecting && bCasingReleased && CasingMesh ? 0.f : 1.f;
 
 	switch (State)
 	{
@@ -271,31 +306,23 @@ void URevolverComponent::UpdatePose()
 		break;
 	}
 
-	case ERevolverState::Advancing:
+	case ERevolverState::Turning:
 	{
-		// Hold the insert clip's first frame (round outside the gate) while it fades in.
-		const float Alpha = FMath::Clamp(StateTime / FMath::Max(AdvanceDuration, KINDA_SMALL_NUMBER), 0.f, 1.f);
-		Anim->Time = 0.f;
-		Anim->CylinderAngle = FMath::Lerp(CylinderFromAngle, CylinderToAngle, FMath::SmoothStep(0.f, 1.f, Alpha));
-		Anim->RoundLoadScale = Alpha;
+		const float Alpha = FMath::Clamp(StateTime / FMath::Max(TurnDuration, KINDA_SMALL_NUMBER), 0.f, 1.f);
+		Anim->Time = LengthOf(ReloadStartAnim);
+		Anim->CylinderAngle = FMath::Lerp(float(TurnFromStep), float(CylinderStep), FMath::SmoothStep(0.f, 1.f, Alpha)) * DegreesPerChamber;
 		break;
 	}
-
-	case ERevolverState::Inserting:
-		Anim->RoundLoadScale = 1.f;
-		break;
 
 	default:
 		break;
 	}
 
-	const float EjectAlpha = State == ERevolverState::Opening
-		? FMath::Clamp((StateTime - EjectStartTime) / FMath::Max(EjectEndTime - EjectStartTime, KINDA_SMALL_NUMBER), 0.f, 1.f)
-		: 1.f;
-
+	// Spent cases stay in their chambers until ejected. The round sliding in rides on round_load,
+	// so the chamber being loaded stays hidden until the clip ends.
 	for (int32 i = 0; i < NumChambers; ++i)
 	{
-		Anim->ChamberScale[i] = Ejecting[i] ? 1.f - EjectAlpha : (Chambers[i] == ERevolverChamber::Empty ? 0.f : 1.f);
+		Anim->ChamberScale[i] = Chambers[i] == ERevolverChamber::Empty ? 0.f : 1.f;
 	}
 }
 
@@ -347,43 +374,39 @@ void URevolverComponent::Shoot()
 	OnFired.Broadcast(bHit, Hit);
 }
 
-void URevolverComponent::EjectSpentCasings()
+void URevolverComponent::ReleaseCasing()
 {
-	for (int32 i = 0; i < NumChambers; ++i)
+	if (!CasingMesh || !Mesh)
 	{
-		if (!Ejecting[i])
-		{
-			continue;
-		}
-		Chambers[i] = ERevolverChamber::Empty;
-
-		if (!CasingMesh || !Mesh)
-		{
-			continue;
-		}
-
-		const FRotator GunRotation = Mesh->GetComponentRotation();
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = GetOwner();
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		AStaticMeshActor* Casing = GetWorld()->SpawnActor<AStaticMeshActor>(Mesh->GetSocketLocation(ChamberBones[i]), GunRotation, SpawnParams);
-		if (!Casing)
-		{
-			continue;
-		}
-
-		Casing->SetMobility(EComponentMobility::Movable);
-		Casing->SetLifeSpan(CasingLifeSpan);
-
-		UStaticMeshComponent* CasingComp = Casing->GetStaticMeshComponent();
-		CasingComp->SetStaticMesh(CasingMesh);
-		CasingComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
-		CasingComp->SetSimulatePhysics(true);
-
-		// Out of the back of the swung-out cylinder, with a little scatter and tumble.
-		const FVector Velocity = -GunRotation.Vector() * CasingEjectSpeed + FMath::VRand() * (CasingEjectSpeed * 0.25f) + FVector(0.f, 0.f, -20.f);
-		CasingComp->SetPhysicsLinearVelocity(Velocity);
-		CasingComp->SetPhysicsAngularVelocityInDegrees(FMath::VRand() * 360.f);
+		return;
 	}
+
+	// Take over from the animated case exactly where it is, carrying on with its motion.
+	const FVector Location = Mesh->GetSocketLocation(CaseEjectBone);
+	const FRotator Rotation = Mesh->GetSocketRotation(CaseEjectBone);
+	const float DeltaSeconds = GetWorld()->GetDeltaSeconds();
+	FVector Velocity = bHasLastCaseLocation && DeltaSeconds > KINDA_SMALL_NUMBER
+		? (Location - LastCaseLocation) / DeltaSeconds
+		: -Mesh->GetForwardVector() * 60.f;
+	Velocity = Velocity.GetClampedToMaxSize(MaxCasingSpeed) + FMath::VRand() * CasingScatter;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = GetOwner();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AStaticMeshActor* Casing = GetWorld()->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+	if (!Casing)
+	{
+		return;
+	}
+
+	Casing->SetMobility(EComponentMobility::Movable);
+	Casing->SetLifeSpan(CasingLifeSpan);
+
+	UStaticMeshComponent* CasingComp = Casing->GetStaticMeshComponent();
+	CasingComp->SetStaticMesh(CasingMesh);
+	CasingComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
+	CasingComp->SetSimulatePhysics(true);
+	CasingComp->SetPhysicsLinearVelocity(Velocity);
+	CasingComp->SetPhysicsAngularVelocityInDegrees(FMath::VRand() * 360.f);
 }

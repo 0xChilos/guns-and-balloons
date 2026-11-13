@@ -13,8 +13,9 @@ class USkeletalMeshComponent;
  * - No body, no collision, no movement component: WASD/any move input does nothing.
  * - Mouse X/Y rotates the view (yaw/pitch). The actor itself never moves or rotates.
  * - Needs no Input Action / Mapping Context assets: it reads the mouse delta directly.
- * - Holds a hand-less weapon viewmodel (Dusk style): the gun floats in front of the eyes,
- *   lags behind fast look movement, breathes slightly while idle and kicks when fired.
+ * - Holds a hand-less weapon viewmodel (Dusk style): the gun (SK_Pax) floats bottom-right in front
+ *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
+ *   while idle, kicks when fired and tilts its loading gate toward the eye while reloading.
  * - LMB interacts with the IInteractable under the crosshair, otherwise fires. R reloads.
  */
 UCLASS(Blueprintable)
@@ -47,7 +48,7 @@ protected:
 	/** Applies mouse look to the control rotation. */
 	void UpdateLook(APlayerController* PC);
 
-	/** Places the weapon in front of the eyes, plus look lag, idle breathing and recoil. */
+	/** Places the weapon in front of the eyes (rest or reload pose), plus raise, look lag, idle breathing and recoil. */
 	void UpdateWeaponSway(float DeltaSeconds);
 
 	UFUNCTION()
@@ -97,13 +98,40 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<URevolverComponent> Revolver;
 
-	/** Rest position of the weapon relative to the eyes (cm): X forward, Y right, Z up. */
+	/**
+	 * Rest position of the weapon's root bone relative to the eyes (cm): X forward, Y right, Z up.
+	 * SK_Pax's root sits on the bore axis just ahead of the cylinder; the gun reaches 27cm forward and 13cm back.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-	FVector WeaponOffset = FVector(28.f, 10.f, -6.f);
+	FVector WeaponOffset = FVector(32.f, 12.f, -7.5f);
 
-	/** Rest rotation of the weapon relative to the view. */
+	/** Rest rotation of the weapon relative to the view. A little inward yaw points the muzzle at the crosshair. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-	FRotator WeaponRotation = FRotator::ZeroRotator;
+	FRotator WeaponRotation = FRotator(0.f, -3.f, 0.f);
+
+	/** Position while reloading: closer and more central, so the loading gate is in view. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Reload Pose")
+	FVector ReloadOffset = FVector(26.f, 5.f, -3.f);
+
+	/** Rotation while reloading: muzzle up and out, rolled so the gate (right) side faces the eye. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Reload Pose")
+	FRotator ReloadRotation = FRotator(15.f, 35.f, -45.f);
+
+	/** Seconds to move into or out of the reload pose. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Reload Pose", meta = (ClampMin = "0.01"))
+	float ReloadPoseBlendTime = 0.25f;
+
+	/** Seconds for the weapon to swing up into view when the pawn is possessed. 0 disables it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Raise", meta = (ClampMin = "0.0"))
+	float RaiseTime = 0.4f;
+
+	/** How far below the rest position (cm) the weapon starts its raise. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Raise", meta = (ClampMin = "0.0"))
+	float RaiseDrop = 20.f;
+
+	/** How far (degrees) the muzzle is tipped down at the start of the raise. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Raise", meta = (ClampMin = "0.0"))
+	float RaisePitch = 35.f;
 
 	/** Degrees the weapon lags per degree/second of look speed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Sway", meta = (ClampMin = "0.0"))
@@ -143,6 +171,10 @@ protected:
 
 private:
 	float RecoilAlpha = 0.f;
+	/** 0 = rest pose, 1 = reload pose (linear; eased when applied). */
+	float ReloadPoseAlpha = 0.f;
+	/** 1 = fully lowered, 0 = raised (linear; eased when applied). */
+	float RaiseAlpha = 0.f;
 	FRotator CurrentSway = FRotator::ZeroRotator;
 	FRotator LastViewRotation = FRotator::ZeroRotator;
 	bool bHasLastViewRotation = false;

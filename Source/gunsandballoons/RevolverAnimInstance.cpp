@@ -9,7 +9,7 @@
 namespace
 {
 	const FName CylinderBone(TEXT("cylinder"));
-	const FName RoundLoadBone(TEXT("round_load"));
+	const FName CaseEjectBone(TEXT("case_eject"));
 	const FName ChamberBones[URevolverAnimInstance::NumChambers] = {
 		TEXT("chamber_1"), TEXT("chamber_2"), TEXT("chamber_3"),
 		TEXT("chamber_4"), TEXT("chamber_5"), TEXT("chamber_6"),
@@ -31,7 +31,7 @@ namespace
 			Sequence = Instance->Sequence;
 			Time = Instance->Time;
 			CylinderAngle = Instance->CylinderAngle;
-			RoundLoadScale = Instance->RoundLoadScale;
+			CaseEjectScale = Instance->CaseEjectScale;
 			for (int32 i = 0; i < URevolverAnimInstance::NumChambers; ++i)
 			{
 				ChamberScale[i] = Instance->ChamberScale[i];
@@ -59,6 +59,8 @@ namespace
 			};
 
 			// The clips never turn the cylinder; it spins about its local Y axis (the barrel axis).
+			// In the clips' pose chamber_1 sits under the hammer and chamber_6 at the loading gate;
+			// each +60 degrees brings the next chamber up and moves the previous one to the gate.
 			const FCompactPoseBoneIndex Cylinder = FindBone(CylinderBone);
 			if (Cylinder.IsValid())
 			{
@@ -76,11 +78,11 @@ namespace
 				}
 			}
 
-			const FCompactPoseBoneIndex RoundLoad = FindBone(RoundLoadBone);
-			if (RoundLoad.IsValid())
+			const FCompactPoseBoneIndex CaseEject = FindBone(CaseEjectBone);
+			if (CaseEject.IsValid())
 			{
-				FTransform& Transform = Output.Pose[RoundLoad];
-				Transform.SetScale3D(Transform.GetScale3D() * RoundLoadScale);
+				FTransform& Transform = Output.Pose[CaseEject];
+				Transform.SetScale3D(Transform.GetScale3D() * CaseEjectScale);
 			}
 
 			return true;
@@ -90,7 +92,7 @@ namespace
 		float Time = 0.f;
 		float CylinderAngle = 0.f;
 		float ChamberScale[URevolverAnimInstance::NumChambers] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-		float RoundLoadScale = 1.f;
+		float CaseEjectScale = 1.f;
 	};
 }
 

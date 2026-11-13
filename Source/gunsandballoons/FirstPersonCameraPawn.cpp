@@ -35,7 +35,7 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	WeaponMesh->CastShadow = false;
 	WeaponMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> RevolverMesh(TEXT("/Game/Assets/SK_Revolver.SK_Revolver"));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> RevolverMesh(TEXT("/Game/Assets/Revolver/SK_Pax.SK_Pax"));
 	if (RevolverMesh.Succeeded())
 	{
 		WeaponMesh->SetSkeletalMeshAsset(RevolverMesh.Object);
@@ -98,6 +98,9 @@ void AFirstPersonCameraPawn::NotifyControllerChanged()
 
 	// The snap to the actor's facing above must not read as a huge flick of the gun.
 	bHasLastViewRotation = false;
+
+	// Swing the gun up into view.
+	RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
 
 	// Capture the mouse for look.
 	PC->SetInputMode(FInputModeGameOnly());
@@ -190,7 +193,23 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 	const FVector Kick(-RecoilAlpha * RecoilKickBack, 0.f, 0.f);
 	const FRotator KickRotation(RecoilAlpha * RecoilKickPitch, 0.f, 0.f);
 
-	WeaponMesh->SetRelativeLocationAndRotation(WeaponOffset + Lag + Bob + Kick, WeaponRotation + CurrentSway + KickRotation);
+	// Tilt the loading gate into view for the whole reload, then bring the gun back.
+	const bool bReloading = Revolver && Revolver->IsReloading();
+	ReloadPoseAlpha = FMath::FInterpConstantTo(ReloadPoseAlpha, bReloading ? 1.f : 0.f, DeltaSeconds, 1.f / ReloadPoseBlendTime);
+	const float PoseBlend = FMath::SmoothStep(0.f, 1.f, ReloadPoseAlpha);
+	const FVector PoseOffset = FMath::Lerp(WeaponOffset, ReloadOffset, PoseBlend);
+	const FRotator PoseRotation = FQuat::Slerp(WeaponRotation.Quaternion(), ReloadRotation.Quaternion(), PoseBlend).Rotator();
+
+	// Swing up from below on possession.
+	if (RaiseTime > 0.f)
+	{
+		RaiseAlpha = FMath::FInterpConstantTo(RaiseAlpha, 0.f, DeltaSeconds, 1.f / RaiseTime);
+	}
+	const float Lowered = FMath::Square(RaiseAlpha); // fast at first, settling softly
+	const FVector Raise(0.f, 0.f, -Lowered * RaiseDrop);
+	const FRotator RaiseRotation(-Lowered * RaisePitch, 0.f, 0.f);
+
+	WeaponMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + CurrentSway + KickRotation);
 }
 
 AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
