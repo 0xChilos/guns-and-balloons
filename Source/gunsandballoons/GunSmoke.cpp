@@ -13,7 +13,7 @@
 
 namespace
 {
-	/** Parameters of /Engine/EngineMaterials/Widget3DPassThrough_Translucent (as UWidgetComponent sets them). */
+	/** Parameters of the engine's Widget3DPassThrough materials (as UWidgetComponent sets them). */
 	const FName TextureParameter(TEXT("SlateUI"));
 	const FName TintParameter(TEXT("TintColorAndOpacity"));
 	const FName OpacityFromTextureParameter(TEXT("OpacityFromTexture"));
@@ -21,15 +21,27 @@ namespace
 	/** Size of /Engine/BasicShapes/Plane (cm). */
 	constexpr float PuffMeshSize = 100.f;
 
-	/** A fresh puff fades in over this long (s), so it never pops in. */
+	/** A fresh puff fades in over this long (s) when it moves every frame (AnimationRate 0). */
 	constexpr float FadeInTime = 0.05f;
 
-	/** Longest physics step (s); a slower frame is split into several. */
+	/** Longest physics step (s); a longer animation step is split into several. */
 	constexpr float MaxStep = 1.f / 60.f;
-	constexpr int32 MaxSteps = 4;
+	constexpr int32 MaxSteps = 8;
 
-	/** How fast (rad/s) a puff turns at most, so the same sprite never reads as the same shape. */
-	constexpr float MaxRollSpeed = 0.8f;
+	/** Most time (s) one tick steps, so a hitch doesn't fast-forward the smoke. */
+	constexpr float MaxTickTime = 0.25f;
+
+	/** 4x4 Bayer matrix: the order in which a puff's pixels drop out as it thins. */
+	constexpr int32 Bayer[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+
+	/** Opacity steps the dither can show (one per Bayer threshold). */
+	constexpr int32 DitherLevels = 16;
+
+	/** Edge measure (0 centre, 1 edge) where the light core ends and the darker rim begins. */
+	constexpr float CoreEdge = 0.5f;
+
+	/** Edge measure from which the puff starts to dither out toward its outline. */
+	constexpr float SolidEdge = 0.6f;
 
 	/** Offsets into the noise field for the three turbulence axes, so they are not the same. */
 	const FVector TurbulenceOffsets[3] = { FVector(0.f, 0.f, 0.f), FVector(31.7f, 17.3f, 5.9f), FVector(-13.1f, 47.9f, 23.3f) };
@@ -47,7 +59,7 @@ AGunSmoke::AGunSmoke()
 	RootComponent = Root;
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Plane(TEXT("/Engine/BasicShapes/Plane.Plane"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Translucent.Widget3DPassThrough_Translucent"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Engine/EngineMaterials/Widget3DPassThrough_Masked.Widget3DPassThrough_Masked"));
 	PuffMesh = Plane.Object;
 	PuffMaterial = Material.Object;
 }
@@ -55,46 +67,84 @@ AGunSmoke::AGunSmoke()
 void AGunSmoke::BeginPlay()
 {
 	Super::BeginPlay();
-	CreatePuffTexture();
+	CreatePuffTextures();
 }
 
-void AGunSmoke::CreatePuffTexture()
+void AGunSmoke::CreatePuffTextures()
 {
-	const int32 Size = FMath::Clamp(TextureSize, 8, 256);
+	const int32 Size = FMath::Clamp(TextureSize, 8, 64);
+	NumShapes = FMath::Clamp(ShapeVariants, 1, 8);
+	PuffTextures.Reset(NumShapes * DitherLevels);
+
+	TArray<float> Density;
+	TArray<uint8> Shade;
+	Density.SetNumUninitialized(Size * Size);
+	Shade.SetNumUninitialized(Size * Size);
 	TArray<uint8> Pixels;
 	Pixels.SetNumUninitialized(Size * Size * 4);
 
-	for (int32 Y = 0; Y < Size; ++Y)
+	const uint8 RimValue = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(RimShade, 0.f, 1.f) * 255.f));
+
+	for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 	{
-		for (int32 X = 0; X < Size; ++X)
+		// A lumpy blob: two octaves of noise push the outline in and out; each shape samples another slice.
+		const float Slice = 0.37f + 1.91f * ShapeIndex;
+		for (int32 Y = 0; Y < Size; ++Y)
 		{
-			// Distance from the centre, 1 at the edge of the quad.
-			const FVector2D P((X + 0.5f) / Size * 2.f - 1.f, (Y + 0.5f) / Size * 2.f - 1.f);
-			const float Distance = P.Size();
+			for (int32 X = 0; X < Size; ++X)
+			{
+				// Distance from the centre, 1 at the edge of the quad (a little margin so lumps fit).
+				const FVector2D P((X + 0.5f) / Size * 2.f - 1.f, (Y + 0.5f) / Size * 2.f - 1.f);
+				const FVector N(P.X * 2.2f, P.Y * 2.2f, Slice);
+				const float Lumps = 0.65f * FMath::PerlinNoise3D(N) + 0.35f * FMath::PerlinNoise3D(N * 2.1f + FVector(5.3f, 1.7f, 0.f));
+				const float Edge = P.Size() * 1.1f + 0.25f * Lumps;
 
-			// Lumps: two octaves of noise around a soft round falloff, so the edge is a billow, not a disc.
-			const FVector N(P.X * 2.2f, P.Y * 2.2f, 0.37f);
-			const float Lumps = 0.65f * FMath::PerlinNoise3D(N) + 0.35f * FMath::PerlinNoise3D(N * 2.1f + FVector(5.3f, 1.7f, 0.f));
-			const float Edge = Distance + 0.22f * Lumps;
-			const float Falloff = FMath::Square(FMath::Clamp(1.f - Edge, 0.f, 1.f));
-			const float Alpha = FMath::Clamp(Falloff * (1.25f + 0.5f * Lumps), 0.f, 1.f);
+				// Solid inside, thinning to nothing at the outline; the thin part dithers away first.
+				Density[Y * Size + X] = FMath::Clamp((1.f - Edge) / (1.f - SolidEdge), 0.f, 1.f);
+				// Flat two-tone: light core, darker rim.
+				Shade[Y * Size + X] = Edge < CoreEdge ? 255 : RimValue;
+			}
+		}
 
-			// White; the density is the alpha (B, G, R, A).
-			uint8* Pixel = &Pixels[(Y * Size + X) * 4];
-			Pixel[0] = Pixel[1] = Pixel[2] = 255;
-			Pixel[3] = static_cast<uint8>(FMath::RoundToInt(Alpha * 255.f));
+		for (int32 Level = 1; Level <= DitherLevels; ++Level)
+		{
+			for (int32 Y = 0; Y < Size; ++Y)
+			{
+				for (int32 X = 0; X < Size; ++X)
+				{
+					const int32 i = Y * Size + X;
+					// Drawn where density x level clears this pixel's Bayer threshold (B, G, R, A).
+					const bool bDrawn = Density[i] * Level > Bayer[Y & 3][X & 3] + 0.5f;
+					uint8* Pixel = &Pixels[i * 4];
+					Pixel[0] = Pixel[1] = Pixel[2] = Shade[i];
+					Pixel[3] = bDrawn ? 255 : 0;
+				}
+			}
+
+			UTexture2D* Texture = UTexture2D::CreateTransient(Size, Size, PF_B8G8R8A8, NAME_None, MakeArrayView(Pixels));
+			if (Texture)
+			{
+				Texture->Filter = TF_Nearest;
+				Texture->AddressX = TA_Clamp;
+				Texture->AddressY = TA_Clamp;
+				Texture->SRGB = false;
+				Texture->NeverStream = true;
+				Texture->UpdateResource();
+			}
+			PuffTextures.Add(Texture);
 		}
 	}
+}
 
-	PuffTexture = UTexture2D::CreateTransient(Size, Size, PF_B8G8R8A8, NAME_None, MakeArrayView(Pixels));
-	if (PuffTexture)
+UTexture2D* AGunSmoke::GetPuffTexture(int32 Shape, float Opacity) const
+{
+	const int32 Level = FMath::Min(FMath::RoundToInt(Opacity * DitherLevels), DitherLevels);
+	if (Level <= 0 || NumShapes <= 0)
 	{
-		PuffTexture->Filter = bPixelated ? TF_Nearest : TF_Bilinear;
-		PuffTexture->AddressX = TA_Clamp;
-		PuffTexture->AddressY = TA_Clamp;
-		PuffTexture->SRGB = false;
-		PuffTexture->UpdateResource();
+		return nullptr;
 	}
+	const int32 Index = FMath::Clamp(Shape, 0, NumShapes - 1) * DitherLevels + Level - 1;
+	return PuffTextures.IsValidIndex(Index) ? PuffTextures[Index].Get() : nullptr;
 }
 
 void AGunSmoke::Emit(const FGunSmokePuffs& Kind, int32 Count, const FVector& Location, const FVector& Direction, const FVector& SourceVelocity, float Strength)
@@ -122,8 +172,10 @@ void AGunSmoke::Emit(const FGunSmokePuffs& Kind, int32 Count, const FVector& Loc
 		Puff.Density = Kind.Density * Strength * FMath::FRandRange(0.8f, 1.2f);
 		Puff.Buoyancy = Kind.Buoyancy * FMath::FRandRange(0.8f, 1.2f);
 		Puff.CoolTime = Kind.CoolTime;
-		Puff.Roll = FMath::FRandRange(0.f, UE_TWO_PI);
-		Puff.RollSpeed = FMath::FRandRange(-MaxRollSpeed, MaxRollSpeed);
+		Puff.Shape = FMath::RandHelper(FMath::Max(NumShapes, 1));
+		Puff.Quarter = FMath::RandHelper(4);
+		// Shows at once, at its fresh look (no wait for the next animation step).
+		UpdateLook(Puff);
 
 		if (Puffs.Num() < Limit)
 		{
@@ -143,7 +195,28 @@ void AGunSmoke::Emit(const FGunSmokePuffs& Kind, int32 Count, const FVector& Loc
 		Puffs[Oldest] = Puff;
 	}
 
-	SetActorTickEnabled(true);
+	if (!IsActorTickEnabled())
+	{
+		PendingTime = 0.f;
+		SetActorTickEnabled(true);
+	}
+}
+
+void AGunSmoke::UpdateLook(FPuff& Puff) const
+{
+	// Spreads out from StartRadius toward EndRadius; the same smoke over a bigger puff is thinner
+	// with the square of the radius (Beer-Lambert: opacity = 1 - e^-depth).
+	Puff.Radius = Puff.EndRadius + (Puff.StartRadius - Puff.EndRadius) * FMath::Exp(-Puff.Age / Puff.GrowTime);
+	const float Depth = Puff.Density * FMath::Square(Puff.StartRadius / Puff.Radius);
+	float Opacity = (1.f - FMath::Exp(-Depth)) * MaxOpacity;
+
+	// A stepped puff pops in, like an old sprite; a smooth one fades in so it doesn't.
+	if (AnimationRate <= 0.f)
+	{
+		Opacity *= FMath::Clamp(Puff.Age / FadeInTime, 0.f, 1.f);
+	}
+	Opacity *= FMath::Clamp((1.f - Puff.Age / Puff.Life) / FadeOutShare, 0.f, 1.f);
+	Puff.Opacity = Opacity;
 }
 
 void AGunSmoke::Simulate(FPuff& Puff, float DeltaSeconds, float Time, const FCollisionQueryParams* Query) const
@@ -187,7 +260,6 @@ void AGunSmoke::Simulate(FPuff& Puff, float DeltaSeconds, float Time, const FCol
 	}
 
 	Puff.Location = End;
-	Puff.Roll += Puff.RollSpeed * DeltaSeconds;
 }
 
 UStaticMeshComponent* AGunSmoke::GetPuffComponent(int32 Index)
@@ -212,13 +284,13 @@ UStaticMeshComponent* AGunSmoke::GetPuffComponent(int32 Index)
 		UMaterialInstanceDynamic* Material = PuffMaterial ? UMaterialInstanceDynamic::Create(PuffMaterial, this) : nullptr;
 		if (Material)
 		{
-			Material->SetTextureParameterValue(TextureParameter, PuffTexture);
 			Material->SetScalarParameterValue(OpacityFromTextureParameter, 1.f);
 			Component->SetMaterial(0, Material);
 		}
 
 		PuffComponents.Add(Component);
 		PuffMaterials.Add(Material);
+		SlotTextures.Add(nullptr);
 	}
 	return PuffComponents[Index];
 }
@@ -227,65 +299,80 @@ void AGunSmoke::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	const float Time = GetWorld()->GetTimeSeconds();
+	// Step the motion and look, every frame or at AnimationRate.
+	PendingTime = FMath::Min(PendingTime + DeltaSeconds, MaxTickTime);
+	const float Interval = AnimationRate > 0.f ? 1.f / AnimationRate : 0.f;
+	const float StepTime = Interval > 0.f ? Interval * FMath::FloorToFloat(PendingTime / Interval) : PendingTime;
 
-	// Puffs don't catch on the shooter (nor the gun, which has no collision).
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GunSmoke), /*bTraceComplex=*/false);
-	QueryParams.AddIgnoredActor(this);
-	if (GetOwner())
+	if (StepTime > 0.f)
 	{
-		QueryParams.AddIgnoredActor(GetOwner());
+		PendingTime -= StepTime;
+		const float Time = GetWorld()->GetTimeSeconds();
+
+		// Puffs don't catch on the shooter (nor the gun, which has no collision).
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(GunSmoke), /*bTraceComplex=*/false);
+		QueryParams.AddIgnoredActor(this);
+		if (GetOwner())
+		{
+			QueryParams.AddIgnoredActor(GetOwner());
+		}
+
+		const int32 Steps = FMath::Clamp(FMath::CeilToInt(StepTime / MaxStep), 1, MaxSteps);
+		const float Step = StepTime / Steps;
+		for (int32 i = Puffs.Num() - 1; i >= 0; --i)
+		{
+			FPuff& Puff = Puffs[i];
+			for (int32 s = 0; s < Steps; ++s)
+			{
+				Simulate(Puff, Step, Time, bCollide ? &QueryParams : nullptr);
+				Puff.Age += Step;
+			}
+			if (Puff.Age >= Puff.Life)
+			{
+				Puffs.RemoveAtSwap(i, EAllowShrinking::No);
+				continue;
+			}
+			UpdateLook(Puff);
+		}
 	}
 
-	const int32 Steps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxStep), 1, MaxSteps);
-	const float Step = DeltaSeconds / Steps;
-	for (int32 i = Puffs.Num() - 1; i >= 0; --i)
-	{
-		FPuff& Puff = Puffs[i];
-		for (int32 s = 0; s < Steps; ++s)
-		{
-			Simulate(Puff, Step, Time, bCollide ? &QueryParams : nullptr);
-			Puff.Age += Step;
-		}
-		if (Puff.Age >= Puff.Life)
-		{
-			Puffs.RemoveAtSwap(i, EAllowShrinking::No);
-		}
-	}
-
-	// Draw: slot i shows Puffs[i], facing the camera.
+	// Draw every frame: slot i shows Puffs[i], upright on screen, facing the camera.
 	const APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
 	const FVector CameraLocation = CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector;
+	const FVector CameraUp = CameraManager ? CameraManager->GetCameraRotation().Quaternion().GetUpVector() : FVector::UpVector;
 
 	for (int32 i = 0; i < Puffs.Num(); ++i)
 	{
 		const FPuff& Puff = Puffs[i];
-
-		// Spreads out from StartRadius toward EndRadius; the same smoke over a bigger puff is thinner
-		// with the square of the radius (Beer-Lambert: opacity = 1 - e^-depth).
-		const float Radius = Puff.EndRadius + (Puff.StartRadius - Puff.EndRadius) * FMath::Exp(-Puff.Age / Puff.GrowTime);
-		const float Depth = Puff.Density * FMath::Square(Puff.StartRadius / Radius);
-		float Opacity = (1.f - FMath::Exp(-Depth)) * MaxOpacity;
-
 		const FVector ToCamera = CameraLocation - Puff.Location;
 		const float Distance = ToCamera.Size();
-		Opacity *= FMath::Clamp(Puff.Age / FadeInTime, 0.f, 1.f);
-		Opacity *= FMath::Clamp((1.f - Puff.Age / Puff.Life) / FadeOutShare, 0.f, 1.f);
-		Opacity *= FMath::SmoothStep(NearFadeDistance, NearFadeDistance + Radius, Distance);
 
-		const FVector Normal = Distance > UE_KINDA_SMALL_NUMBER ? ToCamera / Distance : FVector::UpVector;
-		const FQuat Facing = FQuat(Normal, Puff.Roll) * FRotationMatrix::MakeFromZ(Normal).ToQuat();
+		// Dissolves (dither) as the camera comes close, so it never cuts at the near plane.
+		const float Opacity = Puff.Opacity * FMath::SmoothStep(NearFadeDistance, NearFadeDistance + Puff.Radius, Distance);
+		UTexture2D* Texture = GetPuffTexture(Puff.Shape, Opacity);
 
 		UStaticMeshComponent* Component = GetPuffComponent(i);
-		Component->SetWorldTransform(FTransform(Facing, Puff.Location, FVector(Radius * 2.f / PuffMeshSize)));
+		if (!Texture)
+		{
+			// Too thin for a single dither pixel.
+			Component->SetVisibility(false);
+			continue;
+		}
+
+		const FVector Normal = Distance > UE_KINDA_SMALL_NUMBER ? ToCamera / Distance : FVector::UpVector;
+		const FQuat Facing = FQuat(Normal, Puff.Quarter * UE_HALF_PI) * FRotationMatrix::MakeFromZX(Normal, CameraUp).ToQuat();
+		Component->SetWorldTransform(FTransform(Facing, Puff.Location, FVector(Puff.Radius * 2.f / PuffMeshSize)));
+
 		if (UMaterialInstanceDynamic* Material = PuffMaterials[i])
 		{
-			Material->SetVectorParameterValue(TintParameter, FLinearColor(Color.R, Color.G, Color.B, Opacity));
+			if (SlotTextures[i] != Texture)
+			{
+				Material->SetTextureParameterValue(TextureParameter, Texture);
+				SlotTextures[i] = Texture;
+			}
+			Material->SetVectorParameterValue(TintParameter, FLinearColor(Color.R, Color.G, Color.B, 1.f));
 		}
-		if (i >= NumVisible)
-		{
-			Component->SetVisibility(true);
-		}
+		Component->SetVisibility(true);
 	}
 
 	for (int32 i = Puffs.Num(); i < NumVisible; ++i)

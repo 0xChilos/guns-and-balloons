@@ -87,13 +87,18 @@ struct FGunSmokePuffs
 
 /**
  * Simulates and draws the smoke of one gun in the world (not on the first-person mesh, so the player
- * moves through it and it stays behind). Every puff is a soft camera-facing sprite moved by physics:
+ * moves through it and it stays behind). Every puff is a camera-facing sprite moved by physics:
  * quadratic + linear air drag relative to the Wind, buoyancy while hot, a shared turbulence field, and
  * collision with the world; it spreads out and thins (Beer-Lambert) as it mixes with the air.
  *
+ * Drawn in the game's PS1 look (docs/art-style.md): a small blocky blob, flat two-tone (light core,
+ * darker rim), no smooth alpha - a thinner puff is a 4x4 Bayer dither pattern cut out of it, so it
+ * breaks up into pixels as it fades. Puffs stay upright (a random quarter turn) and move at a low
+ * AnimationRate, like old sprite effects.
+ *
  * Spawned by UGunComponent at BeginPlay; the gun decides where and when to emit (Emit). Needs no assets:
- * the puff texture is generated at runtime, drawn on the engine plane with the engine's translucent
- * pass-through material. Make a Blueprint child to tune it and set it as the gun's SmokeClass.
+ * the dithered puff textures are generated at runtime, drawn on the engine plane with the engine's
+ * masked pass-through material. Make a Blueprint child to tune it and set it as the gun's SmokeClass.
  */
 UCLASS()
 class GUNSANDBALLOONS_API AGunSmoke : public AActor
@@ -153,9 +158,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look")
 	FLinearColor Color = FLinearColor(0.78f, 0.76f, 0.72f);
 
-	/** Opacity cap of a single puff, however thick. */
+	/** Brightness of a puff's rim relative to its core (flat two-tone shading). 1 = one flat colour. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float RimShade = 0.78f;
+
+	/** Opacity cap of a single puff, however thick: the share of its pixels drawn (dither). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float MaxOpacity = 0.75f;
+	float MaxOpacity = 0.85f;
 
 	/** Last share of its life over which a puff fades out. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "0.01", ClampMax = "1.0"))
@@ -169,21 +178,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "1", ClampMax = "256"))
 	int32 MaxPuffs = 64;
 
-	/** Size (px) of the generated puff texture. Small and Nearest-filtered, to match the pixel-art look. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look", meta = (ClampMin = "8", ClampMax = "256"))
-	int32 TextureSize = 32;
+	/** Size (px) of the generated puff textures. Small and Nearest-filtered: blocky, PS1-like. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look", meta = (ClampMin = "8", ClampMax = "64"))
+	int32 TextureSize = 16;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look")
-	bool bPixelated = true;
+	/** How many different blob shapes the puffs pick from at random. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look", meta = (ClampMin = "1", ClampMax = "8"))
+	int32 ShapeVariants = 4;
+
+	/**
+	 * Updates per second of the puffs' motion, size and fade (they still face the camera every frame).
+	 * Low = choppy, old-sprite motion. 0 = every frame.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "0.0", Units = "Hertz"))
+	float AnimationRate = 15.f;
 
 	/** Quad each puff is drawn on (faces the camera). 100x100cm, facing +Z, like /Engine/BasicShapes/Plane. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look")
 	TObjectPtr<UStaticMesh> PuffMesh;
 
 	/**
-	 * Translucent material of the puffs. Takes the generated texture as "SlateUI" and colour and opacity
-	 * as "TintColorAndOpacity" (the engine's Widget3DPassThrough_Translucent). A custom one must use the
-	 * same parameter names.
+	 * Unlit masked material of the puffs. Takes the generated texture as "SlateUI" (shade in RGB,
+	 * dithered cut-out in alpha) and the colour as "TintColorAndOpacity" (the engine's
+	 * Widget3DPassThrough_Masked). A custom one must use the same parameter names.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look")
 	TObjectPtr<UMaterialInterface> PuffMaterial;
@@ -204,9 +221,20 @@ private:
 		float Density;
 		float Buoyancy;
 		float CoolTime;
-		float Roll;
-		float RollSpeed;
+		/** Which generated blob shape it shows. */
+		int32 Shape;
+		/** Turn on screen, in quarter turns (0-3). */
+		int32 Quarter;
+		/** Look as of the last animation step: radius (cm) and opacity before the near-camera fade. */
+		float Radius;
+		float Opacity;
 	};
+
+	/** Radius and opacity of a puff for its current age (stored on it). */
+	void UpdateLook(FPuff& Puff) const;
+
+	/** The dithered texture for a shape at an opacity, or null when nothing of it would show. */
+	UTexture2D* GetPuffTexture(int32 Shape, float Opacity) const;
 
 	/** Moves one puff on by DeltaSeconds; Query (null = no collision) is what it may bump into. */
 	void Simulate(FPuff& Puff, float DeltaSeconds, float Time, const FCollisionQueryParams* Query) const;
@@ -214,8 +242,8 @@ private:
 	/** A puff sprite: the pooled component for slot Index, created on first use. */
 	UStaticMeshComponent* GetPuffComponent(int32 Index);
 
-	/** The soft, lumpy round puff the sprites show (white, density in alpha). */
-	void CreatePuffTexture();
+	/** The blocky puff textures: per shape, one per dither level (two-tone grey, cut-out in alpha). */
+	void CreatePuffTextures();
 
 	TArray<FPuff> Puffs;
 
@@ -229,8 +257,18 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMaterialInstanceDynamic>> PuffMaterials;
 
+	/** Shape-major: [Shape * DitherLevels + Level - 1] draws Level / DitherLevels of the puff's pixels. */
 	UPROPERTY(Transient)
-	TObjectPtr<UTexture2D> PuffTexture;
+	TArray<TObjectPtr<UTexture2D>> PuffTextures;
+
+	/** Texture each slot's material shows now, so it is only set when it changes. */
+	TArray<UTexture2D*> SlotTextures;
+
+	/** Shapes PuffTextures was made with. */
+	int32 NumShapes = 0;
+
+	/** Time (s) not yet stepped (AnimationRate). */
+	float PendingTime = 0.f;
 
 	/** Slots shown last tick (the rest are already hidden). */
 	int32 NumVisible = 0;
