@@ -1,4 +1,4 @@
-You are connected to my Unreal Engine 5 editor (project "MyProject"). Give the whole game a PS1-era "oily, gritty" look: dark, sepia-green, low resolution, ordered dither, film grain and optional scanlines, like the game The Oily Depths. Work through the steps in order and verify each one. If something can't be done through your tools, give me exact manual steps for it. Put assets in /Game/PostProcess.
+You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Give the whole game a PS1-era "oily, gritty" look: dark, sepia-green, low resolution, ordered dither, film grain and optional scanlines, like the game The Oily Depths. Work through the steps in order and verify each one. If something can't be done through your tools, give me exact manual steps for it. Put assets in /Game/PostProcess.
 
 ## 1. Post-process material: PPM_OilyDepths
 - Material Domain = Post Process.
