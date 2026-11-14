@@ -48,11 +48,11 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | Asset | What | Collision |
 |---|---|---|
 | SM_House_Terrace_A/B/C, SM_Shop_Corner, SM_Warehouse, SM_Gasholder, SM_Lamppost | Short buildings 10–19 m (lit shop windows and lamps use the glow slot) | none |
-| SM_Church | 41 m spire. Balcony on the tower front at 16 m = loot_01 | UCX ×3 |
+| SM_Church | 41 m spire. Balcony at the top of the tower, just under the belfry (22.6 m) = loot_01 | UCX ×3 |
 | SM_Factory_A | Sawtooth hall, 2 chimneys (32 / 28 m), glowing skylights. Smoke from SOCKET_smoke_1 and SOCKET_smoke_2 (the chimney tops). A railed service platform on each chimney = loot_01/02 | UCX ×5 |
 | SM_Factory_B | Brick block, 40 m chimney, water tank, glowing furnace. Smoke from SOCKET_smoke_1. loot_01 on the chimney deck at 30 m, loot_02 on the roof | UCX ×3 |
-| SM_ClockTower | 64 m clock tower, glowing clock faces. Own texture. Balconies at 24 m and 36 m and the railed belfry ledge at 49 m = loot_01..03 | UCX ×2 |
-| SM_Tower_Office_A / _B | 51 m / 61 m tall buildings. Own textures. A: 3 balconies (18, 32, 40 m). B: 2 spots on the railed roof terrace at 22 m and a balcony at 36 m. loot_01..03 each | UCX ×2 each |
+| SM_ClockTower | 64 m clock tower, glowing clock faces. Own texture. Two balconies at the top of the shaft just under the clock faces (40.8 m) and the railed belfry ledge at 49 m = loot_01..03 | UCX ×2 |
+| SM_Tower_Office_A / _B | 51 m / 61 m tall buildings. Own textures. Balconies on the top floor, on 3 sides: A at 43.6 m (under the cornice), B at 45.6 m (under the mansard). loot_01..03 each | UCX ×2 each |
 | SM_JammerTower | 80 m giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3 (lights), jam (effect origin), loot_01/02 on the two platforms, **dish** (top of the mast). Own texture | UCX ×2 |
 | SM_JammerDish | Rotating satellite dish that sits on SOCKET_dish: turntable, yoke, 7 m copper bowl tilted up, feed struts, glowing violet emitter (glow slot) and counterweight. Pivot = turntable base, rotates around Z. Socket emitter. **Shooting it down stops the jammer** | UCX ×2 (own collision, separate from the tower) |
 

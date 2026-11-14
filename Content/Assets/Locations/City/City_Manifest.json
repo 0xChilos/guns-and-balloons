@@ -248,8 +248,8 @@
   "category": "Obstacle",
   "tris": 1682,
   "size_m": [
-   10.73,
-   10.73,
+   10.43,
+   10.43,
    64.5
   ],
   "texture": "T_City_ClockTower.png",
@@ -279,7 +279,7 @@
   "category": "Obstacle",
   "tris": 516,
   "size_m": [
-   17.26,
+   16.86,
    17.35,
    51.2
   ],
@@ -307,10 +307,10 @@
   "file": "SM_Tower_Office_B.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 368,
+  "tris": 608,
   "size_m": [
-   20.6,
-   14.73,
+   20.73,
+   14.86,
    61.0
   ],
   "texture": "T_City_TowerB.png",

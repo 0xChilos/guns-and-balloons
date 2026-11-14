@@ -874,7 +874,7 @@ box("Door", (2.0, 0.2, 3.6), "WoodDark", loc=(0, -14.05, 1.8))
 ucx_box((6, 6, 25), (0, -11, 12.5))
 ucx_prism(4, 4.2, 0.1, 24.9, 41.0, c=(0, -11))
 ucx_box((10, 22, 16), (0, 2, 8))
-balcony("Balc", (0, -14), (0, -1), 2.6, 16.0, slab="StoneDark")          # bell-ringer's balcony on the tower front
+balcony("Balc", (0, -14), (0, -1), 2.6, 22.6, slab="StoneDark")          # bell-ringer's balcony at the top of the tower, under the belfry
 
 asset("SM_Warehouse", "City", "City_Props", 26, place=dict(density=25, scale=(0.9, 1.1), spacing=8, yaw=False, align=True, cluster=3, street=True))
 box("Hall", (20, 12, 8), "FacadeSoot", loc=(0, 0, 4))
@@ -986,8 +986,8 @@ for sx in (-1, 1):
 prism("Spire", 4, 5.6, 0, 54, 62.0, "Copper", phase=math.pi / 4)
 bar("Finial", (0, 0, 61.5), (0, 0, 64.5), 0.12, "Brass", n=6)
 ucx_box((10, 10, 54), (0, 0, 27))
-balcony("BalcFront", (0, -4.3), (0, -1), 3.0, 24.3)
-balcony("BalcSide", (4.3, 0), (1, 0), 3.0, 36.3)
+balcony("BalcFront", (0, -4.0), (0, -1), 3.0, 40.8)                   # top of the shaft, just under the clock faces
+balcony("BalcSide", (4.0, 0), (1, 0), 3.0, 40.8)
 railing("Ledge", [(-4.5, -4.5), (4.5, -4.5), (4.5, 4.5), (-4.5, 4.5), (-4.5, -4.5)], 49.0)   # walk round the belfry
 loot((2.5, -4.2, 49.0), -math.pi / 2)
 ucx_prism(4, 5.6, 0.1, 54, 62.0)
@@ -1005,9 +1005,9 @@ for x in (-4, 0):
 box("Entrance", (5, 0.4, 4.5), "Dark", loc=(0, -8.1, 2.25))
 box("Canopy", (6, 1.5, 0.3), "IronDark", loc=(0, -8.6, 4.7))
 ucx_box((16, 16, 46.4), (0, 0, 23.2))
-balcony("BalcA", (0, -7.4), (0, -1), 3.4, 18.35)
-balcony("BalcB", (7.4, 0), (1, 0), 3.4, 32.35)
-balcony("BalcC", (-7.0, 2.0), (-1, 0), 3.4, 40.0)
+balcony("BalcA", (0, -7.0), (0, -1), 3.4, 43.6)                       # top floor, just under the cornice
+balcony("BalcB", (7.0, 0), (1, 0), 3.4, 43.6)
+balcony("BalcC", (-7.0, 2.0), (-1, 0), 3.4, 43.6)
 ucx_pts([(-7.4, -7.4, 46), (7.4, -7.4, 46), (7.4, 7.4, 46), (-7.4, 7.4, 46), (-2, -2, 53), (2, -2, 53), (2, 2, 53), (-2, 2, 53)])
 
 asset("SM_Tower_Office_B", "City", "City_TowerB", 24, row=1, cat="Obstacle", place=dict(density=6, scale=(0.9, 1.15), spacing=60, yaw=False, align=True, cluster=2),
@@ -1026,9 +1026,9 @@ box("Entrance", (4, 0.4, 4.5), "Dark", loc=(4, -7.1, 2.25))
 ucx_box((20, 14, 22.3), (0, 0, 11.15))
 railing("Terrace", [(5.2, -6.9), (9.9, -6.9), (9.9, 6.9), (5.2, 6.9)], 22.3)       # roof terrace on the lower block
 box("TerraceShed", (1.6, 2.0, 2.2), "FacadeSoot", loc=(8.6, 5.4, 23.4))
-loot((7.6, -3.5, 22.3), 0.0)
-loot((7.6, 1.5, 22.3), 0.0)
-balcony("BalcUpper", (-2, -6), (0, -1), 3.0, 36.0)
+balcony("BalcTopF", (-2, -6), (0, -1), 3.0, 45.6)                    # top floor of the upper block, under the mansard
+balcony("BalcTopB", (-2, 6), (0, 1), 3.0, 45.6)
+balcony("BalcTopS", (-9, 0), (-1, 0), 3.0, 45.6)
 ucx_box((14.6, 12.6, 31.6), (-2, 0, 38))
 
 asset("SM_JammerTower", "City", "City_Jammer", 18, row=1, cat="Obstacle", place=dict(density=2, scale=(0.9, 1.1), spacing=250, yaw=True, align=True, cluster=1),
