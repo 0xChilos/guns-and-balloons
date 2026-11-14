@@ -11,7 +11,7 @@ class UStaticMeshComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoCrateOpened, AAmmoCrate*, Crate, APawn*, InstigatorPawn);
 
 /**
- * An ammo crate the player clicks (LMB) to reload: every click takes one round for the revolver
+ * An ammo crate the player clicks (RMB) to reload: every click takes one round for the gun in hand
  * (AmmoSupply); the first click also opens the lid. How many rounds it holds is set on AmmoSupply.
  *
  * Holds two visual states at the same spot:
@@ -69,7 +69,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> OpenLid;
 
-	/** One round per click; the pawn uses it directly (see AFirstPersonCameraPawn::TryInteract). */
+	/** One round per click; the pawn uses it directly (see AFirstPersonCameraPawn::TryTakeRound). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UAmmoSupplyComponent> AmmoSupply;
 
