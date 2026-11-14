@@ -4,11 +4,14 @@
 #include "Engine/SkeletalMesh.h"
 #include "FirstPersonCameraPawn.h"
 #include "GameFramework/Actor.h"
-#include "UObject/ConstructorHelpers.h"
+#include "GunComponent.h"
+#include "RevolverComponent.h"
 
 UWeaponRackComponent::UWeaponRackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	ItemClass = URevolverComponent::StaticClass();
+	// Its mesh is the item's own, set in RefreshDisplay.
 	DisplayMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("DisplayMesh"));
 	DisplayMesh->SetupAttachment(this);
 	DisplayMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -17,8 +20,6 @@ UWeaponRackComponent::UWeaponRackComponent()
 	DisplayMesh->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	DisplayMesh->bPauseAnims = true;
 	DisplayMesh->SetVisibility(false);
-	static ConstructorHelpers::FObjectFinder<USkeletalMesh> Mesh(TEXT("/Game/Assets/Revolver/SK_Pax.SK_Pax"));
-	if (Mesh.Succeeded()) DisplayMesh->SetSkeletalMeshAsset(Mesh.Object);
 	InteractShape = CreateDefaultSubobject<UBoxComponent>(TEXT("InteractShape"));
 	InteractShape->SetupAttachment(this);
 	InteractShape->SetBoxExtent(FVector(25.f, 10.f, 15.f)); // Prototype: fit bounds in editor.
@@ -44,7 +45,7 @@ void UWeaponRackComponent::OnRegister()
 			}
 		}
 	}
-	DisplayMesh->SetRelativeLocationAndRotation(DisplayOffset, DisplayRotation);
+	RefreshDisplay();
 	DisplayMesh->SetVisibility(HasBegunPlay() ? bHasWeapon : bStartsWithWeapon);
 	InteractShape->SetCollisionResponseToAllChannels(ECR_Ignore);
 	InteractShape->SetCollisionResponseToChannel(InteractTraceChannel, ECR_Block);
@@ -52,9 +53,37 @@ void UWeaponRackComponent::OnRegister()
 	if (!InteractShape->IsRegistered()) InteractShape->RegisterComponent();
 }
 
+const UGunComponent* UWeaponRackComponent::GetItemDefaults() const
+{
+	return GetDefault<AFirstPersonCameraPawn>()->FindGun(ItemClass);
+}
+
+void UWeaponRackComponent::RefreshDisplay()
+{
+	// The same mesh the player ends up holding: taken from the pawn's own item of this kind.
+	const USkeletalMeshComponent* ItemMesh = GetDefault<AFirstPersonCameraPawn>()->GetGunMesh(GetItemDefaults());
+	USkeletalMesh* Asset = ItemMesh ? ItemMesh->GetSkeletalMeshAsset() : nullptr;
+	if (Asset && DisplayMesh->GetSkeletalMeshAsset() != Asset)
+	{
+		DisplayMesh->SetSkeletalMeshAsset(Asset);
+	}
+	DisplayMesh->SetRelativeLocationAndRotation(DisplayOffset, DisplayRotation);
+	if (Asset && bFitInteractShape)
+	{
+		const FBoxSphereBounds ItemBounds = Asset->GetBounds();
+		InteractShape->SetRelativeLocationAndRotation(DisplayOffset + DisplayRotation.RotateVector(ItemBounds.Origin), DisplayRotation);
+		InteractShape->SetBoxExtent(ItemBounds.BoxExtent + FVector(InteractPadding), /*bUpdateOverlaps=*/false);
+	}
+}
+
 void UWeaponRackComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	// The item's materials are FBX-importer instances that lose their texture on reimport: force it, as the item in hand does.
+	if (const UGunComponent* Item = GetItemDefaults())
+	{
+		Item->ApplyWeaponTextureTo(DisplayMesh);
+	}
 	SetHasWeapon(bStartsWithWeapon);
 }
 void UWeaponRackComponent::SetHasWeapon(bool bNewHasWeapon)
@@ -75,7 +104,9 @@ void UWeaponRackComponent::Interact_Implementation(APawn* InstigatorPawn)
 {
 	if (AFirstPersonCameraPawn* Pawn = Cast<AFirstPersonCameraPawn>(InstigatorPawn))
 	{
-		if (Pawn->GetHandState() == EPlayerHandState::Armed) Pawn->HolsterWeapon(this);
-		else if (Pawn->IsHandEmpty()) Pawn->DrawWeapon(this);
+		// Each call checks the hand state itself, so a click mid-transition or mid-reload does nothing.
+		if (Pawn->IsHandEmpty()) Pawn->DrawWeapon(this);
+		else if (bHasWeapon) Pawn->SwapWeapon(this);
+		else Pawn->HolsterWeapon(this);
 	}
 }
