@@ -6,6 +6,7 @@
 #include "Materials/MaterialInterface.h"
 #include "NemesisAirship.h"
 #include "NemesisPlaceholder.h"
+#include "NemesisSearchlight.h"
 #include "NemesisTargetSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -16,6 +17,7 @@ ANemesisBeacon::ANemesisBeacon()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Iron(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Iron.MI_Nemesis_Iron"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Glow(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Glow.MI_Nemesis_Glow"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> BeamMesh(TEXT("/Game/Assets/Enemies/FBX/SM_LightBeam.SM_LightBeam"));
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -39,9 +41,12 @@ ANemesisBeacon::ANemesisBeacon()
 	Beam = CreateDefaultSubobject<USpotLightComponent>(TEXT("Beam"));
 	Beam->SetupAttachment(LampPivot);
 	Beam->SetRelativeLocation(FVector(70.f, 0.f, 0.f));
-	Beam->SetLightColor(FLinearColor(1.f, 0.9f, 0.6f));
+	Beam->SetLightColor(NemesisSearchlight::Searching);
 	Beam->SetIntensity(5000000.f);
 	Beam->SetCastShadows(false);
+
+	BeamCone = NemesisSearchlight::CreateBeam(this, LampPivot, BeamMesh.Object, TEXT("BeamCone"));
+	BeamCone->SetRelativeLocation(FVector(70.f, 0.f, 0.f));
 }
 
 void ANemesisBeacon::OnConstruction(const FTransform& Transform)
@@ -50,15 +55,27 @@ void ANemesisBeacon::OnConstruction(const FTransform& Transform)
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
 	Tower->SetRelativeScale3D(FVector(2.f, 2.f, TowerHeight / 100.f));
 	LampPivot->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + 60.f));
-	Beam->SetAttenuationRadius(Range);
-	Beam->SetOuterConeAngle(BeamAngle * 0.5f);
-	Beam->SetInnerConeAngle(BeamAngle * 0.35f);
+	NemesisSearchlight::Configure(Beam, BeamCone, BeamAngle, Range);
+	BeamPitch = SearchPitch;
+	LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
 }
 
 void ANemesisBeacon::BeginPlay()
 {
 	Super::BeginPlay();
 	OnTakePointDamage.AddUniqueDynamic(this, &ANemesisBeacon::HandlePointDamage);
+	BeamPitch = SearchPitch;
+	NemesisSearchlight::SetColor(Beam, BeamCone, NemesisSearchlight::Searching);
+}
+
+void ANemesisBeacon::SetLocked(bool bLocked)
+{
+	if (bLocked == bLit) return;
+	bLit = bLocked;
+	LitTime = 0.f;
+	if (!bBroken) NemesisSearchlight::SetColor(Beam, BeamCone, bLit ? NemesisSearchlight::Locked : NemesisSearchlight::Searching);
+	UE_LOG(LogTemp, Log, TEXT("%s: %s"), *GetName(), bLit ? TEXT("locked on the balloon") : TEXT("lock lost"));
+	OnLitChanged(bLit);
 }
 
 bool ANemesisBeacon::IsBasketInBeam() const
@@ -91,46 +108,41 @@ void ANemesisBeacon::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (bBroken) return;
 
+	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
 	CooldownLeft = FMath::Max(0.f, CooldownLeft - DeltaSeconds);
-	if (bLit && CooldownLeft <= 0.f)
+	if (bLit && T && T->GetBalloon())
 	{
-		// Locked on: the beam follows the basket (within the sweep limits).
-		UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
-		const FVector To = GetActorTransform().InverseTransformVector(T->GetBasketLocation() - Lamp->GetComponentLocation());
-		const float WantYaw = FMath::Clamp(To.Rotation().Yaw, -SweepAngle, SweepAngle);
-		SweepYaw = FMath::FInterpConstantTo(SweepYaw, WantYaw, DeltaSeconds, TrackSpeed);
-	}
-	else
-	{
-		// Ping-pong sweep around the actor's forward.
-		SweepYaw += SweepDir * SweepSpeed * DeltaSeconds;
-		if (FMath::Abs(SweepYaw) >= SweepAngle)
+		// Locked for good: the red beam follows the basket in yaw and pitch, no sweep limits.
+		const FVector To = GetActorTransform().InverseTransformVector(T->GetBasketLocation() - LampPivot->GetComponentLocation());
+		const FRotator Now = FMath::RInterpConstantTo(FRotator(BeamPitch, SweepYaw, 0.f), To.Rotation(), DeltaSeconds, TrackSpeed);
+		BeamPitch = Now.Pitch;
+		SweepYaw = FRotator::NormalizeAxis(Now.Yaw);
+		LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
+
+		LitTime += DeltaSeconds;
+		const bool bInRange = FVector::DistSquared(T->GetBasketLocation(), Lamp->GetComponentLocation()) <= FMath::Square(Range);
+		if (bInRange && LitTime >= SpotTime && CooldownLeft <= 0.f)
 		{
-			SweepYaw = FMath::Clamp(SweepYaw, -SweepAngle, SweepAngle);
-			SweepDir = -SweepDir;
+			CooldownLeft = Cooldown;
+			ANemesisAirship* Airship = T->GetAirship();
+			const bool bLaunched = Airship && Airship->RequestCropDuster();
+			UE_LOG(LogTemp, Log, TEXT("%s: balloon spotted, crop duster %s"), *GetName(),
+				bLaunched ? TEXT("launched") : (Airship ? TEXT("not launched (limit)") : TEXT("not launched (no airship)")));
+			OnBalloonSpotted(bLaunched);
 		}
+		return;
 	}
-	LampPivot->SetRelativeRotation(FRotator(0.f, SweepYaw, 0.f));
 
-	const bool bNowLit = IsBasketInBeam();
-	if (bNowLit != bLit)
+	// Searching: ping-pong sweep around the actor's forward, beam tilted up by SearchPitch.
+	SweepYaw += SweepDir * SweepSpeed * DeltaSeconds;
+	if (FMath::Abs(SweepYaw) >= SweepAngle)
 	{
-		bLit = bNowLit;
-		OnLitChanged(bLit);
+		SweepYaw = FMath::Clamp(SweepYaw, -SweepAngle, SweepAngle);
+		SweepDir = -SweepDir;
 	}
-	LitTime = bLit ? LitTime + DeltaSeconds : 0.f;
-
-	if (bLit && LitTime >= SpotTime && CooldownLeft <= 0.f)
-	{
-		CooldownLeft = Cooldown;
-		LitTime = 0.f;
-		UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
-		ANemesisAirship* Airship = T ? T->GetAirship() : nullptr;
-		const bool bLaunched = Airship && Airship->RequestCropDuster();
-		UE_LOG(LogTemp, Log, TEXT("%s: balloon spotted, crop duster %s"), *GetName(),
-			bLaunched ? TEXT("launched") : (Airship ? TEXT("not launched (limit)") : TEXT("not launched (no airship)")));
-		OnBalloonSpotted(bLaunched);
-	}
+	BeamPitch = FMath::FInterpConstantTo(BeamPitch, SearchPitch, DeltaSeconds, TrackSpeed);
+	LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
+	if (IsBasketInBeam()) SetLocked(true);
 }
 
 void ANemesisBeacon::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,
@@ -138,8 +150,13 @@ void ANemesisBeacon::HandlePointDamage(AActor* DamagedActor, float InDamage, ACo
 {
 	if (bBroken || HitComponent != Lamp) return;
 	bBroken = true;
-	bLit = false;
+	if (bLit)
+	{
+		bLit = false;
+		OnLitChanged(false);
+	}
 	Beam->SetVisibility(false);
+	BeamCone->SetVisibility(false);
 	Lamp->SetVisibility(false);
 	NemesisCollision::None(Lamp);
 	UE_LOG(LogTemp, Log, TEXT("%s: lamp broken"), *GetName());

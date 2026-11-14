@@ -8,13 +8,14 @@ class USpotLightComponent;
 class UStaticMeshComponent;
 
 /**
- * Desert beacon (AI ворогів, 7.2). Placeholder cubes. A lamp on a tower sweeps a beam left and
- * right. If the basket stays in the beam for SpotTime, the beacon calls an extra crop duster from
- * the nemesis airship (outside its cooldown, still within its limit), then waits Cooldown. The
- * beacon does no damage itself. One hit on the lamp breaks it for good.
- * The beam is treated as a vertical fan: only the horizontal angle to the basket matters.
- * Once the beam touches the basket it locks on and follows it (a 15° beam sweeping at 20°/s would
- * cross the basket in 0.75 s, never reaching SpotTime); breaking the lamp in that second stops it.
+ * Desert beacon (AI ворогів, 7.2). Placeholder cubes. A lamp on a tower sweeps a visible YELLOW
+ * cone of light left and right. Detection treats the beam as a vertical fan: only the horizontal
+ * angle to the basket matters (plus range and line of sight).
+ * Once the beam touches the basket it locks for good: the light turns RED and follows the basket in
+ * yaw and pitch until the lamp is shot. While locked and the basket is within Range, after SpotTime
+ * and then every Cooldown it calls an extra crop duster from the nemesis airship (outside the
+ * airship's cooldown, still within its limit). The beacon does no damage itself.
+ * One hit on the lamp breaks it for good.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisBeacon : public AActor
@@ -29,7 +30,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Beacon")
 	bool IsBroken() const { return bBroken; }
 
-	/** The basket is in the beam (start/stop). Hook for an alarm sound. */
+	/** Locked on the balloon (red light). Stays true until the lamp is broken. */
+	UFUNCTION(BlueprintPure, Category = "Beacon")
+	bool IsLocked() const { return bLit; }
+
+	/** Locked on the balloon (true), or the lamp broke while locked (false). Hook for an alarm sound. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Beacon")
 	void OnLitChanged(bool bNowLit);
 
@@ -60,6 +65,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
 	TObjectPtr<USpotLightComponent> Beam;
 
+	/** Visible glowing cone of the beam. */
+	UPROPERTY(VisibleAnywhere, Category = "Beacon")
+	TObjectPtr<UStaticMeshComponent> BeamCone;
+
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "100"))
 	float TowerHeight = 1500.f;
 
@@ -78,11 +87,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float SweepSpeed = 20.f;
 
+	/** The searching beam is tilted up this much, degrees. TBD */
+	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "-30", ClampMax = "80"))
+	float SearchPitch = 8.f;
+
 	/** How fast the locked beam follows the basket, degrees/s. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float TrackSpeed = 60.f;
 
-	/** Seconds in the beam before the plane is called. */
+	/** Seconds locked before the first plane is called. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float SpotTime = 1.f;
 
@@ -96,7 +109,10 @@ private:
 
 	bool IsBasketInBeam() const;
 
+	void SetLocked(bool bLocked);
+
 	float SweepYaw = 0.f;
+	float BeamPitch = 0.f;
 	float SweepDir = 1.f;
 	float LitTime = 0.f;
 	float CooldownLeft = 0.f;
