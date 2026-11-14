@@ -75,6 +75,11 @@ void AFirstPersonCameraPawn::BeginPlay()
 
 	Super::BeginPlay();
 
+	SetupBalloonTickPrerequisite();
+}
+
+void AFirstPersonCameraPawn::SetupBalloonTickPrerequisite()
+{
 	// Riding on the balloon: its flight must move first, so this pawn sees the same frame's
 	// position (the parent yaw carried below stays in sync with the basket).
 	if (const AActor* Parent = GetAttachParentActor())
@@ -94,6 +99,7 @@ void AFirstPersonCameraPawn::HandleWeaponFired(bool bHit, const FHitResult& Hit)
 void AFirstPersonCameraPawn::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
+	SetupBalloonTickPrerequisite();
 
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC || !PC->IsLocalController())

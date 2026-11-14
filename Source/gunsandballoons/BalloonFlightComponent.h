@@ -50,13 +50,15 @@ public:
 	float GetSpeedometer01() const;
 
 protected:
+	static constexpr float DefaultMinSpeed = 50.f; // TBD: prototype value
+
 	/** Speed that maps to a full speedometer scale. 0 = use MaxSpeed. // TBD: prototype value */
 	UPROPERTY(EditAnywhere, Category = "Balloon|Speedometer", meta = (ClampMin = "0"))
 	float SpeedometerMaxSpeed = 0.f;
 
 	/** Slowest forward speed; the balloon never stops. Needs tuning: the design value is TBD (balloon-controls.md). // TBD: prototype value */
-	UPROPERTY(EditAnywhere, Category = "Balloon|Flight", meta = (ClampMin = "0"))
-	float MinSpeed = 50.f;
+	UPROPERTY(EditAnywhere, Category = "Balloon|Flight", meta = (ClampMin = "1"))
+	float MinSpeed = DefaultMinSpeed;
 
 	/** Fastest forward speed. Needs tuning: the design value is TBD (balloon-controls.md). // TBD: prototype value */
 	UPROPERTY(EditAnywhere, Category = "Balloon|Flight", meta = (ClampMin = "0"))

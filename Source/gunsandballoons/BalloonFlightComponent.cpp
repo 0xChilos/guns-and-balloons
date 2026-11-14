@@ -16,9 +16,10 @@ void UBalloonFlightComponent::BeginPlay()
 
 	if (MinSpeed <= 0.f)
 	{
-		MinSpeed = 50.f; // TBD: prototype value
+		const float RequestedMinSpeed = MinSpeed;
+		MinSpeed = DefaultMinSpeed;
 		UE_LOG(LogTemp, Warning, TEXT("%s: BalloonFlight MinSpeed %f is not positive, reset to %f."),
-			*GetNameSafe(GetOwner()), MinSpeed, MinSpeed);
+			*GetNameSafe(GetOwner()), RequestedMinSpeed, MinSpeed);
 	}
 
 	if (MaxSpeed < MinSpeed)

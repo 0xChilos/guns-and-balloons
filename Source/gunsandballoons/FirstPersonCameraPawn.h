@@ -177,6 +177,9 @@ protected:
 	float RecoilRecoverySpeed = 12.f;
 
 private:
+	/** Ensure the balloon moves before the rider reads its transform. */
+	void SetupBalloonTickPrerequisite();
+
 	float RecoilAlpha = 0.f;
 	/** 0 = rest pose, 1 = reload pose (linear; eased when applied). */
 	float ReloadPoseAlpha = 0.f;
