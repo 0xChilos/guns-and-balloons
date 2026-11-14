@@ -21,11 +21,6 @@ namespace
 	const FName HammerBones[] = { TEXT("hammer_R"), TEXT("hammer_L") };
 	/** The shell going in rides on this bone in both insert clips. */
 	const FName ShellLoadBone(TEXT("shell_load"));
-
-	float LengthOf(const UAnimSequenceBase* Anim)
-	{
-		return Anim ? Anim->GetPlayLength() : 0.f;
-	}
 }
 
 UShotgunComponent::UShotgunComponent()
@@ -344,8 +339,8 @@ float UShotgunComponent::ReloadRate() const
 	{
 		return ReloadPlayRate;
 	}
-	const float Clips = LengthOf(OpenAnim) + LengthOf(EjectRightAnim) + LengthOf(EjectLeftAnim)
-		+ LengthOf(InsertRightAnim) + LengthOf(InsertLeftAnim) + LengthOf(CloseAnim);
+	const float Clips = AnimLength(OpenAnim) + AnimLength(EjectRightAnim) + AnimLength(EjectLeftAnim)
+		+ AnimLength(InsertRightAnim) + AnimLength(InsertLeftAnim) + AnimLength(CloseAnim);
 	return Clips > 0.f ? Clips / ReloadTime : ReloadPlayRate;
 }
 
@@ -428,16 +423,16 @@ void UShotgunComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 			}
 			// The rest of the clip (trigger coming back) fits what is left of CycleTime: the other
 			// trigger can be pulled CycleTime after this one.
-			StateRate = RateForRestOfCycle(LengthOf(StateAnim) - StateTime, FiringElapsed, StateRate);
+			StateRate = RateForRestOfCycle(AnimLength(StateAnim) - StateTime, FiringElapsed, StateRate);
 		}
-		if (StateTime >= LengthOf(StateAnim))
+		if (StateTime >= AnimLength(StateAnim))
 		{
 			EnterIdle();
 		}
 		break;
 
 	case EShotgunState::Opening:
-		if (StateTime >= LengthOf(OpenAnim))
+		if (StateTime >= AnimLength(OpenAnim))
 		{
 			// Broken open: what is left of the shot's smoke drifts out of each fired barrel's breech.
 			TArray<FName, TInlineAllocator<NumBarrels>> SmokingBarrels;
@@ -467,7 +462,7 @@ void UShotgunComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 				OnCaseEjected.Broadcast();
 			}
 		}
-		if (StateTime >= LengthOf(StateAnim))
+		if (StateTime >= AnimLength(StateAnim))
 		{
 			ContinueReload();
 		}
@@ -481,7 +476,7 @@ void UShotgunComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 		break;
 
 	case EShotgunState::Inserting:
-		if (StateTime >= LengthOf(StateAnim))
+		if (StateTime >= AnimLength(StateAnim))
 		{
 			Barrels[ActiveBarrel] = EGunChamber::Live;
 			--QueuedRounds;
@@ -491,7 +486,7 @@ void UShotgunComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 		break;
 
 	case EShotgunState::Closing:
-		if (StateTime >= LengthOf(CloseAnim))
+		if (StateTime >= AnimLength(CloseAnim))
 		{
 			OnReloadFinished.Broadcast();
 			EnterIdle();
@@ -511,7 +506,7 @@ void UShotgunComponent::UpdatePose()
 	}
 
 	Anim->Sequence = StateAnim;
-	Anim->Time = State == EShotgunState::Open ? LengthOf(OpenAnim) : StateTime;
+	Anim->Time = State == EShotgunState::Open ? AnimLength(OpenAnim) : StateTime;
 
 	for (int32 i = 0; i < NumBarrels; ++i)
 	{

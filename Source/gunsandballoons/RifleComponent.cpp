@@ -13,11 +13,6 @@ namespace
 	const FName ChamberBone(TEXT("chamber"));
 	const FName ChamberSpentBone(TEXT("chamber_spent"));
 	const FName RoundLoadBone(TEXT("round_load"));
-
-	float LengthOf(const UAnimSequenceBase* Anim)
-	{
-		return Anim ? Anim->GetPlayLength() : 0.f;
-	}
 }
 
 URifleComponent::URifleComponent()
@@ -236,7 +231,7 @@ float URifleComponent::ReloadRate() const
 		return ReloadPlayRate;
 	}
 	// Opening and ejecting together are the whole opening clip.
-	const float Clips = LengthOf(OpenAnim) + LengthOf(InsertAnim) + LengthOf(CloseAnim);
+	const float Clips = AnimLength(OpenAnim) + AnimLength(InsertAnim) + AnimLength(CloseAnim);
 	return Clips > 0.f ? Clips / ReloadTime : ReloadPlayRate;
 }
 
@@ -320,14 +315,14 @@ void URifleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 			bShotDone = true;
 			Shoot();
 		}
-		if (StateTime >= LengthOf(FireAnim))
+		if (StateTime >= AnimLength(FireAnim))
 		{
 			EnterIdle();
 		}
 		break;
 
 	case ERifleState::Opening:
-		if (StateTime >= FMath::Min(ExtractStartTime, LengthOf(OpenAnim)))
+		if (StateTime >= FMath::Min(ExtractStartTime, AnimLength(OpenAnim)))
 		{
 			// The block is down: what is left of the shot's smoke drifts out past the fired case.
 			if (Chamber == EGunChamber::Spent)
@@ -349,7 +344,7 @@ void URifleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 				OnCaseEjected.Broadcast();
 			}
 		}
-		if (StateTime >= LengthOf(OpenAnim))
+		if (StateTime >= AnimLength(OpenAnim))
 		{
 			ContinueReload();
 		}
@@ -363,7 +358,7 @@ void URifleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 		break;
 
 	case ERifleState::Inserting:
-		if (StateTime >= LengthOf(InsertAnim))
+		if (StateTime >= AnimLength(InsertAnim))
 		{
 			Chamber = EGunChamber::Live;
 			bRoundQueued = false;
@@ -373,7 +368,7 @@ void URifleComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 		break;
 
 	case ERifleState::Closing:
-		if (StateTime >= LengthOf(CloseAnim))
+		if (StateTime >= AnimLength(CloseAnim))
 		{
 			OnReloadFinished.Broadcast();
 			EnterIdle();

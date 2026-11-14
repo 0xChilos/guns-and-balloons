@@ -96,14 +96,17 @@ The balloon's share of the sway is on the pawn (`BalloonSway*`: 1°, 0.8°, roll
 - **Limits:** sprites are unlit, masked and write depth, so a big puff touching a wall shows a hard line where it meets it (fits the style). The dither is in texture space, so its pixels grow with the puff; under TSR/TAA a fine pattern can shimmer: if it does, turn temporal AA off as part of the low-res post pass. No Niagara. Draw cost is one masked draw per puff; a fast double shotgun shot plus reloads fills about 60 slots.
 
 ## What the pawn does each tick
-1. Number keys `1`/`2`/`3` → `EquipGun(gun)`.
-2. If not swapping: trace from the camera (`InteractRange` 400, `InteractTraceChannel`) → `SetAimingAtAmmo(supply has rounds)`. **RMB** → `TryTakeRound()`. **LMB** → `TryInteract()`, otherwise `ActiveGun->PullTrigger()`. While swapping, `SetAimingAtAmmo(false)` and clicks are ignored.
-3. `UpdateLook` (mouse → control rotation, through `AddAimRotation`: pitch clamp, optional yaw limit; roll is kept, it belongs to the balloon sway).
+0. `UpdateHandState` (weapon rack, see below).
+1. Number keys `1`/`2`/`3` → `EquipGun(gun)`, only while `HandState == Armed`.
+2. If not swapping: trace from the camera (`InteractRange` 400, `InteractTraceChannel`) → `SetAimingAtAmmo(armed && supply has rounds)`. **RMB** (armed only) → `TryTakeRound()`. **LMB** → `TryBeginGrab()` (empty hand, `IGrabbable`), else `TryInteract()` (interactable components first, then the actor; each must pass `AcceptsHit`; ammo-supply actors are skipped, they are RMB), else, if armed, `ActiveGun->PullTrigger()`. While swapping, `SetAimingAtAmmo(false)` and clicks are ignored.
+3. Riding on the balloon, its yaw change since last tick is added to the aim (`AddAimRotation`), and the pawn ticks after the balloon's `UBalloonFlightComponent`. Then `UpdateHeldGrab` (mouse drags the held control), and `UpdateLook` only when nothing is held (mouse → control rotation, through `AddAimRotation`: pitch clamp, optional yaw limit; roll is kept, it belongs to the balloon sway).
 4. `UpdateAimMotion` moves the **aim itself**, and bullets follow it:
    - **Recoil:** `OnFired` adds the gun's `RollAimRecoil()` to a pending kick, applied at `AimKickSpeed` (30/s). Then the `AimRecoilRecovery` share eases back over about `AimRecoilRecoveryTime`.
    - **Sway:** Perlin noise per axis. The hand part comes from `GetHandSway()`, blended across swaps at `HandSwayBlendSpeed`; the balloon part from `BalloonSwayPitch/Yaw/Roll` and `BalloonSwaySpeed` on the pawn. Only the change since the last tick is applied, so it never drifts away and the mouse fights it.
 5. `UpdateWeaponSwap`: once `IsReadyToHolster()`, lower over `LowerTime`, then `SetEquipped(false)` on the old gun and `SetEquipped(true)` on the new one, then raise over `RaiseTime`. Picking the gun in hand mid-swap cancels the swap; picking another one redirects it.
-6. `UpdateWeaponSway`: places the active mesh at `Lerp(ViewOffset, ReloadViewOffset, smoothstep(reload blend))` + raise drop + look lag + idle bob + recoil kick (`OnFired` sets `RecoilAlpha = 1`).
+6. `UpdateWeaponSway`: places the active mesh at `Lerp(ViewOffset, ReloadViewOffset, smoothstep(reload blend))` + raise drop + look lag + idle bob + recoil kick (`OnFired` sets `RecoilAlpha = 1`). The drop is the larger of the swap raise and the rack lowering (`HandLowerAlpha`).
+
+**Weapon rack** (`UWeaponRackComponent`, from the balloon work): `EPlayerHandState` Armed → Holstering → Empty → Drawing → Armed. A rack click while armed calls `HolsterWeapon`, which only accepts the **revolver**, at rest (`IsReadyToHolster`, not reloading) and with no swap running. The gun lowers over `HolsterTime`, then `SetEquipped(false)` and the rack shows its Pax. A click with an empty hand calls `DrawWeapon`: `SetEquipped(true)` and the normal raise. Rounds and spent cases are kept. With an empty hand there is no hand sway, no number-key swap and no RMB loading. `InitialHandState = Empty` starts with the revolver on the rack.
 
 Camera: `FirstPersonFieldOfView` 80 and `FirstPersonScale` 0.7. All gun meshes are `EFirstPersonPrimitiveType::FirstPerson` with no collision and no shadow, so they never clip into walls.
 

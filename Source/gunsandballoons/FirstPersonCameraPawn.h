@@ -10,6 +10,13 @@ class URevolverComponent;
 class URifleComponent;
 class UShotgunComponent;
 class USkeletalMeshComponent;
+class UWeaponRackComponent;
+
+/** What the player's hand holds: a gun, or nothing (the revolver hangs on a weapon rack), and the moves between. */
+UENUM(BlueprintType)
+enum class EPlayerHandState : uint8 { Armed, Holstering, Empty, Drawing };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandState, HandState);
 
 /**
  * A bodiless, stationary first-person camera.
@@ -25,6 +32,9 @@ class USkeletalMeshComponent;
  *   current gun finish and close up, lowers it out of view, then raises the other one.
  * - LMB interacts with the IInteractable under the crosshair, otherwise fires.
  *   There is no reload key: reloading is RMB on an ammo supply (UAmmoSupplyComponent), one round per click.
+ * - The revolver can be hung on a weapon rack (UWeaponRackComponent) to free the hand; with an empty
+ *   hand LMB grabs and drags IGrabbable controls (the balloon's levers) instead of firing.
+ * - Riding on the balloon, the view turns along with it.
  */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API AFirstPersonCameraPawn : public APawn
@@ -36,6 +46,8 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void NotifyControllerChanged() override;
+	virtual void UnPossessed() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UCameraComponent* GetCamera() const { return Camera; }
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
@@ -75,12 +87,46 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool TryTakeRound();
 
+	/**
+	 * Hang the gun in hand on the rack: lowered over HolsterTime, then hidden and shown on the rack.
+	 * Only the revolver fits a rack, and only while it is at rest and no swap is running.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
+	bool HolsterWeapon(UWeaponRackComponent* Rack);
+
+	/** Take the revolver back from the rack (its rounds kept) and raise it. Needs an empty hand. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
+	bool DrawWeapon(UWeaponRackComponent* Rack);
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
+	EPlayerHandState GetHandState() const { return HandState; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
+	bool IsHandEmpty() const { return HandState == EPlayerHandState::Empty; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Hand")
+	FOnHandStateChanged OnHandStateChanged;
+
 protected:
+	/** Only Armed and Empty are valid initial states. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Hand")
+	EPlayerHandState InitialHandState = EPlayerHandState::Armed;
+
+	/** TBD: prototype duration, needs tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Hand", meta = (ClampMin = "0.0"))
+	float HolsterTime = 0.35f;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Weapon|Hand")
+	EPlayerHandState HandState = EPlayerHandState::Armed;
+
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	/** GetAimedInteractable, with the debug line optional (it runs every frame for the loading gate). */
 	AActor* TraceAimedTarget(bool bDebugDraw) const;
+
+	/** The interaction trace from the eye along the view. */
+	bool TraceAimed(FHitResult& OutHit, bool bDebugDraw) const;
 
 	/** Applies mouse look to the control rotation. */
 	void UpdateLook(APlayerController* PC);
@@ -112,6 +158,14 @@ protected:
 	/** How far from the camera (cm) the player can interact. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0"))
 	float InteractRange = 400.f;
+
+	/** TBD: prototype centimeters per mouse delta unit, needs tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Grab", meta = (ClampMin = "0.0"))
+	float GrabDragScale = 0.5f;
+
+	/** TBD: break distance in cm; 0 uses InteractRange * 1.25 (needs tuning). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Grab", meta = (ClampMin = "0.0"))
+	float GrabBreakDistance = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	TEnumAsByte<ECollisionChannel> InteractTraceChannel = ECC_Visibility;
@@ -250,6 +304,28 @@ protected:
 	float HandSwayBlendSpeed = 2.f;
 
 private:
+	friend class FPlayerGrabTest;
+
+	/** Starts dragging the IGrabbable under the crosshair (empty hand only). True if the click was used. */
+	bool TryBeginGrab();
+	/** Moves the held control with the mouse; lets go when LMB is released or the player is too far. */
+	void UpdateHeldGrab(APlayerController* PC);
+	void EndGrab();
+	TWeakObjectPtr<UObject> GrabTarget;
+
+	void SetHandState(EPlayerHandState NewState);
+	/** Lowers the gun being holstered and finishes holstering/drawing. */
+	void UpdateHandState(float DeltaSeconds);
+	TWeakObjectPtr<UWeaponRackComponent> TransitionRack;
+	/** 0 = in hand, 1 = lowered out of view for the rack (linear; eased when applied). */
+	float HandLowerAlpha = 0.f;
+
+	/** Ensure the balloon moves before the rider reads its transform. */
+	void SetupBalloonTickPrerequisite();
+	/** Parent actor's yaw last frame; the view carries along with the balloon's turning. */
+	float LastParentYaw = 0.f;
+	bool bHasParentYaw = false;
+
 	/** The gun in hand. */
 	UPROPERTY(Transient)
 	TObjectPtr<UGunComponent> ActiveGun;

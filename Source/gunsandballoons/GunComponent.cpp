@@ -1,5 +1,6 @@
 #include "GunComponent.h"
 
+#include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -495,4 +496,9 @@ void UGunComponent::ReleaseCasing()
 	CasingComp->SetSimulatePhysics(true);
 	CasingComp->SetPhysicsLinearVelocity(Velocity);
 	CasingComp->SetPhysicsAngularVelocityInDegrees(SpinDegrees);
+}
+
+float UGunComponent::AnimLength(const UAnimSequenceBase* Anim)
+{
+	return Anim ? Anim->GetPlayLength() : 0.f;
 }

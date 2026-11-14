@@ -7,6 +7,7 @@
 #include "GunComponent.generated.h"
 
 class AGunProjectile;
+class UAnimSequenceBase;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
 class USkeletalMeshComponent;
@@ -158,6 +159,9 @@ public:
 	AGunSmoke* GetSmoke() const { return Smoke; }
 
 protected:
+	/** Play length (s) of a clip, 0 if unset. */
+	static float AnimLength(const UAnimSequenceBase* Anim);
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 

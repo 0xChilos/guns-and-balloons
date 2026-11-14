@@ -16,11 +16,6 @@ namespace
 		TEXT("chamber_1"), TEXT("chamber_2"), TEXT("chamber_3"),
 		TEXT("chamber_4"), TEXT("chamber_5"), TEXT("chamber_6"),
 	};
-
-	float LengthOf(const UAnimSequenceBase* Anim)
-	{
-		return Anim ? Anim->GetPlayLength() : 0.f;
-	}
 }
 
 URevolverComponent::URevolverComponent()
@@ -328,16 +323,16 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 			// The shot itself stays quick; the rest of the clip (the trigger coming back) is spread over
 			// what is left of CycleTime, and the gun does nothing else until then.
-			StateRate = RateForRestOfCycle(LengthOf(FireAnim) - StateTime, FiringElapsed, StateRate);
+			StateRate = RateForRestOfCycle(AnimLength(FireAnim) - StateTime, FiringElapsed, StateRate);
 		}
-		if (StateTime >= LengthOf(FireAnim))
+		if (StateTime >= AnimLength(FireAnim))
 		{
 			EnterIdle();
 		}
 		break;
 
 	case ERevolverState::ReloadStart:
-		if (StateTime >= LengthOf(ReloadStartAnim))
+		if (StateTime >= AnimLength(ReloadStartAnim))
 		{
 			// The gate is open: what is left of the shots' smoke drifts out of the chamber behind it.
 			if (Chambers.Contains(EGunChamber::Spent))
@@ -366,14 +361,14 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 				OnCaseEjected.Broadcast();
 			}
 		}
-		if (StateTime >= LengthOf(EjectCaseAnim))
+		if (StateTime >= AnimLength(EjectCaseAnim))
 		{
 			SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
 		}
 		break;
 
 	case ERevolverState::Inserting:
-		if (StateTime >= LengthOf(InsertRoundAnim))
+		if (StateTime >= AnimLength(InsertRoundAnim))
 		{
 			Chambers[GateChamber()] = EGunChamber::Live;
 			QueuedRounds = FMath::Max(QueuedRounds - 1, 0);
@@ -383,7 +378,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		break;
 
 	case ERevolverState::ReloadEnd:
-		if (StateTime >= LengthOf(ReloadEndAnim))
+		if (StateTime >= AnimLength(ReloadEndAnim))
 		{
 			OnReloadFinished.Broadcast();
 			EnterIdle();
@@ -421,13 +416,13 @@ void URevolverComponent::UpdatePose()
 
 	case ERevolverState::GateOpen:
 		// Hold the last frame of the opening clip.
-		Anim->Time = LengthOf(ReloadStartAnim);
+		Anim->Time = AnimLength(ReloadStartAnim);
 		break;
 
 	case ERevolverState::Turning:
 	{
 		const float Alpha = FMath::Clamp(StateTime / FMath::Max(TurnDuration, KINDA_SMALL_NUMBER), 0.f, 1.f);
-		Anim->Time = LengthOf(ReloadStartAnim);
+		Anim->Time = AnimLength(ReloadStartAnim);
 		Anim->CylinderAngle = FMath::Lerp(float(TurnFromStep), float(CylinderStep), FMath::SmoothStep(0.f, 1.f, Alpha)) * DegreesPerChamber;
 		break;
 	}
