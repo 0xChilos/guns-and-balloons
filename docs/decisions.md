@@ -16,3 +16,4 @@
 | 2026-11-13 | Дирижабль-немезис неможливо знищити | Прийнято | [nemesis-airship](features/nemesis-airship.md) |
 | 2026-11-13 | Арт: low-poly PS1, low-res рендер + Bayer dither | Прийнято | [art-style](art-style.md) |
 | 2026-11-13 | Документація ведеться як модульний GDD у `docs/`, одна фіча — одна сторінка | Прийнято | [README](README.md) |
+| 2026-11-14 | Виправлено замалий кореневий box кулі: напіврозміри 348/158/262 см у BP_Balloon та BalloonFlight_Test, з урахуванням повороту й зміщення Mesh. Поворот залишається без sweep. | Прийнято | [balloon-controls](features/balloon-controls.md) |
