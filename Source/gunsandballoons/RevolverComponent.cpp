@@ -448,6 +448,13 @@ void URevolverComponent::Shoot()
 	const FVector End = Start + Direction * Range;
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(RevolverShot), /*bTraceComplex=*/true, Owner);
+
+	// The shot must not hit the balloon the shooter stands in.
+	if (AActor* Parent = Owner->GetAttachParentActor())
+	{
+		Params.AddIgnoredActor(Parent);
+	}
+
 	FHitResult Hit;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TraceChannel, Params);
 

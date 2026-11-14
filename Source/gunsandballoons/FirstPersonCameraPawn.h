@@ -185,4 +185,7 @@ private:
 	FRotator CurrentSway = FRotator::ZeroRotator;
 	FRotator LastViewRotation = FRotator::ZeroRotator;
 	bool bHasLastViewRotation = false;
+	/** Parent actor's yaw last frame; the view carries along with the balloon's turning. */
+	float LastParentYaw = 0.f;
+	bool bHasParentYaw = false;
 };

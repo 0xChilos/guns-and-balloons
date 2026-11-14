@@ -6,6 +6,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "AmmoSupplyComponent.h"
+#include "BalloonFlightComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Interactable.h"
 #include "RevolverAnimInstance.h"
@@ -73,6 +74,16 @@ void AFirstPersonCameraPawn::BeginPlay()
 	Revolver->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
 
 	Super::BeginPlay();
+
+	// Riding on the balloon: its flight must move first, so this pawn sees the same frame's
+	// position (the parent yaw carried below stays in sync with the basket).
+	if (const AActor* Parent = GetAttachParentActor())
+	{
+		if (UBalloonFlightComponent* Flight = Parent->FindComponentByClass<UBalloonFlightComponent>())
+		{
+			AddTickPrerequisiteComponent(Flight);
+		}
+	}
 }
 
 void AFirstPersonCameraPawn::HandleWeaponFired(bool bHit, const FHitResult& Hit)
@@ -93,6 +104,17 @@ void AFirstPersonCameraPawn::NotifyControllerChanged()
 	// Block movement input entirely, start looking where the actor faces.
 	PC->SetIgnoreMoveInput(true);
 	PC->SetControlRotation(GetActorRotation());
+
+	// Seed the carried parent yaw so the first frame on the balloon is not a jump.
+	if (const AActor* Parent = GetAttachParentActor())
+	{
+		LastParentYaw = Parent->GetActorRotation().Yaw;
+		bHasParentYaw = true;
+	}
+	else
+	{
+		bHasParentYaw = false;
+	}
 
 	// Read the mouse after the controller has processed this frame's input.
 	AddTickPrerequisiteActor(PC);
@@ -127,6 +149,29 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 	if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryInteract())
 	{
 		Revolver->PullTrigger();
+	}
+
+	// The view rides along with the parent's turning: carry the parent yaw delta into the
+	// control rotation before the mouse look is applied (UpdateLook does not run without
+	// mouse movement, so this must not depend on it).
+	if (const AActor* Parent = GetAttachParentActor())
+	{
+		const float ParentYaw = Parent->GetActorRotation().Yaw;
+		if (bHasParentYaw)
+		{
+			const float Delta = FMath::FindDeltaAngleDegrees(LastParentYaw, ParentYaw);
+			if (!FMath::IsNearlyZero(Delta))
+			{
+				const FRotator Rot = PC->GetControlRotation();
+				PC->SetControlRotation(FRotator(Rot.Pitch, Rot.Yaw + Delta, 0.f));
+			}
+		}
+		LastParentYaw = ParentYaw;
+		bHasParentYaw = true;
+	}
+	else
+	{
+		bHasParentYaw = false;
 	}
 
 	UpdateLook(PC);
