@@ -53,7 +53,8 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | SM_Factory_B | Brick block, 40 m chimney, water tank, glowing furnace. Smoke from SOCKET_smoke_1. loot_01 on the chimney deck at 30 m, loot_02 on the roof | UCX ×3 |
 | SM_ClockTower | 64 m clock tower, glowing clock faces. Own texture. Balconies at 24 m and 36 m and the railed belfry ledge at 49 m = loot_01..03 | UCX ×2 |
 | SM_Tower_Office_A / _B | 51 m / 61 m tall buildings. Own textures. A: 3 balconies (18, 32, 40 m). B: 2 spots on the railed roof terrace at 22 m and a balcony at 36 m. loot_01..03 each | UCX ×2 each |
-| SM_JammerTower | 83 m giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3 (lights), jam (effect origin), loot_01/02 on the two platforms. Own texture | UCX ×2 |
+| SM_JammerTower | 80 m giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3 (lights), jam (effect origin), loot_01/02 on the two platforms, **dish** (top of the mast). Own texture | UCX ×2 |
+| SM_JammerDish | Rotating satellite dish that sits on SOCKET_dish: turntable, yoke, 7 m copper bowl tilted up, feed struts, glowing violet emitter (glow slot) and counterweight. Pivot = turntable base, rotates around Z. Socket emitter. **Shooting it down stops the jammer** | UCX ×2 (own collision, separate from the tower) |
 
 **Desert**: sand, dunes, guard towers and lighthouses.
 
@@ -62,7 +63,10 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | SM_Dune_A/B/C | Crescent dunes 70–200 m long, 8–23 m high. All face the same wind: downwind = +Y in Blender (see step 5 for the axis after import) | none (the balloon flies over them) |
 | SM_Mesa (34 m), SM_Hoodoo (20 m) | Rock formations. Smugglers' crates on the mesa top = loot_01..03. A crate on a plank platform on the hoodoo cap = loot_01 | UCX ×1 each |
 | SM_Rock_Desert_A/B, SM_Cactus_A/B, SM_Tent, SM_Wreck_Airship, SM_Ribcage | Clutter: rocks, cacti, nomad tent, crashed zeppelin, giant skeleton | none |
-| SM_GuardTower | 28 m stilted guard tower with a searchlight (SOCKET_searchlight). Supply crates on the platform = loot_01/02 (on the crate lids). Own texture | UCX ×2 |
+| SM_TurretTower | 20 m iron stilt tower with a railed gun platform. Sockets head (turret ring) and engine (engine bed), loot_01/02 on crates. Own texture T_Desert_Turret | UCX ×2: legs and deck only |
+| SM_TurretTower_Head | Armoured turret head. Sits on SOCKET_head and rotates around Z. Socket guns (elevation pivot) | UCX ×2, own collision |
+| SM_TurretTower_Guns | Twin cannons with muzzle brakes. Sits on the head's SOCKET_guns and elevates around X. Sockets muzzle_1, muzzle_2 | UCX ×1, own collision |
+| SM_TurretTower_Engine | Copper steam boiler with firebox (glowing door), chimney, flywheel, pistons and a red safety valve. Sits on SOCKET_engine. Smoke from SOCKET_smoke. **The turret's weak spot** | UCX ×3, own collision |
 | SK_Lighthouse | 38 m lighthouse. Bones: root > head (rotates) > lamp (light source, can be destroyed); non-deforming socket_beam (on head, at the lamp, pointing along the beam); non-deforming loot_01/02 (on root, on the crate lids on the gallery, so they don't turn with the head). Own texture, glow slot = lens | physics asset (step 4) |
 | SM_LighthouseBeam | 90 m light cone, apex at its pivot. Attach it to socket_beam | none |
 
@@ -114,7 +118,7 @@ Save them.
    - Create `MI_Loot` (parent M_LocPickup, Atlas = T_Loot) and `MI_Loot_Glow` (parent M_LocPickup, Atlas = T_Loot, SelfGlow = 4). Each BP_Loot child sets its own HighlightColor through a Dynamic Material Instance (step 5.7).
 6. **M_LootSpark** (Translucent, Unlit, Additive): T_Loot_Spark (Nearest) × Particle Color, two-sided.
 7. **Material instances:**
-   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_Tall, Forest_Mountains, Field_Props, Field_Bird, Field_Windmill, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_GuardTower and Desert_Lighthouse.
+   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_Tall, Forest_Mountains, Field_Props, Field_Bird, Field_Windmill, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_Turret and Desert_Lighthouse.
    - `MI_LightBeam` (parent M_LightBeam).
    - `MI_<Level>_Ground` (parent M_Ground) with Ground = T_<Level>_Ground and FarColor (linear) = the texture's average:
 
@@ -143,8 +147,9 @@ Then per mesh:
 - **Sockets:** check against the manifest that these exist:
   - SM_Factory_A: smoke_1, smoke_2
   - SM_Factory_B: smoke_1
-  - SM_JammerTower: beacon_1, beacon_2, beacon_3, jam
-  - SM_GuardTower: searchlight
+  - SM_JammerTower: beacon_1, beacon_2, beacon_3, jam, dish
+  - SM_JammerDish: emitter
+  - SM_TurretTower: head, engine. SM_TurretTower_Head: guns. SM_TurretTower_Guns: muzzle_1, muzzle_2. SM_TurretTower_Engine: smoke
   - Every `loot_NN` listed under `loot_spots` in the manifests
 
   If one is missing, add it by hand at the location in `<Level>_Manifest.json`. The FBX socket empties are `SOCKET_<name>`, so their positions can also be read from the FBX.
@@ -222,8 +227,18 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
    - Add AC_LootSpots.
 4. **BP_JammerTower**:
    - SM_JammerTower, plus 3 small red PointLights (radius 1500 cm) attached to sockets beacon_1..3.
+   - **Dish:**
+     - A second StaticMeshComponent `Dish` (SM_JammerDish) attached to socket `dish`, with its own collision (BlockAll, generate hit events).
+     - A Rotating Movement on the dish: 25°/s around Z.
+     - A violet PointLight (0.75, 0.35, 1.0; radius 800 cm) on the dish's `emitter` socket.
+     - A violet pulsing beam or ripple at the emitter while jamming (optional sprite emitter).
+     - `DishHealth` (default 3 hits). When the dish takes AnyDamage or a projectile hit on the Dish component, DishHealth −= 1. At 0:
+       - `bJamming` = false: stop the jam timer and broadcast OnRadarJam(0)
+       - stop the rotation and turn off the emitter light and glow (MID `Flicker` 0 on the dish)
+       - detach the dish, enable physics so it tumbles off the mast, spawn sparks and smoke at the socket, and destroy the falling dish after 10 s
+     - The tower itself keeps its collision and the beacons keep blinking.
    - A timer blinks them together with the Glow MID's `Flicker` (0 ↔ 1, 1 s period, 50% duty).
-   - Expose `JamRadiusM` (default 250). Each 0.2 s, compute JamStrength = 1 − saturate(distance to the player balloon / JamRadius) from SOCKET_jam, and broadcast it through a Blueprint Interface event `OnRadarJam(float Strength)` on the player's balloon. Later the radar can use it for static/noise. If MPC_Radar exists (docs/Unreal_Prompt_3_RadarEnemies.md), also add a scalar `RadarJam` to it and set it to the strongest jammer.
+   - Jamming only runs while `bJamming` is true (the dish is intact). Expose `JamRadiusM` (default 250). Each 0.2 s, compute JamStrength = 1 − saturate(distance to the player balloon / JamRadius) from SOCKET_jam, and broadcast it through a Blueprint Interface event `OnRadarJam(float Strength)` on the player's balloon. Later the radar can use it for static/noise. If MPC_Radar exists (docs/Unreal_Prompt_3_RadarEnemies.md), also add a scalar `RadarJam` to it and set it to the strongest jammer.
 5. **BP_Bird** and **BP_BirdFlock** (Field). Birds fly in flocks and can collide with the player:
    - **BP_Bird:**
      - Sphere collision (radius 35 cm, profile OverlapAllDynamic, generate overlap events) as root, plus SK_Bird.
@@ -318,7 +333,7 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
      | BP_Loot_Log | SM_Loot_Log | Wood | 1 | (0.6, 1.0, 0.4) green |
      | BP_Loot_Coal | SM_Loot_Coal | Coal | 30 | (1.0, 0.35, 0.1) ember orange |
      | BP_Loot_Crystal | SM_Loot_Crystal | Crystal | 1 | (0.35, 0.9, 1.0) cyan |
-   - **AC_LootSpots** (Actor Component). Add it to every Blueprint of a tall structure (BP_Factory, BP_Windmill, BP_JammerTower, BP_GuardTower, BP_Lighthouse) and, for HISM/static-mesh placement, run it from the level generator.
+   - **AC_LootSpots** (Actor Component). Add it to every Blueprint of a tall structure (BP_Factory, BP_Windmill, BP_JammerTower, BP_TurretTower, BP_Lighthouse) and, for HISM/static-mesh placement, run it from the level generator.
      - Variables:
        - `SpawnChance` (0.6)
        - `LootTable`: array of {Class, Weight}. Defaults: Coal 30, AmmoBox 25, Log 20, MoneyPouch 18, Crystal 7. Per level, crystals can be rarer or more common, for example Desert 12, City 4.
@@ -336,7 +351,34 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
      - Plus a second emitter, `Embers`: 10 per second, tiny orange-yellow sparks (6–12 cm) rising 80–160 cm/s with sideways jitter, flickering alpha, lifetime 0.8–1.4 s, colour lerping from (1.0, 0.75, 0.3) to (1.0, 0.25, 0.05).
      - The Glint point light is orange and flickers (0.7–1.3 × intensity, noise at 8 Hz).
      - The rim pulse (HighlightColor) is orange too, so the lump looks hot without any orange in its texture.
-8. **BP_GuardTower** (optional): SM_GuardTower plus a SpotLight on SOCKET_searchlight, sweeping ±40° slowly. It can reuse the lighthouse detection logic with a 60 m range.
+8. **BP_TurretTower** (Desert): a gun tower whose steam engine is its weak spot.
+   - **Components:**
+     - `Tower` (SM_TurretTower, root)
+     - `Head` (SM_TurretTower_Head) on socket `head`
+     - `Guns` (SM_TurretTower_Guns) on the Head's socket `guns`
+     - `Engine` (SM_TurretTower_Engine) on socket `engine`
+
+     Each has its own UCX collision, BlockAll, generate hit events, so hits tell you which part was struck.
+   - **Engine smoke:** NS_FactorySmoke at a smaller scale (sprite size 150 → 700 cm, spawn rate 6/s, darker grey 0.3) attached to the Engine's socket `smoke`, plus a warm flickering PointLight at the firebox door.
+   - **Aiming** (0.05 s timer, only if the player balloon is within `RangeM` = 250 and visible):
+     - Head yaw tracks the balloon at up to 45°/s (RInterpConstantTo).
+     - Guns pitch tracks it between −5° and +60°.
+   - **Firing:**
+     - every `FireInterval` (1.5 s) when the aim error is below 4°
+     - alternate muzzle_1 and muzzle_2
+     - spawn a projectile (or a hitscan trace) with a muzzle flash; SM_FX_MuzzleFlash from the Map_edge folder fits
+   - **Damage:**
+     - Hits on Head or Guns do little (×0.25, armour).
+     - Hits on Tower do nothing.
+     - Hits on **Engine** do full damage (×1). The engine is the weak spot: `EngineHealth` default 4 hits.
+     - Each engine hit spawns sparks and briefly thickens the smoke.
+   - **Engine destroyed:**
+     - turret disabled: stop aiming and firing, the guns droop to −10°
+     - smoke turns black and heavy for 30 s
+     - the firebox light goes out, the engine mesh gets a darker MID
+     - small explosion at the engine
+     - broadcast `OnTurretDestroyed`
+   - Add AC_LootSpots.
 
 ## 6. Random level generation data
 1. Create the struct **S_LevelAsset** with fields matching the CSV header (the first column is the row name):
@@ -357,8 +399,8 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
    |---|---|
    | SM_Factory_A / _B | BP_Factory_A / _B |
    | SK_Windmill | BP_Windmill |
-   | SM_JammerTower | BP_JammerTower |
-   | SM_GuardTower | BP_GuardTower |
+   | SM_JammerTower | BP_JammerTower (includes the dish) |
+   | SM_TurretTower | BP_TurretTower (includes head, guns, engine) |
    | SK_Lighthouse | BP_Lighthouse |
    | SK_Bird | BP_BirdFlock |
    | SM_Pine_Tall_A/B, SM_RangerTower, SM_Church, SM_ClockTower, SM_Tower_Office_A/B, SM_Mesa, SM_Hoodoo | spawn as Static Mesh actors with AC_LootSpots added |
@@ -396,5 +438,7 @@ Check, and report:
 - Coal shows an orange glow and rising embers in game, though its model has no orange in it.
 - Pickups sparkle and their rims pulse in their colour (brass, gold, green, orange, cyan). They are visible from 100 m away.
 - Loot: every tall structure shows loot on its loot spots, sitting on the balcony, platform, crate or nest, not floating and not buried. Flying the balloon into a loot item picks it up and calls OnLootPickedUp. The lighthouse loot stays put while the head rotates.
+- Jammer: the dish rotates. Shooting it 3 times knocks it off the mast, and jamming stops (OnRadarJam(0)).
+- Turret tower: the head and guns track the balloon and fire. Hits on the head or guns barely hurt it. The smoking engine is the weak spot, and destroying it disables the turret.
 - The lighthouse head rotates. Its beam turns red when the camera or pawn stands in it, and after shooting/damaging the lamp, the light is gone and it stops working.
 - Screenshot of each test level.

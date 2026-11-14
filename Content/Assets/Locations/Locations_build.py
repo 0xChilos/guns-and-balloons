@@ -16,7 +16,7 @@ Per asset (see ASSETS):
 import bpy, bmesh, math, random, json
 from mathutils import Vector, Matrix, Euler
 
-LEVELS = ["Forest", "Field", "City", "Desert", "Loot"]
+LEVELS = ["Forest", "Field", "City", "Desert", "Loot", "Map_edge"]
 
 # ---------------------------------------------------------------- cleanup
 HOME = bpy.data.scenes.get("Locations") or bpy.data.scenes.new("Locations")   # empty scene that always stays
@@ -210,6 +210,11 @@ mk("Gold", (0.88, 0.64, 0.18), (0.52, 0.34, 0.08), metal=0.9, rough=0.35, snap=0
 mk("Leather", (0.38, 0.21, 0.10), (0.18, 0.09, 0.04), snap=0.02, nscale=12)
 mk("CopperTip", (0.68, 0.34, 0.16), (0.40, 0.18, 0.08), metal=0.8, rough=0.4, snap=0.01, nscale=20)
 glow("CrystalGlow", (0.35, 0.92, 1.0), 5.0)
+glow("JamGlow", (0.75, 0.35, 1.0), 8.0)                 # jammer dish emitter: shows the player what to shoot
+mk("CanvasRed", (0.62, 0.09, 0.06), (0.36, 0.04, 0.03), snap=0.2, nscale=2)
+mk("CanvasInner", (0.30, 0.25, 0.18), (0.16, 0.13, 0.09), snap=0.3, nscale=1.5)
+mk("CanvasRedInner", (0.32, 0.06, 0.05), (0.18, 0.03, 0.02), snap=0.3, nscale=1.5)
+glow("FX", (1.0, 0.6, 0.2), 4.0)                         # placeholder for effect meshes (own materials in Unreal)
 # built
 mk("Wood", (0.42, 0.28, 0.15), (0.20, 0.12, 0.06), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
 mk("WoodDark", (0.25, 0.16, 0.09), (0.11, 0.07, 0.04), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
@@ -398,6 +403,9 @@ def ucx_prism(n, r0, r1, z0, z1, c=(0, 0)):
         a = 2 * math.pi * i / n + math.pi / n
         pts += [(c[0] + r0 * math.cos(a), c[1] + r0 * math.sin(a), z0), (c[0] + max(r1, 0.05) * math.cos(a), c[1] + max(r1, 0.05) * math.sin(a), z1)]
     ucx_pts(pts)
+
+def polar(r, a, z):
+    return (r * math.cos(a), r * math.sin(a), z)
 
 def socket(name, loc, rot=(0, 0, 0)):
     ASSETS[CUR]["sockets"][name] = {"loc": list(map(float, loc)), "rot": list(map(float, rot))}
@@ -1059,18 +1067,61 @@ for k in range(4):
     for t in (2.5, 4.5, 6.5):
         prism(f"Insulator{k}{t}", 6, 0.35, 0.35, -0.12, 0.12, "Glass", loc=d * t + Vector((0, 0, H + 1.5)), rot=(0, math.pi / 2, a))
     bar(f"Rod{k}", d * 7.0 + Vector((0, 0, H + 1.5)), d * 7.0 + Vector((0, 0, H + 6.0)), 0.08, "Copper")
-ball("TopSphere", 1.3, (0, 0, H + 15), "Copper", u=8, v=6)
-ball("TopBeacon", 0.55, (0, 0, H + 16.5), "RedLight", u=6, v=4)
-socket("beacon_3", (0, 0, H + 16.5))
+prism("DishMount", 8, 0.9, 0.7, H + 13.2, H + 14.2, "IronDark")             # the dish (SM_JammerDish) sits here
+socket("dish", (0, 0, H + 14.2))
+ball("TopBeacon", 0.45, (0.75, 0, H + 12.6), "RedLight", u=6, v=4)
+socket("beacon_3", (0.75, 0, H + 12.6))
 socket("jam", (0, 0, H + 10))
 box("Hut", (5, 4, 3), "FacadeSoot", loc=(0, -9, 1.5))
 gable("HutRoof", 5, 4, 1.2, 3, "IronDark")
 ucx_pts([(sx * B * 1.05, sy * B * 1.05, 0) for sx in (-1, 1) for sy in (-1, 1)] + [(sx * Tp * 1.3, sy * Tp * 1.3, H) for sx in (-1, 1) for sy in (-1, 1)])
-ucx_prism(8, 7.2, 7.2, H, H + 17.5)
+ucx_prism(8, 7.2, 7.2, H, H + 14.2)
+ASSETS[CUR]["notes"] = ("Giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3, jam, loot_01/02 "
+                       "and dish: SM_JammerDish goes on SOCKET_dish, rotates, and can be shot down to stop the jammer")
+
+asset("SM_JammerDish", "City", "City_Jammer", 10, row=1, cat="Hazard", place=dict(density=0),
+      notes="Rotating jammer dish for SOCKET_dish on SM_JammerTower. Pivot = turntable base, spins around Z. "
+            "Own collision: shoot it down to stop the jammer. Glowing emitter core (glow slot) marks it as a target")
+prism("Turntable", 10, 1.0, 1.0, 0, 0.45, "Iron")
+prism("TurntableRing", 10, 1.1, 1.1, 0.12, 0.3, "Brass")
+for sx in (-1, 1):                                                       # yoke
+    bar(f"Yoke{sx}", (sx * 0.85, 0, 0.45), (sx * 0.85, 0, 2.3), 0.16, "IronDark")
+bar("Axle", (-1.0, 0, 2.2), (1.0, 0, 2.2), 0.12, "Brass", n=6)
+DT = Matrix.Translation((0, 0.3, 2.2)) @ Matrix.Rotation(math.radians(-62), 4, 'X')   # dish frame: +Z = where it looks (forward and up)
+rings = [(0.35, 0.0), (1.4, 0.18), (2.6, 0.62), (3.6, 1.2)]                   # (radius, depth) of the parabolic bowl
+def dish_shell(name, off, flip, mat):
+    bm = bmesh.new(); n = 16
+    vs = [[bm.verts.new(DT @ Vector((r * math.cos(2 * math.pi * i / n), r * math.sin(2 * math.pi * i / n), d + off)))
+           for i in range(n)] for r, d in rings]
+    for k in range(len(rings) - 1):
+        for i in range(n):
+            j = (i + 1) % n
+            q = (vs[k][i], vs[k][j], vs[k + 1][j], vs[k + 1][i])
+            bm.faces.new(tuple(reversed(q)) if flip else q)
+    c = bm.faces.new(tuple(vs[0]) if not flip else tuple(reversed(vs[0])))
+    return put(bm, name, mat)
+dish_shell("DishFront", 0.0, False, "Copper")
+dish_shell("DishBack", -0.12, True, "IronDark")
+for i in range(16):                                                      # rim bead
+    a0, a1 = 2 * math.pi * i / 16, 2 * math.pi * (i + 1) / 16
+    bar(f"Rim{i}", DT @ Vector((3.6 * math.cos(a0), 3.6 * math.sin(a0), 1.2)), DT @ Vector((3.6 * math.cos(a1), 3.6 * math.sin(a1), 1.2)), 0.07, "Brass")
+FOCUS = DT @ Vector((0, 0, 3.0))
+for i in range(3):                                                       # feed struts to the emitter
+    a_ = 2 * math.pi * i / 3 + math.pi / 2
+    bar(f"Strut{i}", DT @ Vector((3.4 * math.cos(a_), 3.4 * math.sin(a_), 1.15)), FOCUS, 0.06, "IronDark")
+ball("Emitter", 0.42, tuple(FOCUS), "JamGlow", u=8, v=6)
+for i in range(3):
+    prism(f"EmitterCoil{i}", 8, 0.5, 0.5, -0.05, 0.05, "Copper", loc=tuple(DT @ Vector((0, 0, 2.6 + 0.25 * i))), rot=(math.radians(-62), 0, 0))
+box("Counterweight", (1.2, 0.8, 1.0), "IronDark", loc=tuple(DT @ Vector((0, 0, -0.9))), rot=(math.radians(-62), 0, 0))
+socket("emitter", tuple(FOCUS))
+pts = [DT @ Vector((3.75 * math.cos(2 * math.pi * i / 8), 3.75 * math.sin(2 * math.pi * i / 8), 1.25)) for i in range(8)]
+pts += [DT @ Vector((0.6 * math.cos(2 * math.pi * i / 4), 0.6 * math.sin(2 * math.pi * i / 4), -0.6)) for i in range(4)] + [FOCUS + Vector((0, 0, 0.4))]
+ucx_pts(pts)
+ucx_prism(8, 1.1, 1.0, 0, 2.4)
 
 # ================================================================ DESERT
 group("Desert", "Desert_Props", 512)
-group("Desert", "Desert_GuardTower", 512)
+group("Desert", "Desert_Turret", 1024)
 group("Desert", "Desert_Lighthouse", 1024)
 group("Desert", "Desert_Beam", 0)             # no texture: the beam uses its own translucent material
 
@@ -1190,41 +1241,94 @@ for i in range(6):
 ball("Skull", 1.3, (0, 7.6, 2.0), "Bone", u=7, v=5, scale=(0.9, 1.3, 0.8))
 prism("Horn", 5, 0.3, 0, 0, 2.2, "Bone", loc=(0.8, 7.8, 2.6), rot=(-0.6, 0.6, 0))
 
-asset("SM_GuardTower", "Desert", "Desert_GuardTower", 12, row=1, cat="Obstacle", place=dict(density=3, scale=(0.95, 1.1), spacing=120, yaw=True, align=True, cluster=1),
-      notes="27 m stilted guard tower with a searchlight (SOCKET_searchlight); collides")
+# -- turret tower: 4 static meshes so the turret head, its guns and the engine each have their own collision.
+#    SM_TurretTower (stilts + platform, sockets head/engine) + SM_TurretTower_Engine (weak spot, smoke) +
+#    SM_TurretTower_Head (rotates around Z, socket guns) + SM_TurretTower_Guns (elevates, sockets muzzle_1/2)
+PZ = 20.45                                                              # platform top
+HEAD_AT, ENGINE_AT = (0, 0.9, PZ), (0, -2.75, PZ)
+asset("SM_TurretTower", "Desert", "Desert_Turret", 12, row=1, cat="Obstacle", place=dict(density=3, scale=(0.95, 1.1), spacing=120, yaw=True, align=True, cluster=1),
+      notes="Stilted gun tower, 20 m platform. Put SM_TurretTower_Head on SOCKET_head and SM_TurretTower_Engine on SOCKET_engine. "
+            "Collision: legs + platform deck only, so the head and the engine (weak spot) can be hit on their own")
 for sx in (-1, 1):
     for sy in (-1, 1):
-        bar(f"Leg{sx}{sy}", (sx * 3.6, sy * 3.6, 0), (sx * 2.1, sy * 2.1, 20), 0.28, "WoodDark")
-wt = lambda z: 3.6 - 1.5 * z / 20
+        bar(f"Leg{sx}{sy}", (sx * 4.2, sy * 4.2, 0), (sx * 3.0, sy * 3.0, 20), 0.32, "IronDark")
+wt = lambda z: 4.2 - 1.2 * z / 20
 for i, z in enumerate((5, 10, 15, 20)):
     w0, w1 = wt(z - 5), wt(z)
     for k in range(4):
         c0 = [(-1, -1), (1, -1), (1, 1), (-1, 1)][k]; c1 = [(-1, -1), (1, -1), (1, 1), (-1, 1)][(k + 1) % 4]
-        bar(f"Brace{i}{k}", (c0[0] * w0, c0[1] * w0, z - 5), (c1[0] * w1, c1[1] * w1, z), 0.12, "Wood")
-        bar(f"Rail{i}{k}", (c0[0] * w1, c0[1] * w1, z), (c1[0] * w1, c1[1] * w1, z), 0.12, "Wood")
-box("Platform", (6.4, 6.4, 0.4), "WoodDark", loc=(0, 0, 20.2))
-for s in (-1, 1):
-    box(f"WallX{s}", (6.0, 0.2, 1.2), "Wood", loc=(0, s * 3.0, 21.0))
-    box(f"WallY{s}", (0.2, 6.0, 1.2), "Wood", loc=(s * 3.0, 0, 21.0))
+        bar(f"Brace{i}{k}", (c0[0] * w0, c0[1] * w0, z - 5), (c1[0] * w1, c1[1] * w1, z), 0.13, "Iron")
+        bar(f"Rail{i}{k}", (c0[0] * w1, c0[1] * w1, z), (c1[0] * w1, c1[1] * w1, z), 0.14, "Iron")
+box("Platform", (8.6, 8.6, 0.5), "WoodDark", loc=(0, 0, PZ - 0.25))
+box("PlatformRim", (8.8, 8.8, 0.2), "IronDark", loc=(0, 0, PZ - 0.55))
+railing("Edge", [(-4.2, -4.2), (4.2, -4.2), (4.2, 4.2), (-4.2, 4.2), (-4.2, -4.2)], PZ, h=1.0)
+prism("TurretRing", 12, 2.1, 2.1, PZ, PZ + 0.12, "Brass", loc=(HEAD_AT[0], HEAD_AT[1], 0))
+box("EngineBed", (3.6, 2.4, 0.15), "IronDark", loc=(ENGINE_AT[0], ENGINE_AT[1], PZ + 0.07))
+for i in range(6):                                                      # sandbags on the front corners
+    a = math.radians(30 + 20 * i)
+    ball(f"Sandbag{i}", 0.42, (3.5 * math.cos(a), 3.5 * math.sin(a) + 0.2, PZ + 0.3), "Sandbag", u=6, v=3, scale=(1.3, 0.8, 0.6))
+bar("LadderL", (4.2, -0.4, 0), (3.0, -0.4, 20), 0.07, "IronDark")
+bar("LadderR", (4.2, 0.4, 0), (3.0, 0.4, 20), 0.07, "IronDark")
+bar("FlagPole", (-4.1, -4.1, PZ), (-4.1, -4.1, PZ + 5.5), 0.06, "IronDark", n=6)
+box("Flag", (1.4, 0.05, 0.9), "PaintRed", loc=(-3.4, -4.1, PZ + 4.9))
+socket("head", HEAD_AT)
+socket("engine", ENGINE_AT)
+crate("CrateA", (-3.2, 3.1, PZ), 0.9, 0.3)
+crate("CrateB", (3.3, -3.4, PZ), 0.8, -0.2)
+crate("CrateC", (3.3, -3.4, PZ + 0.64), 0.6, 0.5, spot=False)
+ucx_pts([(sx * 4.4, sy * 4.4, 0) for sx in (-1, 1) for sy in (-1, 1)] + [(sx * 3.2, sy * 3.2, 19.7) for sx in (-1, 1) for sy in (-1, 1)])
+ucx_box((8.8, 8.8, 0.7), (0, 0, PZ - 0.35))
+
+asset("SM_TurretTower_Engine", "Desert", "Desert_Turret", 6, row=1, cat="Hazard", place=dict(density=0),
+      notes="Steam engine that powers the turret: the WEAK SPOT. Own collision. Smoke from SOCKET_smoke (chimney top). "
+            "Pivot = base centre; goes on SOCKET_engine of SM_TurretTower")
 for sx in (-1, 1):
-    for sy in (-1, 1):
-        bar(f"Post{sx}{sy}", (sx * 2.9, sy * 2.9, 20.4), (sx * 2.9, sy * 2.9, 24.2), 0.12, "WoodDark")
-hip("Roof", 6.6, 6.6, 1.8, 24.2, "IronDark", over=0.4)
-for i in range(10):                                        # sandbag ring on the platform edge
-    a = 2 * math.pi * i / 10
-    ball(f"Sandbag{i}", 0.45, (3.3 * math.cos(a) * 0.98, 3.3 * math.sin(a) * 0.98, 21.8), "Sandbag", u=6, v=3, scale=(1.3, 0.8, 0.6))
-bar("LadderL", (3.6, -0.4, 0), (2.1, -0.4, 20), 0.07, "WoodDark")
-bar("LadderR", (3.6, 0.4, 0), (2.1, 0.4, 20), 0.07, "WoodDark")
-prism("Searchlight", 8, 0.45, 0.55, 0, 0.9, "IronDark", loc=(1.6, -2.4, 21.9), rot=(math.pi / 2, 0, 0))
-prism("SearchLens", 8, 0.5, 0.5, 0.9, 0.95, "LensGlow", loc=(1.6, -2.4, 21.9), rot=(math.pi / 2, 0, 0))
-socket("searchlight", (1.6, -3.4, 21.9))
-bar("FlagPole", (-2.9, 2.9, 24.2), (-2.9, 2.9, 28), 0.06, "IronDark", n=6)
-box("Flag", (1.4, 0.05, 0.9), "PaintRed", loc=(-2.2, 2.9, 27.4))
-ucx_pts([(sx * 3.8, sy * 3.8, 0) for sx in (-1, 1) for sy in (-1, 1)] + [(sx * 2.3, sy * 2.3, 20) for sx in (-1, 1) for sy in (-1, 1)])
-ucx_box((7.0, 7.0, 6.0), (0, 0, 23.0))
-crate("CrateA", (-1.9, 1.7, 20.4), 0.9, 0.3)
-crate("CrateB", (1.9, 1.8, 20.4), 0.8, -0.2)
-crate("CrateC", (1.85, 1.8, 21.04), 0.6, 0.5, spot=False)
+    box(f"Cradle{sx}", (0.25, 1.4, 0.7), "IronDark", loc=(sx * 1.0, 0, 0.35))
+prism("Boiler", 12, 0.78, 0.78, -1.35, 1.35, "Copper", rot=(0, math.pi / 2, 0), loc=(0, 0, 1.1))
+for x in (-1.0, 0.0, 1.0):
+    prism(f"BoilerBand{x}", 12, 0.82, 0.82, -0.06, 0.06, "Brass", rot=(0, math.pi / 2, 0), loc=(x, 0, 1.1))
+box("Firebox", (0.9, 1.5, 1.6), "IronDark", loc=(-1.75, 0, 0.8))
+box("FireDoor", (0.05, 0.7, 0.55), "Fire", loc=(-2.22, 0, 0.7))
+prism("Stack", 8, 0.32, 0.26, 1.7, 4.2, "IronDark", loc=(-1.75, 0, 0))
+prism("StackCap", 8, 0.42, 0.42, 4.2, 4.45, "Iron", loc=(-1.75, 0, 0))
+socket("smoke", (-1.75, 0, 4.5))
+prism("Flywheel", 14, 0.95, 0.95, -0.08, 0.08, "Iron", rot=(0, math.pi / 2, 0), loc=(1.6, 0.0, 1.05))
+for i in range(2):
+    prism(f"Cylinder{i}", 8, 0.22, 0.22, 0, 0.8, "Brass", loc=(0.4 - 0.8 * i, 0.55, 1.75))
+    bar(f"Piston{i}", (0.4 - 0.8 * i, 0.55, 2.55), (1.4, 0.4, 1.6), 0.05, "Iron")
+prism("Dome", 8, 0.32, 0.18, 1.85, 2.25, "Brass", loc=(0.6, -0.2, 0))
+prism("Gauge", 10, 0.18, 0.18, 0, 0.06, "ClockFace", rot=(math.pi / 2, 0, 0), loc=(-0.6, -0.8, 1.6))
+bar("SteamPipe", (0.0, 0.7, 1.6), (0.0, 1.9, 0.25), 0.11, "Brass", n=6)
+prism("SafetyValve", 6, 0.12, 0.1, 1.85, 2.3, "PaintRed", loc=(-0.6, 0.2, 0))
+ucx_box((3.3, 1.8, 2.2), (-0.35, 0, 1.1))
+ucx_prism(8, 0.45, 0.45, 1.7, 4.45, c=(-1.75, 0))
+ucx_prism(14, 0.95, 0.95, 0.1, 2.0, c=(1.6, 0))
+
+asset("SM_TurretTower_Head", "Desert", "Desert_Turret", 5, row=1, cat="Hazard", place=dict(density=0),
+      notes="Armoured turret head: rotates around Z on SOCKET_head of SM_TurretTower. Socket guns = elevation pivot. Own collision")
+prism("Base", 12, 2.0, 2.0, 0, 0.3, "IronDark")
+hull("Housing", [Vector(q) for q in
+     [(1.75 * math.cos(2 * math.pi * i / 8 + math.pi / 8), 1.75 * math.sin(2 * math.pi * i / 8 + math.pi / 8), 0.3) for i in range(8)] +
+     [(1.25 * math.cos(2 * math.pi * i / 8 + math.pi / 8), 1.25 * math.sin(2 * math.pi * i / 8 + math.pi / 8) - 0.15, 1.95) for i in range(8)]], "Iron")
+box("Hatch", (0.8, 0.8, 0.12), "IronDark", loc=(0, -0.5, 2.0))
+box("Slit", (1.0, 0.1, 0.12), "Dark", loc=(-0.95, 1.25, 1.6), rot=(0, 0, 0.5))
+box("Mantlet", (1.5, 0.5, 1.1), "IronDark", loc=(0, 1.55, 1.15))
+for sx in (-1, 1):
+    box(f"Armour{sx}", (0.15, 1.6, 1.3), "Iron", loc=(sx * 1.45, 0.3, 1.0), rot=(0, 0, sx * 0.25))
+socket("guns", (0, 1.7, 1.15))
+ucx_prism(8, 2.0, 1.3, 0, 2.05)
+ucx_box((1.6, 0.6, 1.2), (0, 1.55, 1.15))
+
+asset("SM_TurretTower_Guns", "Desert", "Desert_Turret", 6, row=1, cat="Hazard", place=dict(density=0),
+      notes="Twin cannons: pivot = trunnion (SOCKET_guns of the head), elevate around X. Muzzles at SOCKET_muzzle_1 / _2. Own collision")
+box("Cradle", (1.3, 0.8, 0.8), "IronDark", loc=(0, 0.25, 0))
+for i, sx in enumerate((-1, 1)):
+    x = sx * 0.36
+    prism(f"Sleeve{i}", 8, 0.2, 0.2, 0.4, 1.4, "Iron", rot=(-math.pi / 2, 0, 0), loc=(x, 0, 0))
+    prism(f"Barrel{i}", 8, 0.13, 0.11, 1.4, 4.4, "IronDark", rot=(-math.pi / 2, 0, 0), loc=(x, 0, 0))
+    prism(f"Brake{i}", 8, 0.18, 0.18, 4.4, 4.75, "Brass", rot=(-math.pi / 2, 0, 0), loc=(x, 0, 0))
+    socket(f"muzzle_{i + 1}", (x, 4.8, 0))
+ucx_box((1.3, 4.9, 0.8), (0, 2.3, 0))
 
 # -- lighthouse: skeletal (head rotates, lamp can be destroyed)
 asset("SK_Lighthouse", "Desert", "Desert_Lighthouse", 14, row=1, kind="skeletal", cat="Hazard",
@@ -1361,6 +1465,192 @@ for i, (ax, ay, h, r) in enumerate(((0.0, 0.0, 0.8, 0.11), (0.35, 0.1, 0.6, 0.08
     prism(f"Shaft{i}", 6, r, r, 0, h * 0.75, "CrystalGlow", loc=base, rot=rot, phase=0.3 * i)
     prism(f"Point{i}", 6, r, 0, h * 0.75, h, "CrystalGlow", loc=base, rot=rot, phase=0.3 * i, bottom=False)
 ucx_box((0.75, 0.75, 0.9), (0, 0, 0.45))
+
+# ================================================================ MAP EDGE (exported to Content/Assets/Map_edge)
+group("Map_edge", "MapEdge_Balloon", 1024)
+group("Map_edge", "MapEdge_Rocket", 256)
+group("Map_edge", "MapEdge_FX", 0)            # effect meshes: no texture, their own (emissive) materials in Unreal
+
+asset("SK_RocketBalloon", "Map_edge", "MapEdge_Balloon", 9, kind="skeletal", cat="Enemy", place=dict(density=0),
+      notes="Enemy balloon guarding the map edge: player-style envelope with red stripes, a slung rocket launcher instead of a "
+            "basket (bone launcher = yaw, launcher_pitch = elevation), 6 tubes with helper bones muzzle_01..06, bright red lamp "
+            "(helper bone light, glow slot). Physics bodies in Map_edge_Manifest.json")
+ER, EZS = 3.4, 1.2
+LIFT = 1.2                                    # whole envelope 1.2 m higher than the player's: room for the launcher below
+ENV_Z = 2.92 + LIFT + ER * EZS * 0.951
+MOUTH = ENV_Z - ER * EZS * 0.951
+DECK = 2.0
+bone("root", (0, 0, 0), (0, 0, 2))
+bone("launcher", (0, 0, DECK), (0, 0, DECK + 0.6), "root")
+bone("launcher_pitch", (0, 0.1, 0.95), (0.6, 0.1, 0.95), "launcher")
+part_bone("root")
+bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1.0)
+for v in bm.verts:
+    x, y, z = v.co
+    f = 1.0 + 0.32 * z if z < 0 else 1.0 - 0.06 * z * z
+    v.co = Vector((x * f * ER, y * f * ER, z * EZS * ER + ENV_Z))
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < MOUTH - 0.05], context='VERTS')
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+for f in bm.faces:                                                        # red and cream gores
+    c = f.calc_center_median()
+    seg = int(((math.atan2(c.y, c.x) + math.pi) / (2 * math.pi)) * 16) % 16
+    f.material_index = 1 if seg % 2 == 0 else 0
+inner = bm.copy()
+put(bm, "Envelope", ["Canvas", "CanvasRed"])
+for f in inner.faces:                                                     # inside of the envelope (seen from below)
+    f.normal_flip(); f.material_index = 1 if f.material_index == 1 else 0
+for v in inner.verts:
+    v.co = Vector((v.co.x * 0.985, v.co.y * 0.985, ENV_Z + (v.co.z - ENV_Z) * 0.985))
+put(inner, "EnvelopeInside", ["CanvasInner", "CanvasRedInner"])
+EK = ER / 2.7
+prism("BeltEq", 16, 2.84 * EK, 2.84 * EK, ENV_Z - 0.10, ENV_Z + 0.10, "Brass", top=False, bottom=False)
+prism("BeltLow", 16, 2.43 * EK, 2.43 * EK, ENV_Z - 1.08 * EK, ENV_Z - 0.94 * EK, "Iron", top=False, bottom=False)
+top_z = ENV_Z + ER * EZS
+prism("Crown", 8, 0.42, 0.30, top_z - 0.08, top_z + 0.10, "Brass")
+prism("CrownValve", 8, 0.10, 0.08, top_z + 0.10, top_z + 0.32, "Iron")
+ball("CrownLamp", 0.16, (0, 0, top_z + 0.45), "RedLight", u=6, v=4)          # small red lamp on the crown too
+prism("Skirt", 16, 0.78, 0.60, MOUTH - 0.50, MOUTH + 0.02, "CanvasRed", top=False, bottom=False)
+prism("MouthRing", 16, 0.64, 0.64, MOUTH - 0.04, MOUTH + 0.05, "Iron", top=False, bottom=False)
+LOAD = MOUTH - 0.75
+prism("LoadRing", 8, 0.78, 0.78, LOAD - 0.04, LOAD + 0.04, "Iron", phase=math.pi / 8)
+for k in range(8):
+    a = math.pi / 8 + k * math.pi / 4
+    bar(f"RopeUp{k}", polar(0.76, a, LOAD), polar(0.62, a, MOUTH), 0.025, "Rope")
+    bar(f"RopeDn{k}", polar(1.3, a, DECK + 0.2), polar(0.76, a, LOAD), 0.025, "Rope")
+prism("Deck", 8, 1.4, 1.4, DECK, DECK + 0.2, "IronDark", phase=math.pi / 8)        # hanging deck instead of a basket
+prism("DeckRim", 8, 1.45, 1.45, DECK + 0.05, DECK + 0.15, "Brass", phase=math.pi / 8, top=False, bottom=False)
+prism("AmmoDrum", 10, 0.42, 0.42, DECK + 0.2, DECK + 0.95, "Iron", loc=(-0.55, -0.5, 0))
+prism("Tank", 10, 0.32, 0.32, DECK + 0.2, DECK + 0.85, "Copper", loc=(0.6, -0.45, 0))
+bar("Pipe", (0.6, -0.45, DECK + 0.8), (0.0, 0.0, DECK + 0.25), 0.05, "Brass", n=6)
+for k in range(4):
+    a = k * math.pi / 2
+    ball(f"Sandbag{k}", 0.25, polar(1.15, a, DECK + 0.32), "Sandbag", u=6, v=3, scale=(1.3, 0.8, 0.6))
+LP = Vector((0.75, 1.15, DECK + 1.25))                                   # searchlight-style red lamp on a post at the deck's front rim
+bar("LampPost", (0.75, 1.0, DECK + 0.2), tuple(LP - Vector((0, 0.15, 0.25))), 0.06, "IronDark", n=6)
+prism("LampHousing", 10, 0.3, 0.36, -0.2, 0.25, "IronDark", rot=(-math.pi / 2, 0, 0), loc=tuple(LP))
+prism("LampHood", 10, 0.38, 0.38, 0.25, 0.32, "Brass", rot=(-math.pi / 2, 0, 0), loc=tuple(LP), top=False, bottom=False)
+prism("Lamp", 10, 0.33, 0.33, 0.25, 0.3, "RedLight", rot=(-math.pi / 2, 0, 0), loc=tuple(LP))
+bone("light", tuple(LP + Vector((0, 0.32, 0))), tuple(LP + Vector((0, 0.9, 0))), "root", deform=False)
+part_bone("launcher")
+prism("Turntable", 10, 0.7, 0.7, DECK - 0.25, DECK, "Iron")
+for sx in (-1, 1):
+    box(f"Yoke{sx}", (0.14, 0.6, 1.2), "IronDark", loc=(sx * 1.0, 0.1, DECK - 0.75))
+part_bone("launcher_pitch")
+PC = Vector((0, 0.1, 0.95))
+PW, PL, PH = 1.8, 2.6, 1.15                                                 # rocket pod: big enough to read as the "basket"
+box("Pod", (PW, PL, PH), "PaintRed", loc=tuple(PC))
+for yb in (-1.05, 0.0, 1.05):
+    box(f"PodBand{yb}", (PW + 0.06, 0.14, PH + 0.06), "IronDark", loc=tuple(PC + Vector((0, yb, 0))))
+box("PodTop", (PW * 0.6, PL * 0.7, 0.12), "IronDark", loc=tuple(PC + Vector((0, -0.1, PH / 2 + 0.06))))
+for sx in (-1, 1):
+    prism(f"Trunnion{sx}", 8, 0.16, 0.16, 0, 0.22, "Brass", rot=(0, sx * math.pi / 2, 0), loc=tuple(PC + Vector((sx * PW / 2, 0, 0))))
+n = 0
+for row, z in enumerate((0.27, -0.27)):
+    for col, x in enumerate((-0.55, 0.0, 0.55)):
+        n += 1
+        c = PC + Vector((x, PL / 2 + 0.02, z))
+        prism(f"Tube{n}", 8, 0.23, 0.23, -0.02, 0.12, "Iron", rot=(-math.pi / 2, 0, 0), loc=tuple(c))
+        prism(f"TubeHole{n}", 8, 0.18, 0.18, 0.0, 0.125, "Dark", rot=(-math.pi / 2, 0, 0), loc=tuple(c + Vector((0, 0.002, 0))))
+        prism(f"Warhead{n}", 8, 0.13, 0, -0.02, 0.1, "PaintRed", rot=(-math.pi / 2, 0, 0), loc=tuple(c), bottom=False)
+        bone(f"muzzle_{n:02d}", tuple(c + Vector((0, 0.14, 0))), tuple(c + Vector((0, 0.7, 0))), "launcher_pitch", deform=False)
+for sx in (-1, 1):
+    box(f"Vent{sx}", (0.5, 0.06, 0.7), "Dark", loc=tuple(PC + Vector((sx * 0.45, -PL / 2 - 0.02, 0))))
+    box(f"Sight{sx}", (0.08, 0.5, 0.25), "IronDark", loc=tuple(PC + Vector((sx * (PW / 2 + 0.05), 0.7, 0.45))))
+part_bone(None)
+_c = CUR
+
+
+def body2(bone_, kind, center, size):
+    ue = lambda v: [round(v[0] * 100, 1), round(-v[1] * 100, 1), round(v[2] * 100, 1)]
+    ASSETS[_c].setdefault("bodies", []).append({"bone": bone_, "type": kind, "size_m": list(size),
+                                                 "size_cm": [round(x * 100, 1) for x in size], "center_m": list(center), "center_ue_cm": ue(center),
+                                                 "x_axis_ue": [1, 0, 0], "y_axis_ue": [0, -1, 0], "z_axis_ue": [0, 0, 1]})
+
+
+body2("root", "sphere", (0, 0, ENV_Z + 0.4), (3.6,))                       # envelope
+body2("root", "capsule", (0, 0, ENV_Z - 1.8), (2.4, 6.0))                   # lower envelope + skirt
+body2("root", "box", (0, 0.2, DECK + 0.45), (2.9, 3.4, 0.9))                # deck + lamp
+body2("launcher_pitch", "box", tuple(PC + Vector((0, 0.05, 0))), (2.0, 2.8, 1.3))    # rocket pod (hit = launcher)
+
+asset("SM_Rocket", "Map_edge", "MapEdge_Rocket", 3, cat="Projectile", place=dict(density=0),
+      notes="Rocket fired by the rocket balloon. Pivot = centre, flies along its long axis (Blender +Y). "
+            "SOCKET_exhaust at the nozzle for the flame mesh and smoke trail")
+prism("Body", 8, 0.12, 0.12, -0.55, 0.5, "IronDark", rot=(-math.pi / 2, 0, 0))
+prism("Band", 8, 0.125, 0.125, 0.25, 0.4, "PaintRed", rot=(-math.pi / 2, 0, 0))
+prism("Nose1", 8, 0.12, 0.08, 0.5, 0.7, "PaintRed", rot=(-math.pi / 2, 0, 0), bottom=False)
+prism("Nose2", 8, 0.08, 0, 0.7, 0.85, "Brass", rot=(-math.pi / 2, 0, 0), bottom=False)
+prism("Nozzle", 8, 0.07, 0.11, -0.78, -0.55, "Iron", rot=(-math.pi / 2, 0, 0), top=False)
+for k in range(4):
+    a = k * math.pi / 2 + math.pi / 4
+    bm = bmesh.new()
+    d = Vector((math.cos(a), 0, math.sin(a)))
+    pts = [d * 0.11 + Vector((0, -0.25, 0)), d * 0.11 + Vector((0, -0.7, 0)), d * 0.32 + Vector((0, -0.75, 0)), d * 0.3 + Vector((0, -0.55, 0))]
+    side = Vector((-math.sin(a), 0, math.cos(a))) * 0.012
+    v1 = [bm.verts.new(p_ + side) for p_ in pts]; v2 = [bm.verts.new(p_ - side) for p_ in pts]
+    bm.faces.new(v1); bm.faces.new(list(reversed(v2)))
+    for i in range(4):
+        j = (i + 1) % 4
+        bm.faces.new((v1[i], v2[i], v2[j], v1[j]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    put(bm, f"Fin{k}", "Brass")
+socket("exhaust", (0, -0.8, 0))                      # same orientation as the rocket: the flame mesh attaches unrotated
+ucx_box((0.3, 1.65, 0.3), (0, 0.03, 0))
+
+asset("SM_FX_Debris", "Map_edge", "MapEdge_Rocket", 2, cat="FX", place=dict(density=0),
+      notes="Explosion debris chunk (scorched metal). Spawn 6-10 with random scale 0.5-1.5 and spin")
+rock("Chunk", 0.22, (0, 0, 0), "IronDark", flat=0.5, jit=0.45, u=5, v=3)
+box("Plate", (0.35, 0.03, 0.22), "Iron", loc=(0.12, 0.05, 0.05), rot=(0.4, 0.3, 0.2))
+
+FXA = dict(density=0)
+asset("SM_FX_RocketFlame", "Map_edge", "MapEdge_FX", 3, cat="FX", place=FXA,
+      notes="Rocket exhaust flame: pivot at the nozzle, flame points -Y (backwards). UV V = 0 at the nozzle, 1 at the tip")
+for nm, r, L, seg in (("Outer", 0.17, 1.5, 8), ("Inner", 0.09, 0.85, 6)):
+    bm = bmesh.new()
+    ring = [bm.verts.new((r * math.cos(2 * math.pi * i / seg), 0, r * math.sin(2 * math.pi * i / seg))) for i in range(seg)]
+    mid = [bm.verts.new((r * 1.25 * math.cos(2 * math.pi * i / seg + 0.3), -L * 0.3, r * 1.25 * math.sin(2 * math.pi * i / seg + 0.3))) for i in range(seg)]
+    tip = bm.verts.new((0, -L, 0))
+    for i in range(seg):
+        j = (i + 1) % seg
+        bm.faces.new((ring[i], ring[j], mid[j], mid[i])); bm.faces.new((mid[i], mid[j], tip))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    put(bm, nm, "FX")
+ASSETS[CUR].update(uv="axisY", fxmat="M_FX_Flame")
+
+asset("SM_FX_MuzzleFlash", "Map_edge", "MapEdge_FX", 3, cat="FX", place=FXA,
+      notes="Launch flash: pivot at the tube mouth, points +Y. Show for 2-3 frames with random roll")
+for k in range(3):                                                        # 3 crossed flame blades
+    a = k * math.pi / 3
+    u = Vector((math.cos(a), 0, math.sin(a)))
+    bm = bmesh.new()
+    pts = [Vector((0, 0, 0)), u * 0.35 + Vector((0, 0.35, 0)), Vector((0, 1.2, 0)), -u * 0.35 + Vector((0, 0.35, 0))]
+    vs = [bm.verts.new(p_) for p_ in pts]; bm.faces.new(vs)
+    vs2 = [bm.verts.new(p_) for p_ in pts]; bm.faces.new(list(reversed(vs2)))
+    put(bm, f"Blade{k}", "FX")
+bm = bmesh.new()                                                          # front star
+star = [bm.verts.new(((0.55 if i % 2 == 0 else 0.22) * math.cos(math.pi * i / 6), 0.05, (0.55 if i % 2 == 0 else 0.22) * math.sin(math.pi * i / 6))) for i in range(12)]
+bm.faces.new(star)
+star2 = [bm.verts.new(v.co) for v in star]; bm.faces.new(list(reversed(star2)))
+put(bm, "Star", "FX")
+ASSETS[CUR].update(uv="axisY", fxmat="M_FX_MuzzleFlash")
+
+asset("SM_FX_Fireball", "Map_edge", "MapEdge_FX", 3, cat="FX", place=FXA,
+      notes="Explosion fireball, 1 m radius: scale 0.3 -> 4 over 0.4 s while it fades. UV V = height (bottom 0, top 1)")
+bm = bmesh.new(); bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+for v in bm.verts:
+    v.co *= random.uniform(0.82, 1.12)
+put(bm, "Ball", "FX")
+ASSETS[CUR].update(uv="sphere", fxmat="M_FX_Fireball")
+
+asset("SM_FX_Shockwave", "Map_edge", "MapEdge_FX", 3, cat="FX", place=FXA,
+      notes="Flat shock ring, outer radius 1 m: scale 0.5 -> 12 over 0.35 s, fade out. UV V = 0 inner edge, 1 outer edge")
+bm = bmesh.new(); seg = 24
+inn = [bm.verts.new((0.6 * math.cos(2 * math.pi * i / seg), 0.6 * math.sin(2 * math.pi * i / seg), 0)) for i in range(seg)]
+out = [bm.verts.new((1.0 * math.cos(2 * math.pi * i / seg), 1.0 * math.sin(2 * math.pi * i / seg), 0)) for i in range(seg)]
+for i in range(seg):
+    j = (i + 1) % seg
+    bm.faces.new((inn[i], inn[j], out[j], out[i]))
+put(bm, "Ring", "FX")
+ASSETS[CUR].update(uv="radial", fxmat="M_FX_Shockwave")
 
 # ---------------------------------------------------------------- store metadata for the export
 for lv in LEVELS:

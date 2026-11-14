@@ -17,7 +17,7 @@ from mathutils import Vector, Matrix, Euler, Quaternion
 
 ROOT = os.path.dirname(bpy.data.filepath)
 assert ROOT, "Save Locations.blend into Content/Assets/Locations first"
-LEVELS = ["Forest", "Field", "City", "Desert", "Loot"]
+LEVELS = ["Forest", "Field", "City", "Desert", "Loot", "Map_edge"]
 ONLY = [l for l in (globals().get("ONLY_LEVELS") or LEVELS)]
 MARGIN_PX = 3
 win = bpy.context.window_manager.windows[0]
@@ -117,7 +117,8 @@ def make_smoke(level):
     out = np.zeros((n, n, 4), np.float32)
     out[..., 0] = shade * 0.92; out[..., 1] = shade * 0.90; out[..., 2] = shade * 0.86; out[..., 3] = a
     img.pixels.foreach_set(out.ravel())
-    save_png(img, os.path.join(ROOT, level, "T_Smoke_Puff.png"))
+    save_png(img, os.path.join(os.path.normpath(os.path.join(ROOT, "..", level)) if level == "Map_edge" else os.path.join(ROOT, level),
+                               "T_FX_Smoke.png" if level == "Map_edge" else "T_Smoke_Puff.png"))
     bpy.data.images.remove(img)
 
 
@@ -139,6 +140,34 @@ def make_spark(level):
     bpy.data.images.remove(img)
 
 
+def make_explosion(folder):
+    """4 x 4 flipbook (64 px frames, 256 px sheet): white-hot flash -> orange fire -> red -> dark smoke, stepped alpha."""
+    n, F = 64, 4
+    sheet = np.zeros((n * F, n * F, 4), np.float32)
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    x = (xx + 0.5) / n * 2 - 1; y = (yy + 0.5) / n * 2 - 1
+    r = np.hypot(x, y)
+    t4 = np.tile(B4, (n // 4, n // 4)) + 0.5
+    for i in range(16):
+        t = i / 15
+        lump = tile_noise(n, 6, 40 + i) * 0.12 + tile_noise(n, 14, 80) * 0.1
+        rad = 0.35 + 0.6 * (1 - (1 - t) ** 2)
+        a = np.clip((rad - (r + lump)) / 0.25, 0, 1) * (1 - t) ** 0.6
+        heat = np.clip((1 - r / rad) * (1.4 - 1.6 * t) + lump, 0, 1)
+        fire = np.stack([np.ones_like(heat), 0.25 + 0.75 * heat, 0.05 + 0.9 * heat ** 2], -1)
+        smoke = np.stack([np.full_like(heat, 0.22), np.full_like(heat, 0.2), np.full_like(heat, 0.19)], -1)
+        k = np.clip(t * 1.5 - 0.2 + (1 - heat) * 0.4, 0, 1)[..., None]
+        rgb = fire * (1 - k) + smoke * k
+        a = np.floor(a * 4 + t4 * 0.999) / 4
+        fy, fx = 3 - i // F, i % F                             # Blender rows go up: frame 0 at the top-left
+        sheet[fy * n:(fy + 1) * n, fx * n:(fx + 1) * n, :3] = rgb
+        sheet[fy * n:(fy + 1) * n, fx * n:(fx + 1) * n, 3] = a
+    img = bpy.data.images.new("T_FX_Explosion", n * F, n * F, alpha=True)
+    img.pixels.foreach_set(sheet.ravel())
+    save_png(img, os.path.join(folder, "T_FX_Explosion.png"))
+    bpy.data.images.remove(img)
+
+
 def remove_scene(name):
     if name in bpy.data.scenes:
         s = bpy.data.scenes[name]
@@ -155,7 +184,8 @@ def remove_scene(name):
 def export_level(level):
     src = bpy.data.scenes["LOC_" + level]
     meta = json.loads(src["LOC_assets"]); groups = json.loads(src["LOC_groups"])
-    folder = os.path.join(ROOT, level); os.makedirs(folder, exist_ok=True)
+    folder = os.path.normpath(os.path.join(ROOT, "..", level) if level == "Map_edge" else os.path.join(ROOT, level))
+    os.makedirs(folder, exist_ok=True)
     remove_scene("EXP_" + level)
     for coll in (bpy.data.materials, bpy.data.images):
         for d in list(coll):
@@ -202,15 +232,25 @@ def export_level(level):
             continue
         for o in gobjs:
             o.data.uv_layers.new(name="UVMap")
-        if size == 0:                                       # light beam: U around, V along the cone, no texture
+        if size == 0:                                       # beam / effect meshes: procedural UVs, own material, no texture
             for o in gobjs:
                 me = o.data; uv = me.uv_layers["UVMap"].data
-                L = max(v.co.y for v in me.vertices) or 1.0
+                mode = meta[o.name].get("uv", "axisY")
+                cs = [v.co for v in me.vertices]
+                L = max(abs(c.y) for c in cs) or 1.0
+                R = max(c.xy.length for c in cs) or 1.0
+                zmin, zmax = min(c.z for c in cs), max(c.z for c in cs)
                 for p in me.polygons:
                     for li in p.loop_indices:
                         co = me.vertices[me.loops[li].vertex_index].co
-                        uv[li].uv = ((math.atan2(co.z, co.x) / (2 * math.pi)) % 1.0, co.y / L)
-                m = bpy.data.materials.get("M_LightBeam") or bpy.data.materials.new("M_LightBeam")
+                        if mode == "axisY":
+                            uv[li].uv = ((math.atan2(co.z, co.x) / (2 * math.pi)) % 1.0, abs(co.y) / L)
+                        elif mode == "radial":
+                            uv[li].uv = ((math.atan2(co.y, co.x) / (2 * math.pi)) % 1.0, (co.xy.length - 0.6 * R) / (0.4 * R))
+                        else:
+                            uv[li].uv = ((math.atan2(co.y, co.x) / (2 * math.pi)) % 1.0, (co.z - zmin) / max(zmax - zmin, 1e-6))
+                mname = meta[o.name].get("fxmat", "M_LightBeam")
+                m = bpy.data.materials.get(mname) or bpy.data.materials.new(mname)
                 me.materials.clear(); me.materials.append(m)
             continue
         for o in es.objects:
@@ -420,6 +460,9 @@ def export_level(level):
         make_smoke(level)
     if level == "Loot":
         make_spark(level)
+    if level == "Map_edge":
+        make_explosion(folder)
+        make_smoke(level)
     with open(os.path.join(folder, f"{level}_Placement.csv"), "w", newline="", encoding="utf-8") if level in GROUND else open(os.devnull, "w") as f:
         w = csv.writer(f)
         w.writerow(["---", "Asset", "Category", "Collision", "DensityPerKm2", "ScaleMin", "ScaleMax", "MinSpacingM",

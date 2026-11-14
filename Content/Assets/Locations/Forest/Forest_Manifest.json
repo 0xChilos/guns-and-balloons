@@ -18,6 +18,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Small_B": {
@@ -39,6 +40,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Small_C": {
@@ -60,6 +62,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Tall_A": {
@@ -85,6 +88,7 @@
   "loot_spots": [
    "loot_01"
   ],
+  "physics_bodies": [],
   "notes": "Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot)"
  },
  "SM_Pine_Tall_B": {
@@ -112,6 +116,7 @@
    "loot_01",
    "loot_02"
   ],
+  "physics_bodies": [],
   "notes": "Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot), second nest on a long branch"
  },
  "SM_Rock_A": {
@@ -133,6 +138,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Rock_B": {
@@ -154,6 +160,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Stump": {
@@ -175,6 +182,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_FallenLog": {
@@ -196,6 +204,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_LogCabin": {
@@ -218,6 +227,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_RangerTower": {
@@ -245,6 +255,7 @@
    "loot_01",
    "loot_02"
   ],
+  "physics_bodies": [],
   "notes": "Wooden fire lookout, 13 m, collides. Loot spots on the walkway round the cabin"
  },
  "SM_Mountain_A": {
@@ -266,6 +277,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "SM_Mountain_B": {
@@ -287,6 +299,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "SM_Mountain_C": {
@@ -308,6 +321,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "_ground": {

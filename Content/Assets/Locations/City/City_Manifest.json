@@ -18,6 +18,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Row of 3 brick houses, 3 floors"
  },
  "SM_House_Terrace_B": {
@@ -39,6 +40,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "4-floor stucco terrace with mansard roof and dormers"
  },
  "SM_House_Terrace_C": {
@@ -60,6 +62,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Narrow 2-floor sooty house, hipped roof"
  },
  "SM_Shop_Corner": {
@@ -82,6 +85,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Corner shop with awning and a turret"
  },
  "SM_Church": {
@@ -107,6 +111,7 @@
   "loot_spots": [
    "loot_01"
   ],
+  "physics_bodies": [],
   "notes": "Spire reaches 40 m, so it has simple collision"
  },
  "SM_Warehouse": {
@@ -128,6 +133,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Factory_A": {
@@ -158,6 +164,7 @@
    "loot_01",
    "loot_02"
   ],
+  "physics_bodies": [],
   "notes": "Smoke from SOCKET_smoke_1 / _2 (chimney tops). Chimneys reach 32 m and collide"
  },
  "SM_Factory_B": {
@@ -187,6 +194,7 @@
    "loot_01",
    "loot_02"
   ],
+  "physics_bodies": [],
   "notes": "Smoke from SOCKET_smoke_1 (chimney top). Chimney reaches 40 m and collides"
  },
  "SM_Gasholder": {
@@ -208,6 +216,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Iron gas holder frame, 20 m"
  },
  "SM_Lamppost": {
@@ -230,6 +239,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_ClockTower": {
@@ -260,6 +270,7 @@
    "loot_02",
    "loot_03"
   ],
+  "physics_bodies": [],
   "notes": "62 m Victorian clock tower, collision"
  },
  "SM_Tower_Office_A": {
@@ -289,6 +300,7 @@
    "loot_02",
    "loot_03"
   ],
+  "physics_bodies": [],
   "notes": "48 m stone office tower, collision"
  },
  "SM_Tower_Office_B": {
@@ -318,17 +330,18 @@
    "loot_02",
    "loot_03"
   ],
+  "physics_bodies": [],
   "notes": "56 m sooty brick tower with mansard top and flagpole, collision"
  },
  "SM_JammerTower": {
   "file": "SM_JammerTower.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 2132,
+  "tris": 2080,
   "size_m": [
    14.11,
    18.06,
-   83.12
+   80.27
   ],
   "texture": "T_City_Jammer.png",
   "materials": [
@@ -341,6 +354,7 @@
    "loot_01",
    "beacon_2",
    "loot_02",
+   "dish",
    "beacon_3",
    "jam"
   ],
@@ -350,7 +364,33 @@
    "loot_01",
    "loot_02"
   ],
-  "notes": "Giant antenna: lattice mast with copper coils and red warning lights (glow slot). SOCKET_beacon_1..3 for blinking lights, SOCKET_jam for a jamming effect"
+  "physics_bodies": [],
+  "notes": "Giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3, jam, loot_01/02 and dish: SM_JammerDish goes on SOCKET_dish, rotates, and can be shot down to stop the jammer"
+ },
+ "SM_JammerDish": {
+  "file": "SM_JammerDish.fbx",
+  "kind": "static",
+  "category": "Hazard",
+  "tris": 740,
+  "size_m": [
+   7.32,
+   4.49,
+   6.46
+  ],
+  "texture": "T_City_Jammer.png",
+  "materials": [
+   "M_City_Jammer",
+   "M_City_Jammer_Glow"
+  ],
+  "collision_hulls": 2,
+  "sockets": [
+   "emitter"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Rotating jammer dish for SOCKET_dish on SM_JammerTower. Pivot = turntable base, spins around Z. Own collision: shoot it down to stop the jammer. Glowing emitter core (glow slot) marks it as a target"
  },
  "_ground": {
   "texture": "T_City_Ground.png",

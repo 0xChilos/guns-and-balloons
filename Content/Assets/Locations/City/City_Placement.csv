@@ -12,4 +12,5 @@ SM_Lamppost,SM_Lamppost,Filler,false,400,1,1,12,true,false,1,street,
 SM_ClockTower,SM_ClockTower,Obstacle,true,1,1,1,400,true,true,1,scatter,"62 m Victorian clock tower, collision"
 SM_Tower_Office_A,SM_Tower_Office_A,Obstacle,true,6,0.9,1.15,60,false,true,2,scatter,"48 m stone office tower, collision"
 SM_Tower_Office_B,SM_Tower_Office_B,Obstacle,true,6,0.9,1.15,60,false,true,2,scatter,"56 m sooty brick tower with mansard top and flagpole, collision"
-SM_JammerTower,SM_JammerTower,Obstacle,true,2,0.9,1.1,250,true,true,1,scatter,"Giant antenna: lattice mast with copper coils and red warning lights (glow slot). SOCKET_beacon_1..3 for blinking lights, SOCKET_jam for a jamming effect"
+SM_JammerTower,SM_JammerTower,Obstacle,true,2,0.9,1.1,250,true,true,1,scatter,"Giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3, jam, loot_01/02 and dish: SM_JammerDish goes on SOCKET_dish, rotates, and can be shot down to stop the jammer"
+SM_JammerDish,SM_JammerDish,Hazard,true,0,1,1,0,true,false,1,scatter,"Rotating jammer dish for SOCKET_dish on SM_JammerTower. Pivot = turntable base, spins around Z. Own collision: shoot it down to stop the jammer. Glowing emitter core (glow slot) marks it as a target"
