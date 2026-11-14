@@ -5,12 +5,14 @@
 #include "Interactable.h"
 #include "AmmoCrate.generated.h"
 
+class UAmmoSupplyComponent;
 class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoCrateOpened, AAmmoCrate*, Crate, APawn*, InstigatorPawn);
 
 /**
- * An ammo crate the player opens with LMB.
+ * An ammo crate the player clicks (LMB) to reload: every click takes one round for the revolver
+ * (AmmoSupply); the first click also opens the lid. How many rounds it holds is set on AmmoSupply.
  *
  * Holds two visual states at the same spot:
  *  - ClosedState (ClosedBody + ClosedLid) - shown at start.
@@ -66,6 +68,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> OpenLid;
+
+	/** One round per click; the pawn uses it directly (see AFirstPersonCameraPawn::TryInteract). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	TObjectPtr<UAmmoSupplyComponent> AmmoSupply;
 
 	/** Begin play already open (also previews the open state in the editor). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo Crate")

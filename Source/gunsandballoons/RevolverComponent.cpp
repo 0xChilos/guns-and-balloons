@@ -11,7 +11,9 @@
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
+#include "Engine/Texture.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "RevolverAnimInstance.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -44,6 +46,7 @@ URevolverComponent::URevolverComponent()
 	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Insert(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_InsertRound.SK_PaxArmature_Reload_InsertRound"));
 	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> End(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Reload_End.SK_PaxArmature_Reload_End"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Casing(TEXT("/Game/Assets/Revolver/SM_PaxCasing.SM_PaxCasing"));
+	static ConstructorHelpers::FObjectFinder<UTexture> Texture(TEXT("/Game/Textures/Pax_Revolver_Textures/T_Pax_256.T_Pax_256"));
 
 	IdleAnim = Idle.Object;
 	FireAnim = Fire.Object;
@@ -52,8 +55,9 @@ URevolverComponent::URevolverComponent()
 	InsertRoundAnim = Insert.Object;
 	ReloadEndAnim = End.Object;
 	CasingMesh = Casing.Object;
+	WeaponTexture = Texture.Object;
 
-	Chambers.Init(ERevolverChamber::Live, NumChambers);
+	Chambers.Init(ERevolverChamber::Empty, NumChambers);
 }
 
 void URevolverComponent::SetupWeapon(USkeletalMeshComponent* InMesh, UCameraComponent* InCamera)
@@ -72,8 +76,44 @@ void URevolverComponent::BeginPlay()
 		Mesh->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick);
 	}
 
+	ApplyWeaponTexture();
+
+	// Fill from the chamber that fires next (the trigger turns the cylinder before the hammer drops).
+	Chambers.Init(ERevolverChamber::Empty, NumChambers);
+	for (int32 i = 0; i < FMath::Clamp(InitialRounds, 0, NumChambers); ++i)
+	{
+		Chambers[(TopChamber() + 1 + i) % NumChambers] = ERevolverChamber::Live;
+	}
+	QueuedRounds = 0;
+
 	SetState(ERevolverState::Idle, IdleAnim, 1.f);
 	UpdatePose();
+}
+
+void URevolverComponent::ApplyWeaponTexture()
+{
+	if (!Mesh || !WeaponTexture)
+	{
+		return;
+	}
+
+	for (int32 i = 0; i < Mesh->GetNumMaterials(); ++i)
+	{
+		UMaterialInstanceDynamic* Material = Mesh->CreateAndSetMaterialInstanceDynamic(i);
+		if (!Material)
+		{
+			continue;
+		}
+
+		Material->SetTextureParameterValue(WeaponTextureParameter, WeaponTexture);
+		// Interchange blends the map over the flat diffuse colour by "<Map>Weight"; make it all map.
+		Material->SetScalarParameterValue(FName(*(WeaponTextureParameter.ToString() + TEXT("Weight"))), 1.f);
+
+		if (!CasingMaterial)
+		{
+			CasingMaterial = Material;
+		}
+	}
 }
 
 int32 URevolverComponent::GetLiveRounds() const
@@ -96,10 +136,6 @@ void URevolverComponent::PullTrigger()
 	switch (State)
 	{
 	case ERevolverState::Idle:
-		if (bAutoReloadWhenEmpty && GetLiveRounds() == 0 && StartReload())
-		{
-			return;
-		}
 		// Double action: the trigger turns the cylinder to the next chamber while cocking the hammer.
 		++CylinderStep;
 		bShotDone = false;
@@ -110,7 +146,12 @@ void URevolverComponent::PullTrigger()
 	case ERevolverState::Turning:
 	case ERevolverState::Ejecting:
 	case ERevolverState::Inserting:
-		bCancelReload = true;
+		// A reload only runs with a round in hand: load that one, drop the rest, close the gate.
+		QueuedRounds = FMath::Min(QueuedRounds, 1);
+		break;
+
+	case ERevolverState::GateOpen:
+		SetState(ERevolverState::ReloadEnd, ReloadEndAnim, ReloadPlayRate);
 		break;
 
 	default:
@@ -118,17 +159,64 @@ void URevolverComponent::PullTrigger()
 	}
 }
 
-bool URevolverComponent::StartReload()
+bool URevolverComponent::CanLoadRound() const
 {
-	if (State != ERevolverState::Idle || GetLiveRounds() == NumChambers)
+	return GetLiveRounds() + QueuedRounds < NumChambers;
+}
+
+void URevolverComponent::SetHoldGateOpen(bool bHold)
+{
+	// Stays 0 while aiming; TickComponent counts it up once the aim leaves.
+	if (bHold)
+	{
+		HoldReleasedTime = 0.f;
+	}
+	bHoldGateRequested = bHold;
+
+	if (State == ERevolverState::Idle && ShouldHoldGateOpen())
+	{
+		OpenGate();
+	}
+}
+
+bool URevolverComponent::ShouldHoldGateOpen() const
+{
+	const bool bAiming = bHoldGateRequested || HoldReleasedTime < GateHoldGraceTime;
+	return bAiming && CanLoadRound();
+}
+
+bool URevolverComponent::LoadRound()
+{
+	if (!CanLoadRound())
 	{
 		return false;
 	}
 
-	bCancelReload = false;
+	++QueuedRounds;
+
+	// While firing or closing the gate the round waits; EnterIdle reopens the gate for it.
+	// While the gate is open it is picked up by ContinueReload after the current chamber.
+	if (State == ERevolverState::Idle)
+	{
+		OpenGate();
+	}
+	return true;
+}
+
+void URevolverComponent::OpenGate()
+{
 	SetState(ERevolverState::ReloadStart, ReloadStartAnim, ReloadPlayRate);
 	OnReloadStarted.Broadcast();
-	return true;
+}
+
+void URevolverComponent::EnterIdle()
+{
+	if (QueuedRounds > 0 || ShouldHoldGateOpen())
+	{
+		OpenGate();
+		return;
+	}
+	SetState(ERevolverState::Idle, IdleAnim, 1.f);
 }
 
 void URevolverComponent::SetState(ERevolverState NewState, UAnimSequenceBase* Anim, float Rate)
@@ -143,20 +231,28 @@ void URevolverComponent::ContinueReload()
 {
 	// Steps forward (the firing direction) until a chamber that is not live sits at the gate.
 	int32 Offset = INDEX_NONE;
-	if (!bCancelReload)
+	for (int32 i = 0; i < NumChambers; ++i)
 	{
-		for (int32 i = 0; i < NumChambers; ++i)
+		if (Chambers[(GateChamber() + i) % NumChambers] != ERevolverChamber::Live)
 		{
-			if (Chambers[(GateChamber() + i) % NumChambers] != ERevolverChamber::Live)
-			{
-				Offset = i;
-				break;
-			}
+			Offset = i;
+			break;
 		}
 	}
 
-	if (Offset == INDEX_NONE)
+	if (Offset == INDEX_NONE || QueuedRounds == 0)
 	{
+		if (Offset == INDEX_NONE)
+		{
+			// Cylinder full (CanLoadRound keeps the queue within the free chambers).
+			QueuedRounds = 0;
+		}
+		else if (ShouldHoldGateOpen())
+		{
+			// Still aiming at the ammo: keep the gate open for the next click.
+			SetState(ERevolverState::GateOpen, ReloadStartAnim, ReloadPlayRate);
+			return;
+		}
 		SetState(ERevolverState::ReloadEnd, ReloadEndAnim, ReloadPlayRate);
 		return;
 	}
@@ -196,11 +292,26 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	StateTime += DeltaTime * StateRate;
+	if (!bHoldGateRequested && HoldReleasedTime < GateHoldGraceTime)
+	{
+		HoldReleasedTime += DeltaTime;
+	}
 
 	switch (State)
 	{
 	case ERevolverState::Idle:
 		StateTime = 0.f;
+		break;
+
+	case ERevolverState::GateOpen:
+		if (QueuedRounds > 0)
+		{
+			ContinueReload();
+		}
+		else if (!ShouldHoldGateOpen())
+		{
+			SetState(ERevolverState::ReloadEnd, ReloadEndAnim, ReloadPlayRate);
+		}
 		break;
 
 	case ERevolverState::Firing:
@@ -211,7 +322,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 		if (StateTime >= LengthOf(FireAnim))
 		{
-			SetState(ERevolverState::Idle, IdleAnim, 1.f);
+			EnterIdle();
 		}
 		break;
 
@@ -225,14 +336,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	case ERevolverState::Turning:
 		if (StateTime >= TurnDuration)
 		{
-			if (bCancelReload)
-			{
-				ContinueReload();
-			}
-			else
-			{
-				ServiceGateChamber();
-			}
+			ServiceGateChamber();
 		}
 		break;
 
@@ -251,14 +355,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		}
 		if (StateTime >= LengthOf(EjectCaseAnim))
 		{
-			if (bCancelReload)
-			{
-				ContinueReload();
-			}
-			else
-			{
-				SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
-			}
+			SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
 		}
 		break;
 
@@ -266,6 +363,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		if (StateTime >= LengthOf(InsertRoundAnim))
 		{
 			Chambers[GateChamber()] = ERevolverChamber::Live;
+			QueuedRounds = FMath::Max(QueuedRounds - 1, 0);
 			OnRoundInserted.Broadcast();
 			ContinueReload();
 		}
@@ -274,8 +372,8 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	case ERevolverState::ReloadEnd:
 		if (StateTime >= LengthOf(ReloadEndAnim))
 		{
-			SetState(ERevolverState::Idle, IdleAnim, 1.f);
 			OnReloadFinished.Broadcast();
+			EnterIdle();
 		}
 		break;
 	}
@@ -305,6 +403,11 @@ void URevolverComponent::UpdatePose()
 		Anim->CylinderAngle = (CylinderStep - 1 + Turn) * DegreesPerChamber;
 		break;
 	}
+
+	case ERevolverState::GateOpen:
+		// Hold the last frame of the opening clip.
+		Anim->Time = LengthOf(ReloadStartAnim);
+		break;
 
 	case ERevolverState::Turning:
 	{
@@ -405,6 +508,10 @@ void URevolverComponent::ReleaseCasing()
 
 	UStaticMeshComponent* CasingComp = Casing->GetStaticMeshComponent();
 	CasingComp->SetStaticMesh(CasingMesh);
+	if (CasingMaterial)
+	{
+		CasingComp->SetMaterial(0, CasingMaterial);
+	}
 	CasingComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	CasingComp->SetSimulatePhysics(true);
 	CasingComp->SetPhysicsLinearVelocity(Velocity);

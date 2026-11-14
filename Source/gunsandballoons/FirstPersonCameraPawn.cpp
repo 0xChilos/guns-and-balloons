@@ -5,6 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "AmmoSupplyComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Interactable.h"
 #include "RevolverAnimInstance.h"
@@ -117,14 +118,15 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 		return;
 	}
 
+	// Aiming at ammo opens the loading gate, ready for the click that hands over a round.
+	const AActor* Aimed = TraceAimedTarget(/*bDebugDraw=*/false);
+	const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
+	Revolver->SetHoldGateOpen(AimedSupply && AimedSupply->HasRounds());
+
+	// The only input besides the mouse look. There is no reload key: rounds come from ammo supplies.
 	if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryInteract())
 	{
 		Revolver->PullTrigger();
-	}
-
-	if (PC->WasInputKeyJustPressed(EKeys::R))
-	{
-		Revolver->StartReload();
 	}
 
 	UpdateLook(PC);
@@ -214,6 +216,11 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 
 AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
 {
+	return TraceAimedTarget(bDebugInteractTrace);
+}
+
+AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
+{
 	const FVector Start = Camera->GetComponentLocation();
 	// Use the control rotation: the camera component only picks it up during the camera update,
 	// so its own forward vector can be one frame behind a fresh mouse move.
@@ -223,7 +230,7 @@ AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
 	FHitResult Hit;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, InteractTraceChannel, Params);
 
-	if (bDebugInteractTrace)
+	if (bDebugDraw)
 	{
 		DrawDebugLine(GetWorld(), Start, bHit ? Hit.ImpactPoint : End, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 1.f);
 	}
@@ -231,7 +238,7 @@ AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
 	// The hit actor itself, or whoever owns it (e.g. an AInteractSwap owns the meshes it swaps).
 	for (AActor* Actor = bHit ? Hit.GetActor() : nullptr; Actor; Actor = Actor->GetOwner())
 	{
-		if (Actor->Implements<UInteractable>())
+		if (Actor->Implements<UInteractable>() || Actor->FindComponentByClass<UAmmoSupplyComponent>())
 		{
 			return Actor;
 		}
@@ -242,11 +249,25 @@ AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
 bool AFirstPersonCameraPawn::TryInteract()
 {
 	AActor* Target = GetAimedInteractable();
-	if (!Target || !IInteractable::Execute_CanInteract(Target, this))
+	if (!Target)
 	{
 		return false;
 	}
 
-	IInteractable::Execute_Interact(Target, this);
-	return true;
+	bool bHandled = false;
+
+	if (Target->Implements<UInteractable>() && IInteractable::Execute_CanInteract(Target, this))
+	{
+		IInteractable::Execute_Interact(Target, this);
+		bHandled = true;
+	}
+
+	// One click, one round. Clicking a supply with a full gun does nothing rather than shooting it.
+	if (UAmmoSupplyComponent* Supply = Target->FindComponentByClass<UAmmoSupplyComponent>(); Supply && Supply->HasRounds())
+	{
+		Supply->GiveRound(this);
+		bHandled = true;
+	}
+
+	return bHandled;
 }

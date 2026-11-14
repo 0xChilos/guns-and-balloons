@@ -7,9 +7,11 @@
 
 class UAnimSequenceBase;
 class UCameraComponent;
+class UMaterialInstanceDynamic;
 class URevolverAnimInstance;
 class USkeletalMeshComponent;
 class UStaticMesh;
+class UTexture;
 
 UENUM(BlueprintType)
 enum class ERevolverChamber : uint8
@@ -26,6 +28,8 @@ enum class ERevolverState : uint8
 	Firing,
 	/** Half-cocking the hammer and swinging the loading gate open. */
 	ReloadStart,
+	/** Gate open, waiting for a round (the player is aiming at an ammo supply). */
+	GateOpen,
 	/** Turning the cylinder to bring the next spent/empty chamber to the gate. */
 	Turning,
 	/** The ejector rod pushes one spent case out of the gate. */
@@ -45,10 +49,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRevolverEvent);
  *
  * Firing (A_Fire): the cylinder turns to the next chamber while the hammer cocks; the shot leaves
  * when the hammer drops. An empty or spent chamber just clicks.
- * Reloading: A_Reload_Start opens the gate, then for every chamber that is not live the cylinder
- * turns it to the gate, A_Reload_EjectCase pushes out a spent case (empty chambers skip this) and
- * A_Reload_InsertRound loads a round. A_Reload_End closes the gate. Live rounds are kept.
- * Pulling the trigger mid-reload finishes the current chamber and closes the gate.
+ * Reloading is never a key press: every round comes from an ammo supply the player clicks on
+ * (UAmmoSupplyComponent -> LoadRound), one round per click. Each handed-over round is queued;
+ * A_Reload_Start opens the gate, then per queued round the cylinder turns the next chamber that is
+ * not live to the gate, A_Reload_EjectCase pushes out a spent case (empty chambers skip this) and
+ * A_Reload_InsertRound loads the round. A_Reload_End closes the gate once the queue is empty, so
+ * clicking again while the gate is still open keeps it open for the next round.
+ * Aiming at an ammo supply (SetHoldGateOpen) opens the gate ahead of the click and keeps it open
+ * between rounds; looking away (after GateHoldGraceTime) closes it.
+ * Pulling the trigger mid-reload finishes the current chamber, drops the rest of the queue and closes.
  *
  * The cylinder turn is not in any clip, so it is driven here, matching the author's
  * Preview_Reload_1..6 clips (60 degrees in ~0.17s between chambers).
@@ -72,9 +81,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Revolver")
 	void PullTrigger();
 
-	/** Start a reload if any chamber is not loaded. Returns true if it started. */
+	/**
+	 * Hand the gun one round to load (e.g. taken from an ammo crate). Opens the gate if needed and
+	 * loads it into the next empty or spent chamber. Returns false, taking nothing, if every chamber
+	 * is already live or has a round queued for it.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Revolver")
-	bool StartReload();
+	bool LoadRound();
+
+	/**
+	 * Call every frame with whether the player is aiming at an ammo supply. While true the gate
+	 * opens (if a chamber is free) and waits for rounds instead of closing.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Revolver")
+	void SetHoldGateOpen(bool bHold);
+
+	/** True if LoadRound would accept a round now. */
+	UFUNCTION(BlueprintPure, Category = "Revolver")
+	bool CanLoadRound() const;
+
+	/** Rounds handed over that are not in a chamber yet. */
+	UFUNCTION(BlueprintPure, Category = "Revolver")
+	int32 GetQueuedRounds() const { return QueuedRounds; }
 
 	UFUNCTION(BlueprintPure, Category = "Revolver")
 	ERevolverState GetState() const { return State; }
@@ -165,6 +193,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Revolver|Animation|Timing", meta = (ClampMin = "0.01"))
 	float MinTurnTime = 0.167f;
 
+	/** Seconds the gate stays open after the aim leaves the ammo supply, so grazing its edge doesn't flap it. */
+	UPROPERTY(EditAnywhere, Category = "Revolver|Animation|Timing", meta = (ClampMin = "0.0"))
+	float GateHoldGraceTime = 0.3f;
+
 	// --- Shooting -----------------------------------------------------------------------
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Shooting", meta = (ClampMin = "0.0"))
@@ -180,9 +212,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Shooting")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
 
-	/** Pulling the trigger with no live rounds starts a reload instead of clicking. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Shooting")
-	bool bAutoReloadWhenEmpty = true;
+	/** Live rounds in the cylinder at BeginPlay (the rest start empty). Needs tuning: design value is TBD. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Shooting", meta = (ClampMin = "0", ClampMax = "6"))
+	int32 InitialRounds = NumChambers;
 
 	/** Draw each shot's trace for 2s. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Shooting")
@@ -201,9 +233,28 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Casings", meta = (ClampMin = "0.0"))
 	float CasingScatter = 30.f;
 
+	// --- Look ---------------------------------------------------------------------------
+
+	/**
+	 * Diffuse map forced onto the weapon mesh (and casings) at BeginPlay through a dynamic material
+	 * instance. M_Pax is an instance the FBX importer owns: every reimport of SK_Pax.fbx resets its
+	 * parameters and drops the texture, so the gun sets it itself. Null leaves the materials alone.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Revolver|Look")
+	TObjectPtr<UTexture> WeaponTexture;
+
+	/** Texture parameter of the material that takes WeaponTexture (Interchange's FBXLegacyPhongSurfaceMaterial). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Revolver|Look")
+	FName WeaponTextureParameter = TEXT("DiffuseColorMap");
+
 private:
 	void SetState(ERevolverState NewState, UAnimSequenceBase* Anim, float Rate);
-	/** Turn to the next chamber that needs work, or close the gate when there is none. */
+	/** Go idle, or reopen the gate straight away if rounds were handed over meanwhile. */
+	void EnterIdle();
+	void OpenGate();
+	/** Apply WeaponTexture to the mesh's materials. */
+	void ApplyWeaponTexture();
+	/** Turn to the next chamber that needs a queued round, or close the gate when the queue is empty. */
 	void ContinueReload();
 	/** Eject or load the chamber now at the gate. */
 	void ServiceGateChamber();
@@ -220,7 +271,21 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCameraComponent> Camera;
 
+	/** Material given to spawned casings, so they match the textured gun. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> CasingMaterial;
+
 	TArray<ERevolverChamber> Chambers;
+
+	/** Rounds handed over by LoadRound that are not in a chamber yet (includes the one sliding in). */
+	int32 QueuedRounds = 0;
+
+	/** Last value passed to SetHoldGateOpen, and seconds since it went false. */
+	bool bHoldGateRequested = false;
+	float HoldReleasedTime = TNumericLimits<float>::Max();
+
+	/** Holding the gate open: aiming at a supply now or within the grace time, and a chamber is free. */
+	bool ShouldHoldGateOpen() const;
 
 	ERevolverState State = ERevolverState::Idle;
 	TObjectPtr<UAnimSequenceBase> StateAnim;
@@ -235,7 +300,6 @@ private:
 
 	bool bShotDone = false;
 	bool bCasingReleased = false;
-	bool bCancelReload = false;
 
 	/** World location of the ejected case last frame, to give the casing the case's own velocity. */
 	FVector LastCaseLocation = FVector::ZeroVector;

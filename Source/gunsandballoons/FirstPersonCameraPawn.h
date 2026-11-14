@@ -16,7 +16,8 @@ class USkeletalMeshComponent;
  * - Holds a hand-less weapon viewmodel (Dusk style): the gun (SK_Pax) floats bottom-right in front
  *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
  *   while idle, kicks when fired and tilts its loading gate toward the eye while reloading.
- * - LMB interacts with the IInteractable under the crosshair, otherwise fires. R reloads.
+ * - LMB interacts with the IInteractable / UAmmoSupplyComponent under the crosshair, otherwise fires.
+ *   No keyboard: reloading is clicking an ammo supply, one round per click.
  */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API AFirstPersonCameraPawn : public APawn
@@ -33,17 +34,23 @@ public:
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	URevolverComponent* GetRevolver() const { return Revolver; }
 
-	/** The IInteractable actor under the crosshair within InteractRange, or null. */
+	/** The IInteractable actor or ammo supply under the crosshair within InteractRange, or null. */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	AActor* GetAimedInteractable() const;
 
-	/** Interact with whatever is under the crosshair. Called on LMB. Returns true if something was interacted with. */
+	/**
+	 * Interact with whatever is under the crosshair (and take a round if it is an ammo supply).
+	 * Called on LMB. Returns true if the click was used, so the gun does not fire.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool TryInteract();
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	/** GetAimedInteractable, with the debug line optional (it runs every frame for the loading gate). */
+	AActor* TraceAimedTarget(bool bDebugDraw) const;
 
 	/** Applies mouse look to the control rotation. */
 	void UpdateLook(APlayerController* PC);

@@ -21,7 +21,8 @@ void AInteractSwap::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Clicks land on the BeforeActors themselves; the pawn walks the Owner chain to find us.
+	// Clicks land on the swapped actors themselves; the pawn walks the Owner chain to find us.
+	// AfterActors too, so an ammo supply on this actor keeps working once the crate is open.
 	for (AActor* Actor : BeforeActors)
 	{
 		if (Actor)
@@ -32,6 +33,10 @@ void AInteractSwap::BeginPlay()
 
 	for (AActor* Actor : AfterActors)
 	{
+		if (Actor)
+		{
+			Actor->SetOwner(this);
+		}
 		SetActorActive(Actor, false);
 	}
 }

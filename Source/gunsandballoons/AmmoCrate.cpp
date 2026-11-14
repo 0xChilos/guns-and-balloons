@@ -1,5 +1,6 @@
 #include "AmmoCrate.h"
 
+#include "AmmoSupplyComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
@@ -52,6 +53,8 @@ AAmmoCrate::AAmmoCrate()
 	OpenBody = MakeMesh(this, TEXT("OpenBody"), OpenState, BodyMesh.Object);
 	OpenLid = MakeMesh(this, TEXT("OpenLid"), OpenState, LidMesh.Object);
 	OpenLid->SetRelativeLocation(FVector(0.f, 0.f, 25.f)); // lid lifted straight up (mesh units, before actor scale)
+
+	AmmoSupply = CreateDefaultSubobject<UAmmoSupplyComponent>(TEXT("AmmoSupply"));
 }
 
 void AAmmoCrate::OnConstruction(const FTransform& Transform)
