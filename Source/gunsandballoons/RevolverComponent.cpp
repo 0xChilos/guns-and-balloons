@@ -1,19 +1,9 @@
 #include "RevolverComponent.h"
 
 #include "Animation/AnimSequenceBase.h"
-#include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "DrawDebugHelpers.h"
-#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/StaticMeshActor.h"
-#include "Engine/World.h"
-#include "GameFramework/DamageType.h"
-#include "GameFramework/Pawn.h"
 #include "Engine/Texture.h"
-#include "Kismet/GameplayStatics.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "RevolverAnimInstance.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -21,14 +11,11 @@ namespace
 {
 	constexpr float DegreesPerChamber = 360.f / URevolverComponent::NumChambers;
 
-	/** Carries the ejected case in the reload clips. */
-	const FName CaseEjectBone(TEXT("case_eject"));
-
-	/** A casing never leaves faster than this (cm/s), whatever the frame timing. */
-	constexpr float MaxCasingSpeed = 600.f;
-
-	/** Nor spins faster than this (degrees/s) from the case's own motion. */
-	constexpr float MaxCasingSpin = 1080.f;
+	/** SK_Pax chamber bones by chamber index (they turn with the cylinder), for smoke out of the open gate. */
+	const FName GateChamberBones[URevolverComponent::NumChambers] = {
+		TEXT("chamber_1"), TEXT("chamber_2"), TEXT("chamber_3"),
+		TEXT("chamber_4"), TEXT("chamber_5"), TEXT("chamber_6"),
+	};
 
 	float LengthOf(const UAnimSequenceBase* Anim)
 	{
@@ -38,9 +25,6 @@ namespace
 
 URevolverComponent::URevolverComponent()
 {
-	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickGroup = TG_PrePhysics;
-
 	// Imported from SK_Pax.fbx: every take is bound to SK_Pax_Skeleton.
 	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Idle(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Idle.SK_PaxArmature_Idle"));
 	static ConstructorHelpers::FObjectFinder<UAnimSequenceBase> Fire(TEXT("/Game/Assets/Revolver/SK_PaxArmature_Fire.SK_PaxArmature_Fire"));
@@ -60,32 +44,52 @@ URevolverComponent::URevolverComponent()
 	CasingMesh = Casing.Object;
 	WeaponTexture = Texture.Object;
 
-	Chambers.Init(ERevolverChamber::Empty, NumChambers);
-}
+	// SK_Pax's root sits on the bore axis just ahead of the cylinder; the gun reaches 27cm forward and 13cm back.
+	// Held bottom-right (Dusk style); while reloading, muzzle up and out, rolled so the gate (right) side faces the eye.
+	ViewOffset = FVector(36.f, 18.f, -7.5f);
+	ViewRotation = FRotator(0.f, -3.f, 0.f);
+	ReloadViewOffset = FVector(30.f, 11.f, -3.f);
+	ReloadViewRotation = FRotator(15.f, 35.f, -45.f);
+	RecoilKickBack = 4.f;
+	RecoilKickPitch = 12.f;
 
-void URevolverComponent::SetupWeapon(USkeletalMeshComponent* InMesh, UCameraComponent* InCamera)
-{
-	Mesh = InMesh;
-	Camera = InCamera;
+	// --- Pax handling (design, 2026-11-14) ---
+	Damage = 5.f;
+	RateOfFire = 60.f;          // rpm: at most one trigger pull per second
+	CycleTime = 0.8f;           // seconds from the pull until the gun is ready again
+	MuzzleVelocity = 33000.f;   // 330 m/s
+	GravityScale = 4.f;         // bullet drop: ~10cm low at 25m, ~45cm at 50m, ~1.8m at 100m (needs tuning)
+
+	// Recommended starting values (tweak in the editor): hard to hold in mid-air, but fair.
+	// Each shot throws the aim up ~6 degrees (4.5..7.5) and up to 1.5 to a side; only a quarter of it
+	// settles back by itself, so the player has to pull the rest down before the next shot.
+	AimRecoilPitch = 6.f;
+	AimRecoilPitchVariance = 0.25f;
+	AimRecoilYaw = 1.5f;
+	AimRecoilRecovery = 0.25f;
+	AimRecoilRecoveryTime = 0.6f;
+	// At most 1.2 degrees off the crosshair, center-weighted: about 30cm on average at 30m, 60cm at worst.
+	SpreadAngle = 1.2f;
+	// The hand wanders about half a degree; the balloon's sway (on the pawn) comes on top.
+	HandSwayPitch = 0.5f;
+	HandSwayYaw = 0.6f;
+	HandSwaySpeed = 0.7f;
+
+	// The muzzle is 27cm along the bore from the root.
+	MuzzleOffset = FVector(27.f, 0.f, 0.f);
+
+	Chambers.Init(EGunChamber::Empty, NumChambers);
 }
 
 void URevolverComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (Mesh)
-	{
-		// Pose values are written here, so the mesh evaluates after this component each frame.
-		Mesh->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick);
-	}
-
-	ApplyWeaponTexture();
-
 	// Fill from the chamber that fires next (the trigger turns the cylinder before the hammer drops).
-	Chambers.Init(ERevolverChamber::Empty, NumChambers);
+	Chambers.Init(EGunChamber::Empty, NumChambers);
 	for (int32 i = 0; i < FMath::Clamp(InitialRounds, 0, NumChambers); ++i)
 	{
-		Chambers[(TopChamber() + 1 + i) % NumChambers] = ERevolverChamber::Live;
+		Chambers[(TopChamber() + 1 + i) % NumChambers] = EGunChamber::Live;
 	}
 	QueuedRounds = 0;
 
@@ -93,38 +97,12 @@ void URevolverComponent::BeginPlay()
 	UpdatePose();
 }
 
-void URevolverComponent::ApplyWeaponTexture()
-{
-	if (!Mesh || !WeaponTexture)
-	{
-		return;
-	}
-
-	for (int32 i = 0; i < Mesh->GetNumMaterials(); ++i)
-	{
-		UMaterialInstanceDynamic* Material = Mesh->CreateAndSetMaterialInstanceDynamic(i);
-		if (!Material)
-		{
-			continue;
-		}
-
-		Material->SetTextureParameterValue(WeaponTextureParameter, WeaponTexture);
-		// Interchange blends the map over the flat diffuse colour by "<Map>Weight"; make it all map.
-		Material->SetScalarParameterValue(FName(*(WeaponTextureParameter.ToString() + TEXT("Weight"))), 1.f);
-
-		if (!CasingMaterial)
-		{
-			CasingMaterial = Material;
-		}
-	}
-}
-
 int32 URevolverComponent::GetLiveRounds() const
 {
 	int32 Count = 0;
-	for (ERevolverChamber Chamber : Chambers)
+	for (EGunChamber Chamber : Chambers)
 	{
-		Count += Chamber == ERevolverChamber::Live ? 1 : 0;
+		Count += Chamber == EGunChamber::Live ? 1 : 0;
 	}
 	return Count;
 }
@@ -139,9 +117,14 @@ void URevolverComponent::PullTrigger()
 	switch (State)
 	{
 	case ERevolverState::Idle:
+		if (!ConsumeRateOfFire())
+		{
+			break;
+		}
 		// Double action: the trigger turns the cylinder to the next chamber while cocking the hammer.
 		++CylinderStep;
 		bShotDone = false;
+		FiringElapsed = 0.f;
 		SetState(ERevolverState::Firing, FireAnim, FirePlayRate);
 		break;
 
@@ -162,19 +145,38 @@ void URevolverComponent::PullTrigger()
 	}
 }
 
+void URevolverComponent::PrepareToHolster()
+{
+	// No more holding the gate for ammo, not even for the grace time.
+	bHoldGateRequested = false;
+	HoldReleasedTime = TNumericLimits<float>::Max();
+
+	// Like the trigger mid-reload: finish the round in hand, drop the rest, close.
+	QueuedRounds = FMath::Min(QueuedRounds, 1);
+	if (State == ERevolverState::GateOpen)
+	{
+		SetState(ERevolverState::ReloadEnd, ReloadEndAnim, ReloadPlayRate);
+	}
+}
+
+bool URevolverComponent::IsReadyToHolster() const
+{
+	return State == ERevolverState::Idle && QueuedRounds == 0;
+}
+
 bool URevolverComponent::CanLoadRound() const
 {
 	return GetLiveRounds() + QueuedRounds < NumChambers;
 }
 
-void URevolverComponent::SetHoldGateOpen(bool bHold)
+void URevolverComponent::SetAimingAtAmmo(bool bAiming)
 {
 	// Stays 0 while aiming; TickComponent counts it up once the aim leaves.
-	if (bHold)
+	if (bAiming)
 	{
 		HoldReleasedTime = 0.f;
 	}
-	bHoldGateRequested = bHold;
+	bHoldGateRequested = bAiming;
 
 	if (State == ERevolverState::Idle && ShouldHoldGateOpen())
 	{
@@ -236,7 +238,7 @@ void URevolverComponent::ContinueReload()
 	int32 Offset = INDEX_NONE;
 	for (int32 i = 0; i < NumChambers; ++i)
 	{
-		if (Chambers[(GateChamber() + i) % NumChambers] != ERevolverChamber::Live)
+		if (Chambers[(GateChamber() + i) % NumChambers] != EGunChamber::Live)
 		{
 			Offset = i;
 			break;
@@ -276,17 +278,17 @@ void URevolverComponent::ContinueReload()
 void URevolverComponent::ServiceGateChamber()
 {
 	const int32 Gate = GateChamber();
-	if (Chambers[Gate] == ERevolverChamber::Spent && EjectCaseAnim)
+	if (Chambers[Gate] == EGunChamber::Spent && EjectCaseAnim)
 	{
 		// The case now rides on the case_eject bone; the chamber itself is empty.
-		Chambers[Gate] = ERevolverChamber::Empty;
+		Chambers[Gate] = EGunChamber::Empty;
 		bCasingReleased = false;
-		NumCaseSamples = 0;
+		ResetCaseSamples();
 		SetState(ERevolverState::Ejecting, EjectCaseAnim, ReloadPlayRate);
 		return;
 	}
 
-	Chambers[Gate] = ERevolverChamber::Empty;
+	Chambers[Gate] = EGunChamber::Empty;
 	SetState(ERevolverState::Inserting, InsertRoundAnim, ReloadPlayRate);
 }
 
@@ -318,10 +320,15 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		break;
 
 	case ERevolverState::Firing:
+		FiringElapsed += DeltaTime;
 		if (!bShotDone && StateTime >= HammerDropTime)
 		{
 			bShotDone = true;
 			Shoot();
+
+			// The shot itself stays quick; the rest of the clip (the trigger coming back) is spread over
+			// what is left of CycleTime, and the gun does nothing else until then.
+			StateRate = RateForRestOfCycle(LengthOf(FireAnim) - StateTime, FiringElapsed, StateRate);
 		}
 		if (StateTime >= LengthOf(FireAnim))
 		{
@@ -332,6 +339,11 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	case ERevolverState::ReloadStart:
 		if (StateTime >= LengthOf(ReloadStartAnim))
 		{
+			// The gate is open: what is left of the shots' smoke drifts out of the chamber behind it.
+			if (Chambers.Contains(EGunChamber::Spent))
+			{
+				EmitBreechSmoke(GateChamberBones[GateChamber()]);
+			}
 			ContinueReload();
 		}
 		break;
@@ -346,7 +358,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	case ERevolverState::Ejecting:
 		if (!bCasingReleased)
 		{
-			SampleCase(DeltaTime);
+			SampleCase();
 			if (StateTime >= CaseReleaseTime)
 			{
 				bCasingReleased = true;
@@ -363,7 +375,7 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	case ERevolverState::Inserting:
 		if (StateTime >= LengthOf(InsertRoundAnim))
 		{
-			Chambers[GateChamber()] = ERevolverChamber::Live;
+			Chambers[GateChamber()] = EGunChamber::Live;
 			QueuedRounds = FMath::Max(QueuedRounds - 1, 0);
 			OnRoundInserted.Broadcast();
 			ContinueReload();
@@ -380,21 +392,6 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 
 	UpdatePose();
-	LastTickDeltaTime = DeltaTime;
-}
-
-void URevolverComponent::SampleCase(float DeltaTime)
-{
-	if (!Mesh)
-	{
-		return;
-	}
-
-	// This tick reads the pose evaluated last tick, so it is one previous tick after the last sample.
-	PrevCaseTransform = LastCaseTransform;
-	LastCaseTransform = Mesh->GetSocketTransform(CaseEjectBone);
-	CaseSampleDeltaTime = LastTickDeltaTime;
-	NumCaseSamples = FMath::Min(NumCaseSamples + 1, 2);
 }
 
 void URevolverComponent::UpdatePose()
@@ -445,130 +442,20 @@ void URevolverComponent::UpdatePose()
 	// empty until the clip ends and nothing is left in it for the round to clip through.
 	for (int32 i = 0; i < NumChambers; ++i)
 	{
-		Anim->ChamberScale[i] = Chambers[i] == ERevolverChamber::Live ? 1.f : 0.f;
-		Anim->SpentScale[i] = Chambers[i] == ERevolverChamber::Spent ? 1.f : 0.f;
+		Anim->ChamberScale[i] = Chambers[i] == EGunChamber::Live ? 1.f : 0.f;
+		Anim->SpentScale[i] = Chambers[i] == EGunChamber::Spent ? 1.f : 0.f;
 	}
 }
 
 void URevolverComponent::Shoot()
 {
 	const int32 Chamber = TopChamber();
-	if (Chambers[Chamber] != ERevolverChamber::Live)
+	if (Chambers[Chamber] != EGunChamber::Live)
 	{
 		OnDryFire.Broadcast();
 		return;
 	}
-	Chambers[Chamber] = ERevolverChamber::Spent;
+	Chambers[Chamber] = EGunChamber::Spent;
 
-	AActor* Owner = GetOwner();
-	APawn* Pawn = Cast<APawn>(Owner);
-
-	// Shoot from the eye along the view so the shot lands on the crosshair.
-	const FVector Start = Camera ? Camera->GetComponentLocation() : Owner->GetActorLocation();
-	const FVector Direction = (Pawn ? Pawn->GetViewRotation() : Owner->GetActorRotation()).Vector();
-	const FVector End = Start + Direction * Range;
-
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(RevolverShot), /*bTraceComplex=*/true, Owner);
-	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TraceChannel, Params);
-
-	if (bDebugShots)
-	{
-		DrawDebugLine(GetWorld(), Start, bHit ? Hit.ImpactPoint : End, bHit ? FColor::Green : FColor::Red, false, 2.f, 0, 0.5f);
-		if (bHit)
-		{
-			DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 8.f, FColor::Yellow, false, 2.f);
-		}
-	}
-
-	if (bHit)
-	{
-		if (AActor* HitActor = Hit.GetActor())
-		{
-			UGameplayStatics::ApplyPointDamage(HitActor, Damage, Direction, Hit, Pawn ? Pawn->GetController() : nullptr, Owner, UDamageType::StaticClass());
-		}
-
-		UPrimitiveComponent* HitComponent = Hit.GetComponent();
-		if (HitComponent && HitComponent->IsSimulatingPhysics())
-		{
-			HitComponent->AddImpulseAtLocation(Direction * HitImpulse, Hit.ImpactPoint, Hit.BoneName);
-		}
-	}
-
-	OnFired.Broadcast(bHit, Hit);
-}
-
-void URevolverComponent::ReleaseCasing()
-{
-	if (!CasingMesh || !Mesh || NumCaseSamples == 0)
-	{
-		return;
-	}
-
-	// Take over from the animated case exactly where it is, carrying on with its motion. The sample is
-	// the pose shown last frame; the physics step this frame moves the casing on by one frame of it.
-	FVector Location = LastCaseTransform.GetLocation();
-	const FQuat Rotation = LastCaseTransform.GetRotation() * CasingRotationOffset.Quaternion();
-	FVector Velocity = -Mesh->GetForwardVector() * 60.f;
-	FVector SpinDegrees = FVector::ZeroVector;
-	if (NumCaseSamples >= 2 && CaseSampleDeltaTime > KINDA_SMALL_NUMBER)
-	{
-		Velocity = (LastCaseTransform.GetLocation() - PrevCaseTransform.GetLocation()) / CaseSampleDeltaTime;
-
-		FQuat Turn = LastCaseTransform.GetRotation() * PrevCaseTransform.GetRotation().Inverse();
-		Turn.EnforceShortestArcWith(FQuat::Identity);
-		FVector Axis;
-		double Angle = 0.0;
-		Turn.ToAxisAndAngle(Axis, Angle);
-		SpinDegrees = (Axis * FMath::RadiansToDegrees(Angle) / CaseSampleDeltaTime).GetClampedToMaxSize(MaxCasingSpin);
-	}
-
-	// The gun is drawn as a first-person primitive with its own (narrower) FOV, the casing with the
-	// world's. Pulling the casing toward the eye along the view axis by the ratio of the two lands it
-	// on the same pixels at the same size as the animated case it replaces.
-	if (Camera && Camera->bEnableFirstPersonFieldOfView && Mesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
-	{
-		const float WorldTan = FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView * 0.5f));
-		const float FirstPersonTan = FMath::Tan(FMath::DegreesToRadians(Camera->FirstPersonFieldOfView * 0.5f));
-		if (WorldTan > KINDA_SMALL_NUMBER)
-		{
-			const float DepthScale = FirstPersonTan / WorldTan;
-			const FTransform View = Camera->GetComponentTransform();
-
-			FVector ViewLocation = View.InverseTransformPositionNoScale(Location);
-			ViewLocation.X *= DepthScale;
-			Location = View.TransformPositionNoScale(ViewLocation);
-
-			FVector ViewVelocity = View.InverseTransformVectorNoScale(Velocity);
-			ViewVelocity.X *= DepthScale;
-			Velocity = View.TransformVectorNoScale(ViewVelocity);
-		}
-	}
-
-	Velocity = Velocity.GetClampedToMaxSize(MaxCasingSpeed) + FMath::VRand() * CasingScatter;
-	SpinDegrees += FMath::VRand() * CasingSpin;
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = GetOwner();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	AStaticMeshActor* Casing = GetWorld()->SpawnActor<AStaticMeshActor>(Location, Rotation.Rotator(), SpawnParams);
-	if (!Casing)
-	{
-		return;
-	}
-
-	Casing->SetMobility(EComponentMobility::Movable);
-	Casing->SetLifeSpan(CasingLifeSpan);
-
-	UStaticMeshComponent* CasingComp = Casing->GetStaticMeshComponent();
-	CasingComp->SetStaticMesh(CasingMesh);
-	if (CasingMaterial)
-	{
-		CasingComp->SetMaterial(0, CasingMaterial);
-	}
-	CasingComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
-	CasingComp->SetSimulatePhysics(true);
-	CasingComp->SetPhysicsLinearVelocity(Velocity);
-	CasingComp->SetPhysicsAngularVelocityInDegrees(SpinDegrees);
+	FireShot();
 }

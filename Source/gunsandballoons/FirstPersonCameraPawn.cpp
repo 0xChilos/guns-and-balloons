@@ -7,10 +7,26 @@
 #include "Engine/World.h"
 #include "AmmoSupplyComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GunAnimInstance.h"
 #include "Interactable.h"
 #include "RevolverAnimInstance.h"
 #include "RevolverComponent.h"
+#include "RifleComponent.h"
+#include "ShotgunComponent.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	/** Hand-less viewmodel mesh hanging off the eyes: no collision, no shadow, drawn as first-person. */
+	void SetupViewmodelMesh(USkeletalMeshComponent* Mesh, USceneComponent* Parent)
+	{
+		Mesh->SetupAttachment(Parent);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Mesh->SetGenerateOverlapEvents(false);
+		Mesh->CastShadow = false;
+		Mesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	}
+}
 
 AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 {
@@ -27,14 +43,9 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	Camera->bEnableFirstPersonScale = true;
 	Camera->FirstPersonScale = 0.7f;
 
-	// Hand-less viewmodel: the gun itself hangs off the eyes.
+	// --- Revolver (key 1) ---
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetupAttachment(Camera);
-	WeaponMesh->SetRelativeLocationAndRotation(WeaponOffset, WeaponRotation);
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	WeaponMesh->SetGenerateOverlapEvents(false);
-	WeaponMesh->CastShadow = false;
-	WeaponMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	SetupViewmodelMesh(WeaponMesh, Camera);
 
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> RevolverMesh(TEXT("/Game/Assets/Revolver/SK_Pax.SK_Pax"));
 	if (RevolverMesh.Succeeded())
@@ -47,6 +58,42 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Revolver = CreateDefaultSubobject<URevolverComponent>(TEXT("Revolver"));
 
+	// --- Rifle (key 2) ---
+	RifleMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RifleMesh"));
+	SetupViewmodelMesh(RifleMesh, Camera);
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> MartiniHenryMesh(TEXT("/Game/Assets/Rifle_MartiniHenry/SK_MartiniHenry.SK_MartiniHenry"));
+	if (MartiniHenryMesh.Succeeded())
+	{
+		RifleMesh->SetSkeletalMeshAsset(MartiniHenryMesh.Object);
+	}
+
+	// Pose comes from code (URifleComponent), not an Animation Blueprint.
+	RifleMesh->AnimClass = UGunAnimInstance::StaticClass();
+
+	Rifle = CreateDefaultSubobject<URifleComponent>(TEXT("Rifle"));
+
+	// --- Shotgun (key 3) ---
+	ShotgunMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ShotgunMesh"));
+	SetupViewmodelMesh(ShotgunMesh, Camera);
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HomesteadMesh(TEXT("/Game/Assets/Homestead_78/SK_Homestead78.SK_Homestead78"));
+	if (HomesteadMesh.Succeeded())
+	{
+		ShotgunMesh->SetSkeletalMeshAsset(HomesteadMesh.Object);
+	}
+
+	// Pose comes from code (UShotgunComponent), not an Animation Blueprint.
+	ShotgunMesh->AnimClass = UGunAnimInstance::StaticClass();
+
+	Shotgun = CreateDefaultSubobject<UShotgunComponent>(TEXT("Shotgun"));
+
+	WeaponMesh->SetRelativeLocationAndRotation(Revolver->GetViewOffset(), Revolver->GetViewRotation());
+	RifleMesh->SetRelativeLocationAndRotation(Rifle->GetViewOffset(), Rifle->GetViewRotation());
+	ShotgunMesh->SetRelativeLocationAndRotation(Shotgun->GetViewOffset(), Shotgun->GetViewRotation());
+	RifleMesh->SetVisibility(false); // the revolver is in hand by default
+	ShotgunMesh->SetVisibility(false);
+
 	// The actor stays exactly where it was placed: it never takes the controller's rotation.
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationPitch = false;
@@ -58,26 +105,68 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
+TArray<UGunComponent*, TInlineAllocator<3>> AFirstPersonCameraPawn::GetGuns() const
+{
+	return { Revolver.Get(), Rifle.Get(), Shotgun.Get() };
+}
+
+TArray<USkeletalMeshComponent*, TInlineAllocator<3>> AFirstPersonCameraPawn::GetGunMeshes() const
+{
+	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get() };
+}
+
 void AFirstPersonCameraPawn::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	// Keep the editor preview in sync with the tweakable rest pose.
-	WeaponMesh->SetRelativeLocationAndRotation(WeaponOffset, WeaponRotation);
+	// Keep the editor preview in sync with each gun's tweakable rest pose; only the starting gun shows.
+	const TArray<UGunComponent*, TInlineAllocator<3>> Guns = GetGuns();
+	const TArray<USkeletalMeshComponent*, TInlineAllocator<3>> Meshes = GetGunMeshes();
+	for (int32 i = 0; i < Guns.Num(); ++i)
+	{
+		if (USkeletalMeshComponent* Mesh = Meshes[i])
+		{
+			Mesh->SetRelativeLocationAndRotation(Guns[i]->GetViewOffset(), Guns[i]->GetViewRotation());
+			Mesh->SetVisibility(i == FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1));
+		}
+	}
 }
 
 void AFirstPersonCameraPawn::BeginPlay()
 {
 	// Before Super, which runs the components' BeginPlay.
 	Revolver->SetupWeapon(WeaponMesh, Camera);
-	Revolver->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
+	Rifle->SetupWeapon(RifleMesh, Camera);
+	Shotgun->SetupWeapon(ShotgunMesh, Camera);
+
+	const TArray<UGunComponent*, TInlineAllocator<3>> Guns = GetGuns();
+	for (UGunComponent* Gun : Guns)
+	{
+		Gun->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
+	}
 
 	Super::BeginPlay();
+
+	ActiveGun = Guns[FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1)];
+	PendingGun = nullptr;
+	for (UGunComponent* Gun : Guns)
+	{
+		Gun->SetEquipped(Gun == ActiveGun);
+	}
 }
 
-void AFirstPersonCameraPawn::HandleWeaponFired(bool bHit, const FHitResult& Hit)
+void AFirstPersonCameraPawn::HandleWeaponFired()
 {
 	RecoilAlpha = 1.f;
+
+	// Only the gun in hand fires. Its kick throws the aim; part of it settles back by itself afterwards.
+	if (ActiveGun)
+	{
+		const FRotator Kick = ActiveGun->RollAimRecoil();
+		PendingAimKick += Kick;
+		PendingAimSettle -= Kick * ActiveGun->GetAimRecoilRecovery();
+		AimSettleTime = ActiveGun->GetAimRecoilRecoveryTime();
+	}
 }
 
 void AFirstPersonCameraPawn::NotifyControllerChanged()
@@ -100,6 +189,11 @@ void AFirstPersonCameraPawn::NotifyControllerChanged()
 	// The snap to the actor's facing above must not read as a huge flick of the gun.
 	bHasLastViewRotation = false;
 
+	// Nor carry over aim motion from before.
+	PendingAimKick = FRotator::ZeroRotator;
+	PendingAimSettle = FRotator::ZeroRotator;
+	bHasAppliedAimSway = false;
+
 	// Swing the gun up into view.
 	RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
 
@@ -108,28 +202,79 @@ void AFirstPersonCameraPawn::NotifyControllerChanged()
 	PC->bShowMouseCursor = false;
 }
 
+void AFirstPersonCameraPawn::EquipGun(UGunComponent* Gun)
+{
+	if (!Gun || !ActiveGun)
+	{
+		return;
+	}
+
+	if (PendingGun)
+	{
+		// Mid-swap: picking the gun in hand cancels the swap, picking another redirects it.
+		PendingGun = Gun == ActiveGun ? nullptr : Gun;
+		return;
+	}
+
+	if (Gun != ActiveGun)
+	{
+		PendingGun = Gun;
+		ActiveGun->PrepareToHolster();
+	}
+}
+
 void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
 	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC || !PC->IsLocalController())
+	if (!PC || !PC->IsLocalController() || !ActiveGun)
 	{
 		return;
 	}
 
-	// Aiming at ammo opens the loading gate, ready for the click that hands over a round.
-	const AActor* Aimed = TraceAimedTarget(/*bDebugDraw=*/false);
-	const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
-	Revolver->SetHoldGateOpen(AimedSupply && AimedSupply->HasRounds());
-
-	// The only input besides the mouse look. There is no reload key: rounds come from ammo supplies.
-	if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryInteract())
+	// Number keys pick a gun.
+	if (PC->WasInputKeyJustPressed(EKeys::One))
 	{
-		Revolver->PullTrigger();
+		EquipGun(Revolver.Get());
+	}
+	if (PC->WasInputKeyJustPressed(EKeys::Two))
+	{
+		EquipGun(Rifle.Get());
+	}
+	if (PC->WasInputKeyJustPressed(EKeys::Three))
+	{
+		EquipGun(Shotgun.Get());
+	}
+
+	if (PendingGun)
+	{
+		// Putting the gun away: it stops waiting for ammo and takes no clicks.
+		ActiveGun->SetAimingAtAmmo(false);
+	}
+	else
+	{
+		// Aiming at ammo opens the gun, ready for the RMB click that hands over a round.
+		const AActor* Aimed = TraceAimedTarget(/*bDebugDraw=*/false);
+		const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
+		ActiveGun->SetAimingAtAmmo(AimedSupply && AimedSupply->HasRounds());
+
+		// There is no reload key: RMB on an ammo supply takes one round from it.
+		if (PC->WasInputKeyJustPressed(EKeys::RightMouseButton))
+		{
+			TryTakeRound();
+		}
+
+		// LMB uses other interactables, otherwise pulls the trigger (an open gun closes without firing).
+		if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryInteract())
+		{
+			ActiveGun->PullTrigger();
+		}
 	}
 
 	UpdateLook(PC);
+	UpdateAimMotion(PC, DeltaSeconds);
+	UpdateWeaponSwap(DeltaSeconds);
 	UpdateWeaponSway(DeltaSeconds);
 }
 
@@ -147,10 +292,16 @@ void AFirstPersonCameraPawn::UpdateLook(APlayerController* PC)
 		return;
 	}
 
+	AddAimRotation(PC, FRotator(DY * LookSensitivity * (bInvertY ? -1.f : 1.f), DX * LookSensitivity, 0.f));
+}
+
+void AFirstPersonCameraPawn::AddAimRotation(APlayerController* PC, const FRotator& Delta)
+{
 	FRotator Rot = PC->GetControlRotation();
-	Rot.Yaw += DX * LookSensitivity;
-	Rot.Pitch = FMath::ClampAngle(Rot.Pitch + DY * LookSensitivity * (bInvertY ? -1.f : 1.f), MinPitch, MaxPitch);
-	Rot.Roll = 0.f;
+	Rot.Yaw += Delta.Yaw;
+	Rot.Pitch = FMath::ClampAngle(Rot.Pitch + Delta.Pitch, MinPitch, MaxPitch);
+	// Roll belongs to the balloon sway alone (the mouse never rolls).
+	Rot.Roll = FRotator::NormalizeAxis(Rot.Roll + Delta.Roll);
 
 	if (bLimitYaw)
 	{
@@ -162,8 +313,97 @@ void AFirstPersonCameraPawn::UpdateLook(APlayerController* PC)
 	PC->SetControlRotation(Rot);
 }
 
+void AFirstPersonCameraPawn::UpdateAimMotion(APlayerController* PC, float DeltaSeconds)
+{
+	if (PC->IsLookInputIgnored())
+	{
+		return;
+	}
+
+	FRotator Delta = FRotator::ZeroRotator;
+
+	// Recoil: the kick snaps in fast; once it is in, the settling share eases back (~95% in AimSettleTime).
+	const FRotator KickStep = PendingAimKick * FMath::Min(1.f, DeltaSeconds * AimKickSpeed);
+	PendingAimKick -= KickStep;
+	Delta += KickStep;
+	if (PendingAimKick.IsNearlyZero(0.05f))
+	{
+		const FRotator SettleStep = PendingAimSettle * FMath::Min(1.f, DeltaSeconds * 3.f / FMath::Max(AimSettleTime, 0.05f));
+		PendingAimSettle -= SettleStep;
+		Delta += SettleStep;
+	}
+
+	// Sway: the hand (per gun, blended across swaps) plus the balloon rocking. Smooth noise, each axis on
+	// its own stretch of it. Only the change since last tick is applied, so it never drifts the aim away
+	// and the mouse stays in charge.
+	const FVector2D TargetHandSway = ActiveGun ? ActiveGun->GetHandSway() : FVector2D::ZeroVector;
+	const float TargetHandSwaySpeed = ActiveGun ? ActiveGun->GetHandSwaySpeed() : 0.f;
+	CurrentHandSway = FMath::Vector2DInterpTo(CurrentHandSway, TargetHandSway, DeltaSeconds, HandSwayBlendSpeed);
+	CurrentHandSwaySpeed = FMath::FInterpTo(CurrentHandSwaySpeed, TargetHandSwaySpeed, DeltaSeconds, HandSwayBlendSpeed);
+	HandSwayPhase += DeltaSeconds * CurrentHandSwaySpeed;
+	BalloonSwayPhase += DeltaSeconds * BalloonSwaySpeed;
+
+	auto Noise = [](float Phase, int32 Axis) { return FMath::PerlinNoise1D(Phase + Axis * 37.31f); };
+	const FRotator Sway(
+		Noise(HandSwayPhase, 0) * CurrentHandSway.X + Noise(BalloonSwayPhase, 1) * BalloonSwayPitch,
+		Noise(HandSwayPhase, 2) * CurrentHandSway.Y + Noise(BalloonSwayPhase, 3) * BalloonSwayYaw,
+		Noise(BalloonSwayPhase, 4) * BalloonSwayRoll);
+
+	if (bHasAppliedAimSway)
+	{
+		Delta += Sway - AppliedAimSway;
+	}
+	AppliedAimSway = Sway;
+	bHasAppliedAimSway = true;
+
+	if (!Delta.IsNearlyZero(1.e-4f))
+	{
+		AddAimRotation(PC, Delta);
+	}
+}
+
+void AFirstPersonCameraPawn::UpdateWeaponSwap(float DeltaSeconds)
+{
+	// Lowering starts only once the gun has finished firing/reloading and closed up.
+	if (PendingGun && ActiveGun->IsReadyToHolster())
+	{
+		RaiseAlpha = LowerTime > 0.f ? FMath::FInterpConstantTo(RaiseAlpha, 1.f, DeltaSeconds, 1.f / LowerTime) : 1.f;
+		if (RaiseAlpha >= 1.f)
+		{
+			// Out of view: swap, then the normal raise brings the new gun up.
+			ActiveGun->SetEquipped(false);
+			PendingGun->SetEquipped(true);
+			ActiveGun = PendingGun;
+			PendingGun = nullptr;
+			RecoilAlpha = 0.f;
+			ReloadPoseAlpha = 0.f;
+			if (RaiseTime <= 0.f)
+			{
+				RaiseAlpha = 0.f;
+			}
+		}
+		return;
+	}
+
+	// Swing up from below (on possession, after a swap, or when a swap was cancelled).
+	if (RaiseTime > 0.f)
+	{
+		RaiseAlpha = FMath::FInterpConstantTo(RaiseAlpha, 0.f, DeltaSeconds, 1.f / RaiseTime);
+	}
+	else
+	{
+		RaiseAlpha = 0.f;
+	}
+}
+
 void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 {
+	USkeletalMeshComponent* GunMesh = ActiveGun ? ActiveGun->GetMesh() : nullptr;
+	if (!GunMesh)
+	{
+		return;
+	}
+
 	const FRotator View = GetViewRotation();
 	if (!bHasLastViewRotation)
 	{
@@ -192,26 +432,21 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 
 	// Shot kick: snaps back and up, then eases home.
 	RecoilAlpha = FMath::FInterpTo(RecoilAlpha, 0.f, DeltaSeconds, RecoilRecoverySpeed);
-	const FVector Kick(-RecoilAlpha * RecoilKickBack, 0.f, 0.f);
-	const FRotator KickRotation(RecoilAlpha * RecoilKickPitch, 0.f, 0.f);
+	const FVector Kick(-RecoilAlpha * ActiveGun->GetRecoilKickBack(), 0.f, 0.f);
+	const FRotator KickRotation(RecoilAlpha * ActiveGun->GetRecoilKickPitch(), 0.f, 0.f);
 
-	// Tilt the loading gate into view for the whole reload, then bring the gun back.
-	const bool bReloading = Revolver && Revolver->IsReloading();
-	ReloadPoseAlpha = FMath::FInterpConstantTo(ReloadPoseAlpha, bReloading ? 1.f : 0.f, DeltaSeconds, 1.f / ReloadPoseBlendTime);
+	// Turn the loading port into view for the whole reload, then bring the gun back.
+	ReloadPoseAlpha = FMath::FInterpConstantTo(ReloadPoseAlpha, ActiveGun->IsReloading() ? 1.f : 0.f, DeltaSeconds, 1.f / ReloadPoseBlendTime);
 	const float PoseBlend = FMath::SmoothStep(0.f, 1.f, ReloadPoseAlpha);
-	const FVector PoseOffset = FMath::Lerp(WeaponOffset, ReloadOffset, PoseBlend);
-	const FRotator PoseRotation = FQuat::Slerp(WeaponRotation.Quaternion(), ReloadRotation.Quaternion(), PoseBlend).Rotator();
+	const FVector PoseOffset = FMath::Lerp(ActiveGun->GetViewOffset(), ActiveGun->GetReloadViewOffset(), PoseBlend);
+	const FRotator PoseRotation = FQuat::Slerp(ActiveGun->GetViewRotation().Quaternion(), ActiveGun->GetReloadViewRotation().Quaternion(), PoseBlend).Rotator();
 
-	// Swing up from below on possession.
-	if (RaiseTime > 0.f)
-	{
-		RaiseAlpha = FMath::FInterpConstantTo(RaiseAlpha, 0.f, DeltaSeconds, 1.f / RaiseTime);
-	}
+	// Lowered below the view on possession and during a swap.
 	const float Lowered = FMath::Square(RaiseAlpha); // fast at first, settling softly
 	const FVector Raise(0.f, 0.f, -Lowered * RaiseDrop);
 	const FRotator RaiseRotation(-Lowered * RaisePitch, 0.f, 0.f);
 
-	WeaponMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + CurrentSway + KickRotation);
+	GunMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + CurrentSway + KickRotation);
 }
 
 AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
@@ -249,25 +484,39 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 bool AFirstPersonCameraPawn::TryInteract()
 {
 	AActor* Target = GetAimedInteractable();
-	if (!Target)
+
+	// Ammo supplies (and whatever they sit on, e.g. the crate's lid) belong to RMB: see TryTakeRound.
+	if (!Target || Target->FindComponentByClass<UAmmoSupplyComponent>() || !Target->Implements<UInteractable>()
+		|| !IInteractable::Execute_CanInteract(Target, this))
 	{
 		return false;
 	}
 
-	bool bHandled = false;
+	IInteractable::Execute_Interact(Target, this);
+	return true;
+}
 
+bool AFirstPersonCameraPawn::TryTakeRound()
+{
+	AActor* Target = GetAimedInteractable();
+	UAmmoSupplyComponent* Supply = Target ? Target->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
+	if (!Supply)
+	{
+		return false;
+	}
+
+	// The same click opens the supply (a crate's lid) and already takes a round.
 	if (Target->Implements<UInteractable>() && IInteractable::Execute_CanInteract(Target, this))
 	{
 		IInteractable::Execute_Interact(Target, this);
-		bHandled = true;
 	}
 
-	// One click, one round. Clicking a supply with a full gun does nothing rather than shooting it.
-	if (UAmmoSupplyComponent* Supply = Target->FindComponentByClass<UAmmoSupplyComponent>(); Supply && Supply->HasRounds())
+	// A gun with a fired case waiting to come out (the shotgun) spends this click pulling it out.
+	if (ActiveGun && ActiveGun->EjectCase())
 	{
-		Supply->GiveRound(this);
-		bHandled = true;
+		return false;
 	}
 
-	return bHandled;
+	// One click, one round.
+	return Supply->GiveRound(this);
 }

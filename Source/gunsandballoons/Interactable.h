@@ -19,7 +19,10 @@ class GUNSANDBALLOONS_API IInteractable
 	GENERATED_BODY()
 
 public:
-	/** Called when the player presses LMB while aiming at this actor and CanInteract returned true. */
+	/**
+	 * Called when the player presses LMB while aiming at this actor and CanInteract returned true.
+	 * On an actor with a UAmmoSupplyComponent it is RMB instead, the same click that takes a round.
+	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	void Interact(APawn* InstigatorPawn);
 
