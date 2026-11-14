@@ -8,14 +8,17 @@ and writes into the asset folder:
   T_Balloon_BaseColor.png   1024 atlas, ~1.5 cm per texel, AO grime + ordered dither (sRGB)
   T_Balloon_ORM.png         R = ambient occlusion, G = roughness, B = metallic (linear)
   T_Balloon_Radar.png       radar CRT (balloon icon, 3 range rings), fills the radar disc's 0..1 UV (sRGB)
-Materials: M_Balloon (atlas), M_Glow (atlas as emissive), M_Display (radar screen).
+Materials: M_Balloon (atlas), M_Glow (atlas as emissive), M_Display (radar screen),
+           M_WarningLamp (warning lamp glass, atlas; colour/glow set in Unreal).
 Use Nearest filtering in Unreal for the PS1 look.
 """
 import bpy, bmesh, json, math, os
 import numpy as np
 from mathutils import Vector
 
-FOLDER = r"D:/Docs/Unreal Projects/MyProject/Content/Assets/Balloon"
+# the asset folder = wherever Balloon.blend is saved (keeps working in any checkout of the repo)
+FOLDER = os.path.dirname(bpy.data.filepath)
+assert FOLDER, "Save Balloon.blend into Content/Assets/Balloon before running this script"
 ATLAS = 1024
 MARGIN_PX = 4
 SRC = bpy.data.scenes["AirBalloon"]
@@ -33,7 +36,7 @@ if GS in bpy.data.scenes:
     for o in list(gsc.objects):
         bpy.data.objects.remove(o, do_unlink=True)
     bpy.data.scenes.remove(gsc)
-PREFIX = ("SK_Balloon", "BAKE_", "M_Balloon", "M_Glow", "M_Display", "T_Balloon", "REF_Human")
+PREFIX = ("SK_Balloon", "BAKE_", "M_Balloon", "M_Glow", "M_Display", "M_WarningLamp", "T_Balloon", "REF_Human")
 for o in list(bpy.data.objects):
     if o.name.startswith("REF_Human") and not o.users_scene:
         bpy.data.objects.remove(o)
@@ -234,7 +237,19 @@ for nt, out, src, e in saved:
     if src is not None:
         nt.links.new(src, out.inputs['Surface'])
 gs.cycles.samples = 48
+# Parts that open in game (ammo box lid) are lifted away during the AO bake, so what is under them
+# (the cartridges) isn't baked pitch-black as if the lid were always shut.
+AO_LIFT = {"ammo_lid": Vector((0, 0, 1.0))}
+lifted = []
+for part, off in AO_LIFT.items():
+    vg = obj.vertex_groups.get(part)
+    if vg is not None:
+        for v in me_all.vertices:
+            if any(g.group == vg.index and g.weight > 0.5 for g in v.groups):
+                v.co += off; lifted.append((v.index, off))
 bake('AO', ao_img)
+for i, off in lifted:
+    me_all.vertices[i].co -= off
 
 # ---------------------------------------------------------------- 4. grit: AO grime, grain, ordered dither
 def px(img):
@@ -253,12 +268,12 @@ LV = 24.0                                                            # ~5-bit co
 rgb = np.clip(np.floor(rgb * LV + t + 0.5) / LV, 0, 1)
 base[..., :3] = rgb; base[..., 3] = 1
 atlas.pixels.foreach_set(base.ravel())
-atlas.filepath_raw = os.path.join(FOLDER, "T_Balloon_BaseColor.png"); atlas.file_format = 'PNG'; atlas.save()
+atlas.filepath_raw = os.path.join(FOLDER, "T_Balloon_BaseColor.png"); atlas.file_format = 'PNG'; atlas.save(); atlas.filepath = "//T_Balloon_BaseColor.png"   # relative, so the .blend never points at an old folder
 
 orm = np.stack([ao, np.clip(rough + rng.normal(0, 0.03, rough.shape), 0, 1), metal, np.ones_like(ao)], -1)
 orm_img = new_img("T_Balloon_ORM", ATLAS, ATLAS, True)
 orm_img.pixels.foreach_set(orm.astype(np.float32).ravel())
-orm_img.filepath_raw = os.path.join(FOLDER, "T_Balloon_ORM.png"); orm_img.file_format = 'PNG'; orm_img.save()
+orm_img.filepath_raw = os.path.join(FOLDER, "T_Balloon_ORM.png"); orm_img.file_format = 'PNG'; orm_img.save(); orm_img.filepath = "//T_Balloon_ORM.png"   # relative, so the .blend never points at an old folder
 
 # radar CRT: dark phosphor, 3 range rings, faint crosshair + bearing ticks, balloon icon at the centre.
 # The rotating sweep and the enemy blips are added live in the Unreal material.
@@ -286,12 +301,12 @@ dp = np.zeros((H_, W_, 4), np.float32); dp[..., 3] = 1
 dp[..., 0] = 0.06 + 0.40 * g ** 1.3; dp[..., 1] = 0.05 + 0.90 * g; dp[..., 2] = 0.04 + 0.45 * g ** 1.2
 disp_img.scale(W_, H_)
 disp_img.pixels.foreach_set(dp.ravel())
-disp_img.filepath_raw = os.path.join(FOLDER, "T_Balloon_Radar.png"); disp_img.file_format = 'PNG'; disp_img.save()
+disp_img.filepath_raw = os.path.join(FOLDER, "T_Balloon_Radar.png"); disp_img.file_format = 'PNG'; disp_img.save(); disp_img.filepath = "//T_Balloon_Radar.png"   # relative, so the .blend never points at an old folder
 old = os.path.join(FOLDER, "T_Balloon_Display.png")
 if os.path.exists(old):
     os.remove(old)
 
-# ---------------------------------------------------------------- 5. final game materials (3 slots)
+# ---------------------------------------------------------------- 5. final game materials (4 slots)
 def game_mat(name, img, orm=None, emissive=0.0):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree
@@ -310,8 +325,9 @@ def game_mat(name, img, orm=None, emissive=0.0):
         bsdf.inputs['Emission Strength'].default_value = emissive
     return m
 
-final = [game_mat("M_Balloon", atlas, orm_img), game_mat("M_Glow", atlas, None, 6.0), game_mat("M_Display", disp_img, None, 1.5)]
-mapping = np.array([2 if m == disp_mat else 1 if m.name in GLOW else 0 for m in MATS], np.int32)
+final = [game_mat("M_Balloon", atlas, orm_img), game_mat("M_Glow", atlas, None, 6.0), game_mat("M_Display", disp_img, None, 1.5),
+         game_mat("M_WarningLamp", atlas)]
+mapping = np.array([2 if m == disp_mat else 1 if m.name in GLOW else 3 if m.name == "AB_WarnLamp" else 0 for m in MATS], np.int32)
 idx = np.zeros(len(me_all.polygons), np.int32)
 me_all.polygons.foreach_get("material_index", idx)
 me_all.materials.clear()

@@ -148,6 +148,8 @@ mk("Brass", (0.55, 0.40, 0.14), (0.20, 0.15, 0.06), metal=0.9, rough=0.45, snap=
 mk("Rope", (0.36, 0.29, 0.17), (0.17, 0.13, 0.08), rough=1.0, snap=0.03, nscale=12)
 mk("PropWood", (0.42, 0.25, 0.10), (0.18, 0.10, 0.04), rough=0.7, snap=0.03, nscale=8,
    pattern='bands', pcol=(0.75, 0.7, 0.65), pfreq=20)
+mk("Barnwood", (0.33, 0.29, 0.24), (0.13, 0.11, 0.09), rough=0.95, snap=0.03, nscale=10,
+   pattern='bands', pcol=(0.70, 0.68, 0.66), pfreq=26)
 mk("Burlap", (0.38, 0.32, 0.20), (0.18, 0.15, 0.09), rough=1.0, snap=0.04, nscale=9)
 mk("Coal", (0.05, 0.05, 0.05), (0.01, 0.01, 0.01), rough=0.6, snap=0.02, nscale=15)
 mk("Gauge", (0.70, 0.64, 0.48), (0.45, 0.40, 0.28), rough=0.5, snap=0.01, nscale=20)
@@ -157,6 +159,7 @@ mk("GaugeRed", (0.66, 0.06, 0.03), (0.42, 0.03, 0.02), rough=0.5, snap=0.01, nsc
 mk("Fire", None, None, emit=((1.0, 0.33, 0.04), 30.0))
 mk("Lamp", None, None, emit=((1.0, 0.75, 0.35), 12.0))
 mk("Display", None, None, emit=((0.12, 0.30, 0.16), 2.0))
+mk("WarnLamp", (0.42, 0.36, 0.30), (0.30, 0.25, 0.21), rough=0.2, snap=0.01, nscale=20)   # glass, unlit = "off"
 
 # ---------------------------------------------------------------- helpers
 def finish(name, bm, mat, loc=(0, 0, 0), rot=(0, 0, 0)):
@@ -331,10 +334,10 @@ def digit(name, F, ch, cu, cv, h, w, s, n0, n1, mat):
         fobj(f"{name}_{k}", F, b_box((u_, v_, nc), (su, sv, t)), mat)
 
 # ================================================================ BASKET (octagonal, 8 walls)
-R = 1.3                                   # wall circumradius: 2.26 m inside, room for a 180 cm character
-APO = R * math.cos(math.pi / 8)          # 1.201 outer wall distance
+R = 0.975                                 # wall circumradius (25% smaller than the first 1.3): 1.66 m inside
+APO = R * math.cos(math.pi / 8)          # 0.901 outer wall distance
 WALL_T = 0.07
-INNER = APO - WALL_T                      # 1.131 inner wall face
+INNER = APO - WALL_T                      # 0.831 inner wall face
 FLOOR_Z = WALL_T                          # floor top (solidified bottom face)
 solid(prism("BasketWall", 8, R, R, 0.0, 1.0, "Wicker", phase=math.pi / 8, top=False), WALL_T)
 solid(prism("BasketRim", 8, R + 0.07, R + 0.07, 0.96, 1.09, "Iron", phase=math.pi / 8, top=False, bottom=False), 0.15)
@@ -381,11 +384,11 @@ bone("balloon", (0, 0, MOUTH_Z), "basket")
 PART = "ropes"
 LOAD_Z = 2.40
 bone("ropes", (0, 0, 1.15), "basket")
-solid(prism("LoadRing", 8, 0.98, 0.98, LOAD_Z - 0.04, LOAD_Z + 0.04, "Iron", phase=math.pi / 8, top=False, bottom=False), 0.07)
+solid(prism("LoadRing", 8, 0.76, 0.76, LOAD_Z - 0.04, LOAD_Z + 0.04, "Iron", phase=math.pi / 8, top=False, bottom=False), 0.07)
 for k in range(8):
     a = math.pi / 8 + k * math.pi / 4
-    bar(f"RopeUp{k}", polar(0.96, a, LOAD_Z), polar(0.62, a, MOUTH_Z), 0.018, "Rope")
-    bar(f"RopeDn{k}", polar(R + 0.02, a, 1.15), polar(0.96, a, LOAD_Z), 0.018, "Rope")
+    bar(f"RopeUp{k}", polar(0.74, a, LOAD_Z), polar(0.62, a, MOUTH_Z), 0.018, "Rope")
+    bar(f"RopeDn{k}", polar(R + 0.02, a, 1.15), polar(0.74, a, LOAD_Z), 0.018, "Rope")
 
 # ================================================================ STOVE ENGINE (inside the basket, against the back wall)
 SR = 0.30
@@ -488,7 +491,7 @@ fobj("BurnSlider", FB, b_box((0.074, BURN_V0, 0.022), (0.016, 0.028, 0.012)), "B
 PART = "stove"
 
 # coal scuttle on the floor beside the furnace
-CB = Vector((0.55, -0.62, 0))
+CB = Vector((0.47, -0.27, 0))                # clear of the stove and the walls
 PART = "fuel_bucket"
 bone("fuel_bucket", (CB.x, CB.y, Z0), "basket")
 solid(prism("CoalScuttle", 8, 0.13, 0.16, Z0, Z0 + 0.22, "Iron", loc=CB, top=False), 0.012)   # empty, walls have an inside
@@ -556,7 +559,8 @@ def wing(side, open_deg):
     hinge = Vector((side * (APO + 0.09), R * math.sin(math.pi / 8) + 0.02, 0.55))
     th = -math.pi / 2 - math.radians(open_deg) if side < 0 else -math.pi / 2 + math.radians(open_deg)
     MW = Matrix.Translation(hinge) @ Matrix.Rotation(th, 4, 'Z')
-    outline = [(0, 0.50), (0.9, 0.60), (1.28, 0.18), (1.20, -0.24), (0.90, -0.52), (0, -0.46)]
+    WS = 0.75                                    # scaled with the basket so it folds flat along the shorter side wall
+    outline = [(x * WS, z * WS) for x, z in ((0, 0.50), (0.9, 0.60), (1.28, 0.18), (1.20, -0.24), (0.90, -0.52), (0, -0.46))]
     bm = bmesh.new()
     vs = [bm.verts.new((x, 0, z)) for x, z in outline]
     bm.faces.new(vs)
@@ -571,9 +575,9 @@ def wing(side, open_deg):
         kids.append(bar(f"Wing{tag}Rib{i}", W(0.03, 0.0), W(x, z), 0.022, "Brass"))
     for i in range(len(outline) - 1):
         kids.append(bar(f"Wing{tag}Edge{i}", W(*outline[i]), W(*outline[i + 1]), 0.016, "Iron"))
-    kids.append(bar(f"Wing{tag}Hinge", W(0, -0.50), W(0, 0.54), 0.035, "Brass", n=8))
+    kids.append(bar(f"Wing{tag}Hinge", W(0, -0.50 * WS), W(0, 0.54 * WS), 0.035, "Brass", n=8))
     PART = "basket"
-    for i, z in enumerate((-0.35, 0.35)):
+    for i, z in enumerate((-0.27, 0.27)):
         box(f"Wing{tag}HingeBracket{i}", 0.12, 0.05, 0.05, "Iron", loc=hinge + Vector((-side * 0.06, 0, z)))
     update()
     for k_ in kids:
@@ -679,30 +683,139 @@ bone("speed_needle", FD @ Vector((*SPC, 0.008)), "display", tail=FD @ Vector((*S
 fobj("SpeedNeedle", FD, b_needle(SPC, -90, 0.072, 0.006, 0.0065, 0.0105, back=0.016), "GaugeRed")
 fobj("SpeedNeedlePin", FD, b_cyl(SPC, 0.009, 0.004, 0.015, seg=6), "Brass")
 PART = "display"
+# warning lamp: top centre of the face, between the radar and the speedometer. Off / orange / red is driven in
+# Unreal through its own material slot (M_WarningLamp); socket_warning_lamp marks where to attach a point light.
+LC = (0.012, 0.088)
+def b_cone(c, r0, r1, n0, n1, seg=8):
+    return lambda bm: bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r0, radius2=r1, depth=n1 - n0,
+                                            matrix=Matrix.Translation((c[0], c[1], (n0 + n1) / 2)))
+fobj("WarnLampBase", FD, b_cyl(LC, 0.031, 0.0, 0.012, seg=8), "Brass")
+fobj("WarnLampGlass", FD, lambda bm: [f(bm) for f in (b_cone(LC, 0.021, 0.021, 0.012, 0.025),
+                                                       b_cone(LC, 0.021, 0.012, 0.025, 0.036),
+                                                       b_cone(LC, 0.012, 0.003, 0.036, 0.040))], "WarnLamp")
+cage = []
+for i in range(4):
+    p_ = dial(0.025, 45 + 90 * i)
+    cage.append(b_box((LC[0] + p_.x, LC[1] + p_.y, 0.028), (0.0035, 0.0035, 0.032)))
+cage.append(b_box((LC[0], LC[1], 0.0445), (0.052, 0.0035, 0.0035)))
+cage.append(b_box((LC[0], LC[1], 0.0445), (0.0035, 0.052, 0.0035)))
+fobj("WarnLampCage", FD, lambda bm: [f(bm) for f in cage], "Iron")
+socket("socket_warning_lamp", FD @ Vector((*LC, 0.026)), DN)
 
-# ---- weapon rack: wall to the right of the display
+# ---- weapon wall: the wall to the right of the display (seen from inside), everything on this one wall.
+# Left: revolver hook. Centre: upright gun rack (slotted base + notched top shelf) for a shotgun and a rifle.
+# Right: upright ammo box whose lid (bone ammo_lid) lifts a little when the player looks at it.
 PART = "basket"
 FR = wall_frame(45)
-ang = math.atan2(FR[1].y, FR[1].x)
-BW = 2 * INNER * math.tan(math.pi / 8) - 0.06    # board width = wall width minus a margin
-box("WeaponRackBoard", BW, 0.02, 0.60, "PropWood", loc=wp(FR, 0, 0.62, 0.01), rot=(0, 0, ang))
-for k, z in enumerate((0.50, 0.68)):          # two long guns, hooks at both edges of the wall
-    for s in (-1, 1):
-        hook(f"WeaponHookLong{k}{'L' if s < 0 else 'R'}", FR, s * (BW / 2 - 0.07), z)
-    socket(f"socket_long_gun_{k + 1}", wp(FR, 0, z + 0.03, 0.08), FR[1])
-for s in (-1, 1):                              # small weapon, centre top
-    hook(f"WeaponHookSmall{'L' if s < 0 else 'R'}", FR, s * 0.08, 0.84)
-socket("socket_small_weapon", wp(FR, 0, 0.87, 0.08), FR[1])
+FW = frame(FR[0], FR[1], (0, 0, 1), FR[2])        # local (u = right along the wall, z = height, n = into basket)
+FU = frame(FR[0], FR[1], -FR[2], (0, 0, 1))       # local (u, -n, z): cylinders standing upright
+FH = frame(FR[0], (0, 0, 1), FR[2], FR[1])        # local (z, n, u): cylinders lying along the wall
+
+def wbox(name, u0, u1, z0, z1, n0, n1, mat):
+    return fobj(name, FW, b_box(((u0 + u1) / 2, (z0 + z1) / 2, (n0 + n1) / 2), (u1 - u0, z1 - z0, n1 - n0)), mat)
+
+def many(*fs):
+    return lambda bm: [f(bm) for f in fs]
+
+def hull(name, pts, mat):
+    bm = bmesh.new()
+    for q in pts:
+        bm.verts.new(q)
+    bmesh.ops.convex_hull(bm, input=bm.verts)
+    bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(1), verts=bm.verts, edges=bm.edges)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return finish(name, bm, mat)
+
+# The console housing leans into this wall's left end (u < -0.354 + n at heights 0.5 .. 0.97), so everything
+# sits right of it.
+# -- gun rack (u -0.11 .. 0.18)
+GL, GR = -0.085, 0.155                              # inner faces of the two side boards
+SLOTS = {"shotgun": -0.03, "rifle": 0.10}          # u of each gun
+BASE_Z, SLOT_Z, SHELF_Z = 0.125, 0.095, 0.86         # low base (thin board + 3 cm slat lip), slot floor, top shelf
+for k, (u0, u1) in enumerate(((GL - 0.025, GL), (GR, GR + 0.025))):   # tapered side boards, like a lectern
+    pts = []
+    for u_ in (u0, u1):
+        for z_, n_ in ((FLOOR_Z, 0.0), (FLOOR_Z, 0.28), (0.42, 0.28), (0.91, 0.18), (0.91, 0.0)):
+            pts.append(wp(FR, u_, z_, n_))
+    hull(f"GunRackSide{k}", pts, "PropWood")
+wbox("GunRackBase", GL, GR, FLOOR_Z, SLOT_Z, 0.0, 0.26, "PropWood")
+# slotted top of the base: slats around two butt pockets (u width 0.09, n 0.06 .. 0.20)
+cuts = sorted(SLOTS.values())
+SLOT_HW = 0.045                                     # half width of a butt pocket
+edges = [GL] + [x for c in cuts for x in (c - SLOT_HW, c + SLOT_HW)] + [GR]
+for i in range(0, len(edges), 2):
+    wbox(f"GunRackSlat{i // 2}", edges[i], edges[i + 1], SLOT_Z, BASE_Z, 0.06, 0.20, "PropWood")
+wbox("GunRackSlatBack", GL, GR, SLOT_Z, BASE_Z, 0.0, 0.06, "PropWood")
+wbox("GunRackSlatFront", GL, GR, SLOT_Z, BASE_Z, 0.20, 0.26, "PropWood")
+for name, c in SLOTS.items():                       # dark felt in the pocket floor
+    wbox(f"GunRackPad_{name}", c - SLOT_HW, c + SLOT_HW, SLOT_Z, SLOT_Z + 0.006, 0.06, 0.20, "Burlap")
+# weathered back rail behind the barrels
+wbox("GunRackRail", GL, GR, 0.66, 0.82, 0.0, 0.025, "Barnwood")
+# top shelf with U-notches open toward the player
+wbox("GunRackShelfBack", GL - 0.025, GR + 0.025, SHELF_Z, SHELF_Z + 0.03, 0.0, 0.075, "PropWood")
+edges = [GL - 0.025] + [x for c in cuts for x in (c - 0.024, c + 0.024)] + [GR + 0.025]
+for i in range(0, len(edges), 2):
+    wbox(f"GunRackFinger{i // 2}", edges[i], edges[i + 1], SHELF_Z, SHELF_Z + 0.03, 0.075, 0.175, "PropWood")
+for name, c in SLOTS.items():
+    # item socket: head = where the butt rests in its pocket, Y axis = up along the gun (leaning into the notch)
+    butt = wp(FR, c, SLOT_Z + 0.006, 0.13)
+    notch = wp(FR, c, SHELF_Z + 0.015, 0.10)
+    socket(f"socket_{name}", butt, notch - butt)
+
+# -- revolver hook (left of the rack)
+wbox("RevolverBoard", -0.26, -0.13, 0.52, 0.86, 0.0, 0.02, "PropWood")
+for i, z_ in enumerate((0.55, 0.83)):
+    fobj(f"RevolverBoardRivet{i}", FW, b_cyl((-0.195, z_), 0.008, 0.02, 0.026, seg=6), "Brass")
+# short peg, so the revolver hangs flat against the board, clear of the console housing
+bar("RevolverHookStem", wp(FR, -0.195, 0.74, 0.02), wp(FR, -0.195, 0.74, 0.07), 0.012, "Brass", n=6)
+bar("RevolverHookTip", wp(FR, -0.195, 0.74, 0.07), wp(FR, -0.195, 0.775, 0.078), 0.01, "Brass", n=6)
+# item socket: head on the hook tip (revolver hangs by its trigger guard), Y axis = barrel pointing down
+socket("socket_revolver", wp(FR, -0.195, 0.765, 0.05), (0, 0, -1))
+
+# -- ammo box (right of the rack): upright wooden box, iron bands, cartridges inside, hinged lid at the back
+AU = 0.26                                            # box centre along the wall
+AZ0, AZ1, AN0, AN1, AW = 0.46, 0.82, 0.02, 0.15, 0.07
+wbox("AmmoCleat", AU - 0.06, AU + 0.06, AZ0 - 0.04, AZ0, 0.0, 0.06, "PropWood")
+PART = "ammo_box"
+bone("ammo_box", wp(FR, AU, AZ0, (AN0 + AN1) / 2), "basket")
+wbox("AmmoBack", AU - AW, AU + AW, AZ0, AZ1, AN0, AN0 + 0.015, "PropWood")
+wbox("AmmoFront", AU - AW, AU + AW, AZ0, AZ1, AN1 - 0.015, AN1, "PropWood")
+for k, sg in enumerate((-1, 1)):
+    wbox(f"AmmoSide{k}", AU + sg * (AW - 0.0075) - 0.0075, AU + sg * (AW - 0.0075) + 0.0075,
+         AZ0, AZ1, AN0 + 0.015, AN1 - 0.015, "PropWood")
+wbox("AmmoBottom", AU - AW, AU + AW, AZ0, AZ0 + 0.015, AN0, AN1, "PropWood")
+wbox("AmmoFill", AU - AW + 0.015, AU + AW - 0.015, AZ0 + 0.015, 0.70, AN0 + 0.015, AN1 - 0.015, "Coal")
+for i, z_ in enumerate((AZ0 + 0.012, AZ1 - 0.035)):
+    wbox(f"AmmoBand{i}", AU - AW - 0.003, AU + AW + 0.003, z_, z_ + 0.026, AN0 - 0.001, AN1 + 0.003, "Iron")
+wbox("AmmoPlate", AU - 0.045, AU + 0.045, 0.60, 0.66, AN1, AN1 + 0.004, "Brass")
+shells, heads = [], []
+for r_, dn in enumerate((0.055, 0.085, 0.115)):
+    for c_ in range(4):
+        uu = AU - 0.042 + 0.028 * c_
+        shells.append(b_cyl((uu, -dn), 0.0125, 0.70, 0.80, seg=6))
+        heads.append(b_cyl((uu, -dn), 0.013, 0.80, 0.815, seg=6))
+fobj("AmmoShells", FU, many(*shells), "GaugeRed")
+fobj("AmmoShellHeads", FU, many(*heads), "Brass")
+for k, (u0, u1) in enumerate(((AU - AW, AU - 0.03), (AU + 0.03, AU + AW))):   # hinge knuckles on the box
+    fobj(f"AmmoHinge{k}", FH, b_cyl((AZ1 + 0.008, AN0 - 0.004), 0.007, u0, u1, seg=6), "Iron")
+PART = "ammo_lid"                    # rotates around its bone axis (the hinge, along the wall); rest = closed
+bone("ammo_lid", wp(FR, AU - AW, AZ1 + 0.008, AN0 - 0.004), "ammo_box", tail=wp(FR, AU + AW, AZ1 + 0.008, AN0 - 0.004))
+wbox("AmmoLid", AU - AW - 0.004, AU + AW + 0.004, AZ1, AZ1 + 0.02, AN0 - 0.004, AN1 + 0.008, "PropWood")
+wbox("AmmoLidLip", AU - AW - 0.004, AU + AW + 0.004, AZ1 - 0.02, AZ1, AN1 + 0.003, AN1 + 0.008, "Iron")
+wbox("AmmoLidTab", AU - 0.018, AU + 0.018, AZ1 - 0.01, AZ1 + 0.012, AN1 + 0.008, AN1 + 0.022, "Brass")
+fobj("AmmoLidHinge", FH, b_cyl((AZ1 + 0.008, AN0 - 0.004), 0.007, AU - 0.028, AU + 0.028, seg=6), "Iron")
+PART = "basket"
 
 # ---- tool rack: wall to the left of the display
+BW = 2 * INNER * math.tan(math.pi / 8) - 0.06    # board width = wall width minus a margin
 FR = wall_frame(135)
 ang = math.atan2(FR[1].y, FR[1].x)
 box("ToolRackBoard", BW, 0.02, 0.60, "PropWood", loc=wp(FR, 0, 0.62, 0.01), rot=(0, 0, ang))
 for s in (-1, 1):                              # one horizontal slot at the bottom
     hook(f"ToolHookH{'L' if s < 0 else 'R'}", FR, s * (BW / 2 - 0.09), 0.45)
 socket("socket_tool_horizontal", wp(FR, 0, 0.48, 0.08), FR[1])
-for k, s in enumerate((-1, 1)):                # two vertical slots above it
-    du = s * 0.18
+for k, s in enumerate((-1, 1)):                # two vertical slots above it (clear of the console housing)
+    du = s * 0.15
     for j, z in enumerate((0.62, 0.87)):
         bar(f"ToolClip{k}{j}Arm", wp(FR, du, z, 0.02), wp(FR, du, z, 0.04), 0.01, "Brass", n=6)
         solid(prism(f"ToolClip{k}{j}Ring", 8, 0.035, 0.035, -0.012, 0.012, "Brass", top=False, bottom=False,
