@@ -45,7 +45,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
 	float GetCurrentTurnRate() const { return CurrentTurnRate; }
 
+	/** Speedometer needle position in [0, 1]: CurrentSpeed / SpeedometerMaxSpeed (or MaxSpeed when that is 0). */
+	UFUNCTION(BlueprintPure, Category = "Balloon|Speedometer")
+	float GetSpeedometer01() const;
+
 protected:
+	/** Speed that maps to a full speedometer scale. 0 = use MaxSpeed. // TBD: prototype value */
+	UPROPERTY(EditAnywhere, Category = "Balloon|Speedometer", meta = (ClampMin = "0"))
+	float SpeedometerMaxSpeed = 0.f;
+
 	/** Slowest forward speed; the balloon never stops. Needs tuning: the design value is TBD (balloon-controls.md). // TBD: prototype value */
 	UPROPERTY(EditAnywhere, Category = "Balloon|Flight", meta = (ClampMin = "0"))
 	float MinSpeed = 50.f;

@@ -169,3 +169,9 @@ void UBalloonFlightComponent::SetTurnInput(float Input)
 {
 	TurnInput = FMath::Clamp(Input, -1.f, 1.f);
 }
+
+float UBalloonFlightComponent::GetSpeedometer01() const
+{
+	const float Scale = SpeedometerMaxSpeed > 0.f ? SpeedometerMaxSpeed : MaxSpeed;
+	return FMath::Clamp(CurrentSpeed / FMath::Max(Scale, KINDA_SMALL_NUMBER), 0.f, 1.f);
+}
