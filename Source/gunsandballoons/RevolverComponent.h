@@ -233,6 +233,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Casings", meta = (ClampMin = "0.0"))
 	float CasingScatter = 30.f;
 
+	/** Extra random spin (degrees/s) on top of the case's own rotation out of the gate. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Casings", meta = (ClampMin = "0.0"))
+	float CasingSpin = 120.f;
+
+	/**
+	 * Rotation of CasingMesh relative to the case_eject bone. SM_PaxCasing lies along its +X while the
+	 * rig's case lies along the bone's -Y (same geometry and pivot otherwise), hence yaw -90.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Revolver|Casings")
+	FRotator CasingRotationOffset = FRotator(0.f, -90.f, 0.f);
+
 	// --- Look ---------------------------------------------------------------------------
 
 	/**
@@ -301,7 +312,17 @@ private:
 	bool bShotDone = false;
 	bool bCasingReleased = false;
 
-	/** World location of the ejected case last frame, to give the casing the case's own velocity. */
-	FVector LastCaseLocation = FVector::ZeroVector;
-	bool bHasLastCaseLocation = false;
+	/** Records where the animated case is, to hand its motion over to the physics casing. */
+	void SampleCase(float DeltaTime);
+
+	/**
+	 * World transform of the ejected case at the last two samples. The mesh evaluates after this
+	 * component, so a sample taken in a tick shows the pose from the tick before; the two samples
+	 * are therefore one previous tick (CaseSampleDeltaTime) apart.
+	 */
+	FTransform LastCaseTransform;
+	FTransform PrevCaseTransform;
+	int32 NumCaseSamples = 0;
+	float CaseSampleDeltaTime = 0.f;
+	float LastTickDeltaTime = 0.f;
 };

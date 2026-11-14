@@ -14,6 +14,11 @@ namespace
 		TEXT("chamber_1"), TEXT("chamber_2"), TEXT("chamber_3"),
 		TEXT("chamber_4"), TEXT("chamber_5"), TEXT("chamber_6"),
 	};
+	/** The fired case in each chamber: a sibling of chamber_N under the cylinder, slightly smaller than the round. */
+	const FName SpentBones[URevolverAnimInstance::NumChambers] = {
+		TEXT("chamber_1_spent"), TEXT("chamber_2_spent"), TEXT("chamber_3_spent"),
+		TEXT("chamber_4_spent"), TEXT("chamber_5_spent"), TEXT("chamber_6_spent"),
+	};
 
 	/** Copies the game-thread values in PreUpdate, then builds the pose on the (possibly worker) evaluation thread. */
 	struct FRevolverAnimInstanceProxy : public FAnimInstanceProxy
@@ -35,6 +40,7 @@ namespace
 			for (int32 i = 0; i < URevolverAnimInstance::NumChambers; ++i)
 			{
 				ChamberScale[i] = Instance->ChamberScale[i];
+				SpentScale[i] = Instance->SpentScale[i];
 			}
 		}
 
@@ -68,22 +74,23 @@ namespace
 				Transform.SetRotation(Transform.GetRotation() * FQuat(FVector::YAxisVector, FMath::DegreesToRadians(CylinderAngle)));
 			}
 
+			auto ScaleBone = [&Output, &FindBone](FName Name, float Scale)
+			{
+				const FCompactPoseBoneIndex Bone = FindBone(Name);
+				if (Bone.IsValid())
+				{
+					FTransform& Transform = Output.Pose[Bone];
+					Transform.SetScale3D(Transform.GetScale3D() * Scale);
+				}
+			};
+
 			for (int32 i = 0; i < URevolverAnimInstance::NumChambers; ++i)
 			{
-				const FCompactPoseBoneIndex Chamber = FindBone(ChamberBones[i]);
-				if (Chamber.IsValid())
-				{
-					FTransform& Transform = Output.Pose[Chamber];
-					Transform.SetScale3D(Transform.GetScale3D() * ChamberScale[i]);
-				}
+				ScaleBone(ChamberBones[i], ChamberScale[i]);
+				ScaleBone(SpentBones[i], SpentScale[i]);
 			}
 
-			const FCompactPoseBoneIndex CaseEject = FindBone(CaseEjectBone);
-			if (CaseEject.IsValid())
-			{
-				FTransform& Transform = Output.Pose[CaseEject];
-				Transform.SetScale3D(Transform.GetScale3D() * CaseEjectScale);
-			}
+			ScaleBone(CaseEjectBone, CaseEjectScale);
 
 			return true;
 		}
@@ -92,7 +99,8 @@ namespace
 		float Time = 0.f;
 		float CylinderAngle = 0.f;
 		float ChamberScale[URevolverAnimInstance::NumChambers] = { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f };
-		float CaseEjectScale = 1.f;
+		float SpentScale[URevolverAnimInstance::NumChambers] = { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f };
+		float CaseEjectScale = 0.f;
 	};
 }
 

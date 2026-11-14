@@ -27,6 +27,9 @@ namespace
 	/** A casing never leaves faster than this (cm/s), whatever the frame timing. */
 	constexpr float MaxCasingSpeed = 600.f;
 
+	/** Nor spins faster than this (degrees/s) from the case's own motion. */
+	constexpr float MaxCasingSpin = 1080.f;
+
 	float LengthOf(const UAnimSequenceBase* Anim)
 	{
 		return Anim ? Anim->GetPlayLength() : 0.f;
@@ -278,7 +281,7 @@ void URevolverComponent::ServiceGateChamber()
 		// The case now rides on the case_eject bone; the chamber itself is empty.
 		Chambers[Gate] = ERevolverChamber::Empty;
 		bCasingReleased = false;
-		bHasLastCaseLocation = false;
+		NumCaseSamples = 0;
 		SetState(ERevolverState::Ejecting, EjectCaseAnim, ReloadPlayRate);
 		return;
 	}
@@ -341,17 +344,15 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		break;
 
 	case ERevolverState::Ejecting:
-		if (!bCasingReleased && StateTime >= CaseReleaseTime)
+		if (!bCasingReleased)
 		{
-			bCasingReleased = true;
-			ReleaseCasing();
-			OnCaseEjected.Broadcast();
-		}
-		else if (!bCasingReleased && Mesh)
-		{
-			// Mesh poses are a frame behind this tick, which is fine for a velocity estimate.
-			LastCaseLocation = Mesh->GetSocketLocation(CaseEjectBone);
-			bHasLastCaseLocation = true;
+			SampleCase(DeltaTime);
+			if (StateTime >= CaseReleaseTime)
+			{
+				bCasingReleased = true;
+				ReleaseCasing();
+				OnCaseEjected.Broadcast();
+			}
 		}
 		if (StateTime >= LengthOf(EjectCaseAnim))
 		{
@@ -379,6 +380,21 @@ void URevolverComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 
 	UpdatePose();
+	LastTickDeltaTime = DeltaTime;
+}
+
+void URevolverComponent::SampleCase(float DeltaTime)
+{
+	if (!Mesh)
+	{
+		return;
+	}
+
+	// This tick reads the pose evaluated last tick, so it is one previous tick after the last sample.
+	PrevCaseTransform = LastCaseTransform;
+	LastCaseTransform = Mesh->GetSocketTransform(CaseEjectBone);
+	CaseSampleDeltaTime = LastTickDeltaTime;
+	NumCaseSamples = FMath::Min(NumCaseSamples + 1, 2);
 }
 
 void URevolverComponent::UpdatePose()
@@ -392,7 +408,9 @@ void URevolverComponent::UpdatePose()
 	Anim->Sequence = StateAnim;
 	Anim->Time = StateTime;
 	Anim->CylinderAngle = CylinderStep * DegreesPerChamber;
-	Anim->CaseEjectScale = State == ERevolverState::Ejecting && bCasingReleased && CasingMesh ? 0.f : 1.f;
+	// The ejected case only exists while it is being pushed out; the new rig's rest pose shows it,
+	// so it is hidden everywhere else, and once the physics casing has taken over.
+	Anim->CaseEjectScale = State == ERevolverState::Ejecting && !(bCasingReleased && CasingMesh) ? 1.f : 0.f;
 
 	switch (State)
 	{
@@ -421,11 +439,14 @@ void URevolverComponent::UpdatePose()
 		break;
 	}
 
-	// Spent cases stay in their chambers until ejected. The round sliding in rides on round_load,
-	// so the chamber being loaded stays hidden until the clip ends.
+	// Each chamber shows either its live round (chamber_N) or its fired case (chamber_N_spent), never
+	// both: they occupy the same space. Spent cases stay until ejected (case_eject carries the one
+	// leaving the gate); the round sliding in rides on round_load, so the chamber being loaded stays
+	// empty until the clip ends and nothing is left in it for the round to clip through.
 	for (int32 i = 0; i < NumChambers; ++i)
 	{
-		Anim->ChamberScale[i] = Chambers[i] == ERevolverChamber::Empty ? 0.f : 1.f;
+		Anim->ChamberScale[i] = Chambers[i] == ERevolverChamber::Live ? 1.f : 0.f;
+		Anim->SpentScale[i] = Chambers[i] == ERevolverChamber::Spent ? 1.f : 0.f;
 	}
 }
 
@@ -479,25 +500,59 @@ void URevolverComponent::Shoot()
 
 void URevolverComponent::ReleaseCasing()
 {
-	if (!CasingMesh || !Mesh)
+	if (!CasingMesh || !Mesh || NumCaseSamples == 0)
 	{
 		return;
 	}
 
-	// Take over from the animated case exactly where it is, carrying on with its motion.
-	const FVector Location = Mesh->GetSocketLocation(CaseEjectBone);
-	const FRotator Rotation = Mesh->GetSocketRotation(CaseEjectBone);
-	const float DeltaSeconds = GetWorld()->GetDeltaSeconds();
-	FVector Velocity = bHasLastCaseLocation && DeltaSeconds > KINDA_SMALL_NUMBER
-		? (Location - LastCaseLocation) / DeltaSeconds
-		: -Mesh->GetForwardVector() * 60.f;
+	// Take over from the animated case exactly where it is, carrying on with its motion. The sample is
+	// the pose shown last frame; the physics step this frame moves the casing on by one frame of it.
+	FVector Location = LastCaseTransform.GetLocation();
+	const FQuat Rotation = LastCaseTransform.GetRotation() * CasingRotationOffset.Quaternion();
+	FVector Velocity = -Mesh->GetForwardVector() * 60.f;
+	FVector SpinDegrees = FVector::ZeroVector;
+	if (NumCaseSamples >= 2 && CaseSampleDeltaTime > KINDA_SMALL_NUMBER)
+	{
+		Velocity = (LastCaseTransform.GetLocation() - PrevCaseTransform.GetLocation()) / CaseSampleDeltaTime;
+
+		FQuat Turn = LastCaseTransform.GetRotation() * PrevCaseTransform.GetRotation().Inverse();
+		Turn.EnforceShortestArcWith(FQuat::Identity);
+		FVector Axis;
+		double Angle = 0.0;
+		Turn.ToAxisAndAngle(Axis, Angle);
+		SpinDegrees = (Axis * FMath::RadiansToDegrees(Angle) / CaseSampleDeltaTime).GetClampedToMaxSize(MaxCasingSpin);
+	}
+
+	// The gun is drawn as a first-person primitive with its own (narrower) FOV, the casing with the
+	// world's. Pulling the casing toward the eye along the view axis by the ratio of the two lands it
+	// on the same pixels at the same size as the animated case it replaces.
+	if (Camera && Camera->bEnableFirstPersonFieldOfView && Mesh->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+	{
+		const float WorldTan = FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView * 0.5f));
+		const float FirstPersonTan = FMath::Tan(FMath::DegreesToRadians(Camera->FirstPersonFieldOfView * 0.5f));
+		if (WorldTan > KINDA_SMALL_NUMBER)
+		{
+			const float DepthScale = FirstPersonTan / WorldTan;
+			const FTransform View = Camera->GetComponentTransform();
+
+			FVector ViewLocation = View.InverseTransformPositionNoScale(Location);
+			ViewLocation.X *= DepthScale;
+			Location = View.TransformPositionNoScale(ViewLocation);
+
+			FVector ViewVelocity = View.InverseTransformVectorNoScale(Velocity);
+			ViewVelocity.X *= DepthScale;
+			Velocity = View.TransformVectorNoScale(ViewVelocity);
+		}
+	}
+
 	Velocity = Velocity.GetClampedToMaxSize(MaxCasingSpeed) + FMath::VRand() * CasingScatter;
+	SpinDegrees += FMath::VRand() * CasingSpin;
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	AStaticMeshActor* Casing = GetWorld()->SpawnActor<AStaticMeshActor>(Location, Rotation, SpawnParams);
+	AStaticMeshActor* Casing = GetWorld()->SpawnActor<AStaticMeshActor>(Location, Rotation.Rotator(), SpawnParams);
 	if (!Casing)
 	{
 		return;
@@ -515,5 +570,5 @@ void URevolverComponent::ReleaseCasing()
 	CasingComp->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	CasingComp->SetSimulatePhysics(true);
 	CasingComp->SetPhysicsLinearVelocity(Velocity);
-	CasingComp->SetPhysicsAngularVelocityInDegrees(FMath::VRand() * 360.f);
+	CasingComp->SetPhysicsAngularVelocityInDegrees(SpinDegrees);
 }
