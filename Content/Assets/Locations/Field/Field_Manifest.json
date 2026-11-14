@@ -28,6 +28,7 @@
    "Bird_Flap",
    "Bird_Glide"
   ],
+  "loot_spots": [],
   "notes": "Flock bird with wing-flap animation; collides with the balloon (sphere ~0.5 m)"
  },
  "SM_HayBale_Round": {
@@ -48,6 +49,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_HayStack": {
@@ -68,6 +70,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Fence": {
@@ -88,6 +91,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "4 m fence section: place end to end along field borders"
  },
  "SM_Hedge": {
@@ -108,6 +112,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "6 m hedge: lines between fields"
  },
  "SM_Farmhouse": {
@@ -128,6 +133,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Barn": {
@@ -148,49 +154,57 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Windmill": {
   "file": "SM_Windmill.fbx",
   "kind": "static",
-  "category": "Filler",
-  "tris": 104,
+  "category": "Obstacle",
+  "tris": 900,
   "size_m": [
-   6.28,
-   6.39,
-   14.0
+   11.05,
+   11.05,
+   30.53
   ],
-  "texture": "T_Field_Props.png",
+  "texture": "T_Field_Windmill.png",
   "materials": [
-   "M_Field_Props"
+   "M_Field_Windmill"
   ],
-  "collision_hulls": 0,
+  "collision_hulls": 3,
   "sockets": [
+   "loot_01",
+   "loot_02",
    "blades"
   ],
   "bones": [],
   "anims": [],
-  "notes": "Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward (Y) axis"
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "notes": "31 m tower windmill, collides. Loot spots: lookout on the roof (top) and the gallery. Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward axis"
  },
  "SM_Windmill_Blades": {
   "file": "SM_Windmill_Blades.fbx",
   "kind": "static",
   "category": "Filler",
-  "tris": 236,
+  "tris": 284,
   "size_m": [
-   15.75,
-   0.9,
-   15.75
+   24.81,
+   1.3,
+   24.81
   ],
-  "texture": "T_Field_Props.png",
+  "texture": "T_Field_Windmill.png",
   "materials": [
-   "M_Field_Props"
+   "M_Field_Windmill"
   ],
   "collision_hulls": 0,
   "sockets": [],
   "bones": [],
   "anims": [],
-  "notes": "4 sails, pivot = hub, spin around Y"
+  "loot_spots": [],
+  "notes": "4 sails, 15 m radius, pivot = hub, spin around the hub axis (Blender Y)"
  },
  "SM_Tree_Oak_A": {
   "file": "SM_Tree_Oak_A.fbx",
@@ -210,6 +224,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Tree_Oak_B": {
@@ -230,6 +245,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Scarecrow": {
@@ -250,6 +266,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_HayCart": {
@@ -270,6 +287,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "_ground": {

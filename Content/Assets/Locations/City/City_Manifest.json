@@ -17,6 +17,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Row of 3 brick houses, 3 floors"
  },
  "SM_House_Terrace_B": {
@@ -37,6 +38,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "4-floor stucco terrace with mansard roof and dormers"
  },
  "SM_House_Terrace_C": {
@@ -57,6 +59,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Narrow 2-floor sooty house, hipped roof"
  },
  "SM_Shop_Corner": {
@@ -78,16 +81,17 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Corner shop with awning and a turret"
  },
  "SM_Church": {
   "file": "SM_Church.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 206,
+  "tris": 326,
   "size_m": [
    10.8,
-   27.2,
+   28.43,
    41.0
   ],
   "texture": "T_City_Props.png",
@@ -95,9 +99,14 @@
    "M_City_Props"
   ],
   "collision_hulls": 3,
-  "sockets": [],
+  "sockets": [
+   "loot_01"
+  ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01"
+  ],
   "notes": "Spire reaches 40 m, so it has simple collision"
  },
  "SM_Warehouse": {
@@ -118,16 +127,17 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Factory_A": {
   "file": "SM_Factory_A.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 424,
+  "tris": 1072,
   "size_m": [
-   24.44,
-   23.89,
+   25.54,
+   25.04,
    32.5
   ],
   "texture": "T_City_Props.png",
@@ -135,20 +145,26 @@
    "M_City_Props",
    "M_City_Props_Glow"
   ],
-  "collision_hulls": 3,
+  "collision_hulls": 5,
   "sockets": [
    "smoke_1",
-   "smoke_2"
+   "loot_01",
+   "smoke_2",
+   "loot_02"
   ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
   "notes": "Smoke from SOCKET_smoke_1 / _2 (chimney tops). Chimneys reach 32 m and collide"
  },
  "SM_Factory_B": {
   "file": "SM_Factory_B.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 180,
+  "tris": 336,
   "size_m": [
    18.6,
    21.4,
@@ -159,12 +175,18 @@
    "M_City_Props",
    "M_City_Props_Glow"
   ],
-  "collision_hulls": 2,
+  "collision_hulls": 3,
   "sockets": [
-   "smoke_1"
+   "smoke_1",
+   "loot_01",
+   "loot_02"
   ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
   "notes": "Smoke from SOCKET_smoke_1 (chimney top). Chimney reaches 40 m and collides"
  },
  "SM_Gasholder": {
@@ -185,6 +207,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Iron gas holder frame, 20 m"
  },
  "SM_Lamppost": {
@@ -206,16 +229,17 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_ClockTower": {
   "file": "SM_ClockTower.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 1334,
+  "tris": 1682,
   "size_m": [
-   10.0,
-   10.0,
+   10.73,
+   10.73,
    64.5
   ],
   "texture": "T_City_ClockTower.png",
@@ -224,18 +248,27 @@
    "M_City_ClockTower_Glow"
   ],
   "collision_hulls": 2,
-  "sockets": [],
+  "sockets": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "notes": "62 m Victorian clock tower, collision"
  },
  "SM_Tower_Office_A": {
   "file": "SM_Tower_Office_A.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 156,
+  "tris": 516,
   "size_m": [
-   16.0,
+   17.26,
    17.35,
    51.2
   ],
@@ -244,19 +277,28 @@
    "M_City_TowerA"
   ],
   "collision_hulls": 2,
-  "sockets": [],
+  "sockets": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "notes": "48 m stone office tower, collision"
  },
  "SM_Tower_Office_B": {
   "file": "SM_Tower_Office_B.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 152,
+  "tris": 368,
   "size_m": [
    20.6,
-   14.6,
+   14.73,
    61.0
   ],
   "texture": "T_City_TowerB.png",
@@ -264,9 +306,18 @@
    "M_City_TowerB"
   ],
   "collision_hulls": 2,
-  "sockets": [],
+  "sockets": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
   "notes": "56 m sooty brick tower with mansard top and flagpole, collision"
  },
  "SM_JammerTower": {
@@ -287,12 +338,18 @@
   "collision_hulls": 2,
   "sockets": [
    "beacon_1",
+   "loot_01",
    "beacon_2",
+   "loot_02",
    "beacon_3",
    "jam"
   ],
   "bones": [],
   "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
   "notes": "Giant antenna: lattice mast with copper coils and red warning lights (glow slot). SOCKET_beacon_1..3 for blinking lights, SOCKET_jam for a jamming effect"
  },
  "_ground": {

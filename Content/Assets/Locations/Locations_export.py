@@ -17,7 +17,7 @@ from mathutils import Vector, Matrix, Euler, Quaternion
 
 ROOT = os.path.dirname(bpy.data.filepath)
 assert ROOT, "Save Locations.blend into Content/Assets/Locations first"
-LEVELS = ["Forest", "Field", "City", "Desert"]
+LEVELS = ["Forest", "Field", "City", "Desert", "Loot"]
 ONLY = [l for l in (globals().get("ONLY_LEVELS") or LEVELS)]
 MARGIN_PX = 3
 win = bpy.context.window_manager.windows[0]
@@ -392,9 +392,10 @@ def export_level(level):
             "texture": None if groups[a["group"]] == 0 else f"T_{a['group']}.png",
             "materials": [m.name for m in me.materials], "collision_hulls": len(a["ucx"]),
             "sockets": list(a["sockets"]), "bones": [b["name"] for b in a["bones"]], "anims": list(a["anims"]),
-            "notes": a["notes"]}
+            "loot_spots": a.get("loot", []), "notes": a["notes"]}
     # ---- 4. ground, smoke, placement table
-    manifest["_ground"] = make_ground(level)
+    if level in GROUND:
+        manifest["_ground"] = make_ground(level)
     if level == "City":
         make_smoke(level)
     with open(os.path.join(folder, f"{level}_Placement.csv"), "w", newline="", encoding="utf-8") as f:
@@ -406,6 +407,8 @@ def export_level(level):
             if name in ("SM_Windmill_Blades", "SM_LighthouseBeam"):
                 continue
             rule = ";".join(k for k in ("ring", "line", "street", "wind_aligned") if p.get(k)) or ("flock" if "flock" in p else "scatter")
+            if a["cat"] == "Loot":
+                continue
             w.writerow([name, name, a["cat"], "true" if (a["ucx"] or a["kind"] == "skeletal") else "false",
                         p.get("density", 0), p.get("scale", (1, 1))[0], p.get("scale", (1, 1))[1], p.get("spacing", 0),
                         "true" if p.get("yaw", True) else "false", "true" if p.get("align", False) else "false",
@@ -413,7 +416,7 @@ def export_level(level):
     with open(os.path.join(folder, f"{level}_Manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
     win.scene = HOME
-    return {n: (v["tris"], v["materials"]) for n, v in manifest.items() if not n.startswith("_")} | {"_ground": manifest["_ground"]}
+    return {n: (v["tris"], v["loot_spots"]) for n, v in manifest.items() if not n.startswith("_")}
 
 
 for lv in ONLY:

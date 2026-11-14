@@ -1,0 +1,65 @@
+{
+ "SM_Loot_CoalSack": {
+  "file": "SM_Loot_CoalSack.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 200,
+  "size_m": [
+   0.57,
+   0.49,
+   0.83
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Coal pickup. Pivot = base centre: snap it onto a loot_NN socket/bone"
+ },
+ "SM_Loot_AmmoBox": {
+  "file": "SM_Loot_AmmoBox.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 96,
+  "size_m": [
+   0.74,
+   0.43,
+   0.37
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Ammo pickup. Pivot = base centre: snap it onto a loot_NN socket/bone"
+ },
+ "SM_Loot_CoalCrate": {
+  "file": "SM_Loot_CoalCrate.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 152,
+  "size_m": [
+   0.7,
+   0.55,
+   0.44
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Bigger coal pickup (open crate). Pivot = base centre"
+ }
+}

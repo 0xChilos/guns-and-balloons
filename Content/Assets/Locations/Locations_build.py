@@ -16,7 +16,7 @@ Per asset (see ASSETS):
 import bpy, bmesh, math, random, json
 from mathutils import Vector, Matrix, Euler
 
-LEVELS = ["Forest", "Field", "City", "Desert"]
+LEVELS = ["Forest", "Field", "City", "Desert", "Loot"]
 
 # ---------------------------------------------------------------- cleanup
 HOME = bpy.data.scenes.get("Locations") or bpy.data.scenes.new("Locations")   # empty scene that always stays
@@ -198,6 +198,14 @@ mk("Sand", (0.80, 0.64, 0.40), (0.62, 0.46, 0.26), snap=2.0, nscale=0.05, rough=
 mk("RockDesert", (0.62, 0.38, 0.22), (0.38, 0.22, 0.12), snap=0.5, nscale=0.8, pattern='bands', pcol=(0.82, 0.75, 0.68), pfreq=0.6)
 mk("Cactus", (0.26, 0.40, 0.20), (0.14, 0.24, 0.10), snap=0.05, nscale=6, pattern='vbands', pcol=(0.75, 0.8, 0.7), pfreq=10)
 mk("Bone", (0.78, 0.72, 0.58), (0.52, 0.46, 0.34), snap=0.05, nscale=5)
+mk("Twigs", (0.36, 0.26, 0.14), (0.14, 0.09, 0.05), snap=0.04, nscale=10, pattern='vbands', pcol=(0.6, 0.55, 0.5), pfreq=12)
+mk("NestInner", (0.20, 0.15, 0.09), (0.09, 0.07, 0.04), snap=0.04, nscale=10)
+mk("Egg", (0.74, 0.80, 0.78), (0.58, 0.64, 0.62), snap=0.02, nscale=20)
+mk("Crate", (0.52, 0.38, 0.21), (0.30, 0.20, 0.10), snap=0.03, nscale=8, pattern='vbands', pcol=(0.72, 0.66, 0.6), pfreq=4)
+mk("Burlap", (0.42, 0.34, 0.20), (0.24, 0.19, 0.11), snap=0.02, nscale=14)
+mk("Rope", (0.48, 0.40, 0.25), (0.28, 0.22, 0.13), snap=0.02, nscale=14)
+mk("Coal", (0.07, 0.07, 0.07), (0.02, 0.02, 0.02), rough=0.6, snap=0.02, nscale=15)
+mk("ArmyGreen", (0.22, 0.27, 0.16), (0.11, 0.14, 0.08), snap=0.02, nscale=10)
 # built
 mk("Wood", (0.42, 0.28, 0.15), (0.20, 0.12, 0.06), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
 mk("WoodDark", (0.25, 0.16, 0.09), (0.11, 0.07, 0.04), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
@@ -398,15 +406,86 @@ def part_bone(name):
     global BONE
     BONE = name
 
+def loot(loc, yaw=0.0, parent="root"):
+    """Loot spot: a pickup (coal, ammo box) snaps here, base on the spot, +X facing `yaw`.
+    Static meshes get a socket loot_NN, skeletal meshes a non-deforming bone loot_NN (child of `parent`)."""
+    a = ASSETS[CUR]
+    a.setdefault("loot", [])
+    name = f"loot_{len(a['loot']) + 1:02d}"
+    if a["kind"] == "skeletal":
+        bone(name, loc, (loc[0], loc[1], loc[2] + 0.5), parent, deform=False)
+    else:
+        socket(name, loc, (0, 0, yaw))
+    a["loot"].append(name)
+
+def railing(p, pts, z, h=1.05, mat="IronDark"):
+    """Railing along a polyline of (x, y) points: a post at every point, one top rail."""
+    for i, q in enumerate(pts):
+        bar(f"{p}Post{i}", (*q, z), (*q, z + h), 0.04, mat)
+        if i:
+            bar(f"{p}Rail{i}", (*pts[i - 1], z + h), (*q, z + h), 0.04, mat)
+
+def balcony(p, c, n, w, z, depth=1.4, slab="Stone", rail="IronDark"):
+    """Balcony sticking out of a wall: c = (x, y) on the wall face, n = outward direction, slab top at z.
+    Adds one loot spot in the middle of the slab."""
+    n = Vector((n[0], n[1], 0)).normalized(); u = Vector((-n.y, n.x, 0)); c = Vector((c[0], c[1], 0))
+    ang = math.atan2(n.y, n.x)
+    mid = c + n * (depth / 2)
+    box(p + "Slab", (depth, w, 0.25), slab, loc=(mid.x, mid.y, z - 0.125), rot=(0, 0, ang))
+    for s_ in (-1, 1):
+        q = c + u * (s_ * w * 0.35)
+        bar(f"{p}Bracket{s_}", (q.x, q.y, z - 1.1), (q.x + n.x * depth * 0.8, q.y + n.y * depth * 0.8, z - 0.25), 0.07, rail)
+    cs = [c + u * (-w / 2), c + u * (-w / 2) + n * depth, c + u * (w / 2) + n * depth, c + u * (w / 2)]
+    railing(p, [(q.x, q.y) for q in cs], z, mat=rail)
+    sp = c + n * (depth * 0.55)
+    loot((sp.x, sp.y, z), ang)
+
+def ring_platform(p, cx, cy, r_out, z, n=10, slab="IronDark", rail="IronDark", spot_angle=math.pi / 2, r_in=None):
+    """Service platform round a chimney or pole, with a railing, struts and one loot spot."""
+    prism(p + "Deck", n, r_out, r_out, z - 0.2, z, slab, loc=(cx, cy, 0))
+    pts = [(cx + (r_out - 0.08) * math.cos(2 * math.pi * i / n), cy + (r_out - 0.08) * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+    railing(p, pts, z, mat=rail)
+    rr = r_in if r_in else r_out * 0.5
+    for i in range(3):
+        a_ = 2 * math.pi * i / 3 + 0.5
+        bar(f"{p}Strut{i}", (cx + rr * math.cos(a_), cy + rr * math.sin(a_), z - 1.6),
+            (cx + r_out * 0.9 * math.cos(a_), cy + r_out * 0.9 * math.sin(a_), z - 0.2), 0.07, rail)
+    rs = (r_out + rr) / 2
+    loot((cx + rs * math.cos(spot_angle), cy + rs * math.sin(spot_angle), z), spot_angle)
+
+def crate(p, loc, size=0.9, yaw=0.0, spot=True):
+    """Wooden supply crate with iron bands; optional loot spot on its lid. Returns the lid height."""
+    x, y, z = loc
+    box(p, (size, size * 0.85, size * 0.8), "Crate", loc=(x, y, z + size * 0.4), rot=(0, 0, yaw))
+    for k in (-1, 1):
+        box(f"{p}Band{k}", (size + 0.02, size * 0.87, 0.06), "IronDark", loc=(x, y, z + size * 0.4 + k * size * 0.3), rot=(0, 0, yaw))
+    top = z + size * 0.8
+    if spot:
+        loot((x, y, top), yaw)
+    return top
+
+def nest(p, loc, r=1.2, eggs=2):
+    """Big twig nest; loot spot in the middle."""
+    x, y, z = loc
+    prism(p + "Rim", 8, r * 0.85, r * 1.1, z, z + 0.5, "Twigs", loc=(x, y, 0), top=False, jitter=0.12)
+    prism(p + "Hollow", 8, r * 0.8, r * 0.8, z + 0.25, z + 0.3, "NestInner", loc=(x, y, 0), bottom=False)
+    for i in range(6):
+        a_ = 2 * math.pi * i / 6 + random.uniform(0, 0.6)
+        bar(f"{p}Twig{i}", (x + r * 0.7 * math.cos(a_), y + r * 0.7 * math.sin(a_), z + 0.35),
+            (x + r * 1.45 * math.cos(a_ + 0.4), y + r * 1.45 * math.sin(a_ + 0.4), z + 0.55), 0.03, "Twigs")
+    for i in range(eggs):
+        ball(f"{p}Egg{i}", 0.09, (x + 0.35 * math.cos(i * 2.4) * r, y + 0.35 * math.sin(i * 2.4) * r, z + 0.38), "Egg", u=6, v=4, scale=(1, 1, 1.3))
+    loot((x, y, z + 0.3))
+
 # ---------------------------------------------------------------- shared shapes
-def pine(p, h, r, tiers, seg, trunk_r, needle="PineNeedle", jit=0.12, z_start=0.22):
+def pine(p, h, r, tiers, seg, trunk_r, needle="PineNeedle", jit=0.12, z_start=0.22, flat_top=0.0):
     prism(p + "Trunk", max(5, seg - 1), trunk_r, trunk_r * 0.35, 0, h * 0.62, "PineBark", jitter=0.05)
     for i in range(tiers):
         f = i / tiers
         zb = h * (z_start + (1 - z_start) * f * 0.93)
         zt = h if i == tiers - 1 else zb + h * (1 - z_start) / tiers * 2.1
         rb = r * (1.0 - 0.78 * f) * random.uniform(0.92, 1.08)
-        prism(f"{p}Tier{i}", seg, rb, 0, zb, zt, needle, jitter=jit, phase=random.uniform(0, 6.3),
+        prism(f"{p}Tier{i}", seg, rb, flat_top if i == tiers - 1 else 0, zb, zt, needle, jitter=jit, phase=random.uniform(0, 6.3),
               loc=(random.uniform(-0.03, 0.03) * r, random.uniform(-0.03, 0.03) * r, 0))
 
 def rock(p, r, loc, mat, flat=0.6, jit=0.25, u=7, v=4):
@@ -467,7 +546,7 @@ def windows_strip(p, w, z, y, mat, n, size=(1.0, 0.1, 1.6)):
 
 # ================================================================ FOREST
 group("Forest", "Forest_Props", 512)
-group("Forest", "Forest_PineTall", 512)
+group("Forest", "Forest_Tall", 512)
 group("Forest", "Forest_Mountains", 256)
 
 for k, (h, r, tiers, seg, needle) in enumerate(((4.5, 1.5, 3, 6, "PineNeedle"), (6.0, 1.6, 4, 6, "PineNeedleDark"), (8.0, 2.1, 4, 7, "PineNeedle"))):
@@ -479,15 +558,24 @@ for k, (h, r, tiers, seg, needle) in enumerate(((4.5, 1.5, 3, 6, "PineNeedle"), 
 
 for k, (h, r) in enumerate(((28.0, 5.2), (34.0, 5.8))):
     nm = f"SM_Pine_Tall_{'AB'[k]}"
-    asset(nm, "Forest", "Forest_PineTall", 14, row=1, cat="Obstacle",
+    asset(nm, "Forest", "Forest_Tall", 14, row=1, cat="Obstacle",
           place=dict(density=120, scale=(0.85, 1.25), spacing=14, yaw=True, align=False, cluster=3),
-          notes="Tall pine with collision: the balloon can bump into it")
-    pine("", h, r, 8, 8, 0.55, "PineNeedleDark" if k else "PineNeedle", jit=0.1, z_start=0.28)
+          notes="Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot)" +
+                (", second nest on a long branch" if k else ""))
+    pine("", h, r, 8, 8, 0.55, "PineNeedleDark" if k else "PineNeedle", jit=0.1, z_start=0.28, flat_top=0.9)
     for i in range(5):                                   # a few bare dead branches on the lower trunk
         a = random.uniform(0, 6.3); z = h * random.uniform(0.12, 0.26)
         bar(f"Branch{i}", (0, 0, z), (2.2 * math.cos(a), 2.2 * math.sin(a), z + 0.8), 0.07, "PineBark")
+    bar("Snag", (0, 0, h - 0.5), (0.3, 0.2, h + 1.6), 0.09, "PineBark")      # dead leader beside the nest
+    nest("NestTop", (0, 0, h - 0.05), r=1.25)
+    if k:                                                # second nest at the end of a long branch, outside the canopy
+        z = h * 0.5; t = (0.5 - 0.28) / 0.72
+        ro = r * (1 - 0.78 * t) * 1.08 + 0.9
+        a = 0.8
+        bar("NestBranch", (0, 0, z - 0.9), (ro * math.cos(a), ro * math.sin(a), z), 0.2, "PineBark")
+        nest("NestSide", (ro * math.cos(a), ro * math.sin(a), z - 0.15), r=1.0, eggs=1)
     ucx_prism(8, 0.6, 0.25, 0, h * 0.62)
-    ucx_prism(8, r * 1.05, 0.2, h * 0.27, h)
+    ucx_prism(8, r * 1.05, 1.4, h * 0.27, h + 0.6)
 
 for k, (r, flat) in enumerate(((1.6, 0.6), (2.8, 0.5))):
     asset(f"SM_Rock_{'AB'[k]}", "Forest", "Forest_Props", 6, cat="Filler",
@@ -522,8 +610,8 @@ for x in (-1.6, 2.2):
 box("Chimney", (0.8, 0.8, 3.0), "Stone", loc=(-2.7, 1.2, 3.3))
 box("Woodpile", (1.6, 0.8, 0.8), "WoodEnd", loc=(2.5, 2.7, 0.4))
 
-asset("SM_RangerTower", "Forest", "Forest_Props", 8, place=dict(density=1, scale=(1, 1), spacing=200, yaw=True, align=False, cluster=1),
-      notes="Wooden fire lookout, 13 m: shorter than the tall pines, no collision")
+asset("SM_RangerTower", "Forest", "Forest_Tall", 8, cat="Obstacle", place=dict(density=1, scale=(1, 1), spacing=200, yaw=True, align=False, cluster=1),
+      notes="Wooden fire lookout, 13 m, collides. Loot spots on the walkway round the cabin")
 for sx in (-1, 1):
     for sy in (-1, 1):
         bar(f"Leg{sx}{sy}", (sx * 2.2, sy * 2.2, 0), (sx * 1.3, sy * 1.3, 10.5), 0.14, "Wood")
@@ -532,11 +620,16 @@ for i, z in enumerate((3.0, 6.5)):
     for k in range(4):
         a, b_ = [(-w, -w), (w, -w), (w, w), (-w, w)][k], [(-w, -w), (w, -w), (w, w), (-w, w)][(k + 1) % 4]
         bar(f"Rail{i}{k}", (*a, z), (*b_, z), 0.08, "Wood")
-box("Floor", (3.4, 3.4, 0.25), "WoodDark", loc=(0, 0, 10.6))
+box("Floor", (4.6, 4.6, 0.25), "WoodDark", loc=(0, 0, 10.6))
+railing("Walk", [(-2.25, -2.25), (2.25, -2.25), (2.25, 2.25), (-2.25, 2.25), (-2.25, -2.25)], 10.72, mat="Wood")
 box("Cabin", (2.8, 2.8, 1.1), "Wood", loc=(0, 0, 11.3))
 box("CabinGlass", (2.6, 2.6, 0.9), "Dark", loc=(0, 0, 12.3))
 hip("Roof", 3.0, 3.0, 1.0, 12.75, "WoodDark", over=0.3)
 bar("Ladder", (2.0, -2.0, 0), (1.2, -1.2, 10.5), 0.09, "WoodDark")
+loot((1.85, 1.85, 10.72), math.pi / 4)
+loot((-1.85, -1.85, 10.72), -3 * math.pi / 4)
+ucx_pts([(sx * 2.3, sy * 2.3, 0) for sx in (-1, 1) for sy in (-1, 1)] + [(sx * 1.4, sy * 1.4, 10.5) for sx in (-1, 1) for sy in (-1, 1)])
+ucx_box((4.6, 4.6, 3.4), (0, 0, 12.2))
 
 group_mount_sizes = ((900, 340, 1), (1400, 520, 2), (650, 230, 1))
 for k, (wd, ht, peaks) in enumerate(group_mount_sizes):
@@ -552,6 +645,7 @@ for k, (wd, ht, peaks) in enumerate(group_mount_sizes):
 # ================================================================ FIELD
 group("Field", "Field_Props", 512)
 group("Field", "Field_Bird", 128)
+group("Field", "Field_Windmill", 512)
 
 asset("SK_Bird", "Field", "Field_Bird", 2, kind="skeletal", cat="Creature",
       place=dict(flock=(8, 24), speed=(9, 14), height=(15, 120)),
@@ -618,30 +712,51 @@ extrude("Roof", roof, -7.3, 7.3, "IronDark")
 box("Door", (0.12, 4.4, 4.2), "WoodDark", loc=(5.02, 0, 2.1))
 box("Loft", (0.12, 1.6, 1.4), "Dark", loc=(5.02, 0, 6.6))
 
-asset("SM_Windmill", "Field", "Field_Props", 10, place=dict(density=1, scale=(1, 1), spacing=300, yaw=True, align=True, cluster=1),
-      notes="Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward (Y) axis")
-prism("Tower", 8, 3.4, 2.2, 0, 11.5, "Plaster", jitter=0.0)
-prism("Cap", 8, 2.6, 0.6, 11.5, 14.0, "Thatch")
-box("CapBox", (2.0, 2.6, 1.6), "WoodDark", loc=(0, 1.6, 12.5))
-box("Door", (1.0, 0.1, 2.0), "WoodDark", loc=(0, -3.2, 1.0), rot=(0, 0, 0))
-for i, z in enumerate((4.0, 8.0)):
-    box(f"Win{i}", (0.7, 0.1, 0.9), "Dark", loc=(0, -(3.4 - (1.2 * z / 11.5)) + 0.05, z))
-socket("blades", (0, 2.95, 12.6))
+asset("SM_Windmill", "Field", "Field_Windmill", 12, row=1, cat="Obstacle", place=dict(density=1.5, scale=(0.9, 1.1), spacing=300, yaw=True, align=True, cluster=1),
+      notes="31 m tower windmill, collides. Loot spots: lookout on the roof (top) and the gallery. "
+            "Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward axis")
+prism("Base", 8, 5.2, 5.0, 0, 1.2, "Stone")
+prism("Tower", 8, 4.6, 3.0, 1.2, 26.0, "Plaster")
+for i, z in enumerate((1.2, 13.0, 25.6)):
+    rr = 4.6 - 1.6 * (z - 1.2) / 24.8
+    prism(f"Band{i}", 8, rr + 0.12, rr + 0.1, z, z + 0.4, "WoodDark")
+prism("Cap", 8, 3.6, 2.0, 26.0, 29.2, "Thatch")
+box("CapBox", (2.4, 3.4, 2.4), "WoodDark", loc=(0, 2.3, 27.4))
+prism("Lookout", 8, 2.3, 2.3, 29.2, 29.45, "WoodDark")                      # flat lookout on the roof
+railing("Top", [(2.15 * math.cos(2 * math.pi * i / 8 + math.pi / 8), 2.15 * math.sin(2 * math.pi * i / 8 + math.pi / 8)) for i in range(9)], 29.45, mat="WoodDark")
+bar("Hatch", (-1.2, -1.2, 29.45), (-1.2, -1.2, 29.7), 0.35, "Wood")
+loot((0.4, -0.6, 29.45), -math.pi / 2)
+zg = 9.0; rg = 4.6 - 1.6 * (zg - 1.2) / 24.8                               # reefing gallery, classic on tower mills
+prism("Gallery", 12, rg + 1.5, rg + 1.5, zg - 0.25, zg, "WoodDark")
+railing("Gallery", [((rg + 1.4) * math.cos(2 * math.pi * i / 12), (rg + 1.4) * math.sin(2 * math.pi * i / 12)) for i in range(13)], zg, mat="WoodDark")
+for i in range(6):
+    a_ = 2 * math.pi * i / 6
+    bar(f"GalleryStrut{i}", ((rg + 0.2) * math.cos(a_), (rg + 0.2) * math.sin(a_), zg - 1.8), ((rg + 1.3) * math.cos(a_), (rg + 1.3) * math.sin(a_), zg - 0.25), 0.08, "WoodDark")
+loot(((rg + 0.75) * math.cos(-2.2), (rg + 0.75) * math.sin(-2.2), zg), -2.2)
+box("Door", (1.3, 0.2, 2.4), "WoodDark", loc=(0, -4.75, 2.4))
+for i, z in enumerate((5.0, 12.0, 17.0, 22.0)):
+    rr = 4.6 - 1.6 * (z - 1.2) / 24.8
+    a_ = -math.pi / 2 + (i % 2) * 1.2
+    box(f"Win{i}", (0.8, 0.25, 1.1), "Dark", loc=(rr * math.cos(a_), rr * math.sin(a_), z), rot=(0, 0, a_ + math.pi / 2))
+socket("blades", (0, 4.1, 27.4))
+ucx_prism(8, 5.2, 3.0, 0, 26.0)
+ucx_prism(8, 3.7, 2.4, 26.0, 30.6)
+ucx_prism(12, rg + 1.5, rg + 1.5, zg - 0.25, zg + 1.1)
 
-asset("SM_Windmill_Blades", "Field", "Field_Props", 20, place=dict(density=0), notes="4 sails, pivot = hub, spin around Y")
-bar("Hub", (0, -0.4, 0), (0, 0.5, 0), 0.4, "WoodDark", n=8)
+asset("SM_Windmill_Blades", "Field", "Field_Windmill", 34, row=1, place=dict(density=0), notes="4 sails, 15 m radius, pivot = hub, spin around the hub axis (Blender Y)")
+bar("Hub", (0, -0.6, 0), (0, 0.7, 0), 0.6, "WoodDark", n=8)
 for k in range(4):
     a = k * math.pi / 2 + math.pi / 4
     d = Vector((math.cos(a), 0, math.sin(a))); side = Vector((-math.sin(a), 0, math.cos(a)))
-    bar(f"Spar{k}", d * 0.3, d * 9.5, 0.12, "WoodDark")
-    c0, c1 = d * 2.0, d * 9.3
-    quad = [c0, c1, c1 + side * 1.8, c0 + side * 1.8]
-    bm = bmesh.new(); vs = [bm.verts.new(q + Vector((0, 0.05, 0))) for q in quad]; bm.faces.new(vs)
-    vs2 = [bm.verts.new(q + Vector((0, -0.05, 0))) for q in quad]; bm.faces.new(list(reversed(vs2)))
+    bar(f"Spar{k}", d * 0.4, d * 15.0, 0.18, "WoodDark")
+    c0, c1 = d * 3.0, d * 14.7
+    quad = [c0, c1, c1 + side * 2.8, c0 + side * 2.8]
+    bm = bmesh.new(); vs = [bm.verts.new(q + Vector((0, 0.06, 0))) for q in quad]; bm.faces.new(vs)
+    vs2 = [bm.verts.new(q + Vector((0, -0.06, 0))) for q in quad]; bm.faces.new(list(reversed(vs2)))
     put(bm, f"Sail{k}", "Canvas")
-    for t in (0.0, 0.5, 1.0):
+    for t in (0.0, 0.33, 0.66, 1.0):
         p0 = c0 + (c1 - c0) * t
-        bar(f"Lat{k}{t}", p0, p0 + side * 1.8, 0.05, "Wood")
+        bar(f"Lat{k}{t}", p0, p0 + side * 2.8, 0.06, "Wood")
 
 for k, (h, cr) in enumerate(((7.0, 3.0), (9.0, 3.8))):
     asset(f"SM_Tree_Oak_{'AB'[k]}", "Field", "Field_Props", 9, place=dict(density=30, scale=(0.8, 1.3), spacing=10, yaw=True, align=False, cluster=2))
@@ -720,6 +835,7 @@ box("Door", (2.0, 0.2, 3.6), "WoodDark", loc=(0, -14.05, 1.8))
 ucx_box((6, 6, 25), (0, -11, 12.5))
 ucx_prism(4, 4.2, 0.1, 24.9, 41.0, c=(0, -11))
 ucx_box((10, 22, 16), (0, 2, 8))
+balcony("Balc", (0, -14), (0, -1), 2.6, 16.0, slab="StoneDark")          # bell-ringer's balcony on the tower front
 
 asset("SM_Warehouse", "City", "City_Props", 26, place=dict(density=25, scale=(0.9, 1.1), spacing=8, yaw=False, align=True, cluster=3, street=True))
 box("Hall", (20, 12, 8), "FacadeSoot", loc=(0, 0, 4))
@@ -750,6 +866,9 @@ box("GateDoor", (5.0, 0.2, 5.0), "IronDark", loc=(6, -7.05, 2.5))
 for i, x in enumerate((6.0, 11.0)):
     factory_chimney(f"Chimney{i}", x, 9.5, 1.5, 32 - 4 * i)
     socket(f"smoke_{i + 1}", (x, 9.5, 32 - 4 * i + 0.5))
+    zp = (32 - 4 * i) * 0.62; rr = 1.5 - 0.42 * zp / (32 - 4 * i)            # service platform round the chimney
+    ring_platform(f"Platform{i}", x, 9.5, rr + 1.3, zp, r_in=rr, spot_angle=math.pi / 2)
+    ucx_prism(10, rr + 1.3, rr + 1.3, zp - 0.2, zp + 1.1, c=(x, 9.5))
     ucx_prism(8, 1.6, 1.3, 0, 32 - 4 * i + 0.5, c=(x, 9.5))
 bar("Pipe", (-12, 7, 6), (5, 9.5, 6), 0.4, "Iron", n=6)
 ucx_box((24, 14, 13.5), (0, 0, 6.75))
@@ -763,6 +882,14 @@ box("ChimneyCap", (3.6, 3.6, 1.2), "SootBrick", loc=(6, 6, 39.6))
 for z in (14, 26):
     box(f"ChimneyBand{z}", (3.3, 3.3, 0.5), "IronDark", loc=(6, 6, z))
 socket("smoke_1", (6, 6, 40.5))
+box("ChimneyDeck", (5.6, 5.6, 0.25), "IronDark", loc=(6, 6, 29.875))
+railing("ChimneyDeck", [(3.3, 3.3), (8.7, 3.3), (8.7, 8.7), (3.3, 8.7), (3.3, 3.3)], 30.0)
+for sx in (-1, 1):
+    bar(f"DeckStrut{sx}", (6 + sx * 1.5, 4.5, 28.4), (6 + sx * 2.6, 3.5, 29.75), 0.07, "IronDark")
+loot((6, 8.0, 30.0), math.pi / 2)
+box("RoofHatch", (1.2, 1.2, 0.5), "IronDark", loc=(-1, 5, 15.05))
+loot((-4, 5.5, 14.8), math.pi / 2)
+ucx_box((5.6, 5.6, 1.4), (6, 6, 30.5))
 prism("Tank", 10, 2.6, 2.6, 18, 22, "Iron", loc=(-5, -4, 0))
 for sx in (-1, 1):
     for sy in (-1, 1):
@@ -820,6 +947,10 @@ for sx in (-1, 1):
 prism("Spire", 4, 5.6, 0, 54, 62.0, "Copper", phase=math.pi / 4)
 bar("Finial", (0, 0, 61.5), (0, 0, 64.5), 0.12, "Brass", n=6)
 ucx_box((10, 10, 54), (0, 0, 27))
+balcony("BalcFront", (0, -4.3), (0, -1), 3.0, 24.3)
+balcony("BalcSide", (4.3, 0), (1, 0), 3.0, 36.3)
+railing("Ledge", [(-4.5, -4.5), (4.5, -4.5), (4.5, 4.5), (-4.5, 4.5), (-4.5, -4.5)], 49.0)   # walk round the belfry
+loot((2.5, -4.2, 49.0), -math.pi / 2)
 ucx_prism(4, 5.6, 0.1, 54, 62.0)
 
 asset("SM_Tower_Office_A", "City", "City_TowerA", 20, row=1, cat="Obstacle", place=dict(density=6, scale=(0.9, 1.15), spacing=60, yaw=False, align=True, cluster=2),
@@ -835,6 +966,9 @@ for x in (-4, 0):
 box("Entrance", (5, 0.4, 4.5), "Dark", loc=(0, -8.1, 2.25))
 box("Canopy", (6, 1.5, 0.3), "IronDark", loc=(0, -8.6, 4.7))
 ucx_box((16, 16, 46.4), (0, 0, 23.2))
+balcony("BalcA", (0, -7.4), (0, -1), 3.4, 18.35)
+balcony("BalcB", (7.4, 0), (1, 0), 3.4, 32.35)
+balcony("BalcC", (-7.0, 2.0), (-1, 0), 3.4, 40.0)
 ucx_pts([(-7.4, -7.4, 46), (7.4, -7.4, 46), (7.4, 7.4, 46), (-7.4, 7.4, 46), (-2, -2, 53), (2, -2, 53), (2, 2, 53), (-2, 2, 53)])
 
 asset("SM_Tower_Office_B", "City", "City_TowerB", 24, row=1, cat="Obstacle", place=dict(density=6, scale=(0.9, 1.15), spacing=60, yaw=False, align=True, cluster=2),
@@ -851,6 +985,11 @@ bar("Flagpole", (-2, 0, 53.5), (-2, 0, 61), 0.1, "IronDark", n=6)
 box("Flag", (2.4, 0.05, 1.4), "PaintRed", loc=(-0.8, 0, 60.2))
 box("Entrance", (4, 0.4, 4.5), "Dark", loc=(4, -7.1, 2.25))
 ucx_box((20, 14, 22.3), (0, 0, 11.15))
+railing("Terrace", [(5.2, -6.9), (9.9, -6.9), (9.9, 6.9), (5.2, 6.9)], 22.3)       # roof terrace on the lower block
+box("TerraceShed", (1.6, 2.0, 2.2), "FacadeSoot", loc=(8.6, 5.4, 23.4))
+loot((7.6, -3.5, 22.3), 0.0)
+loot((7.6, 1.5, 22.3), 0.0)
+balcony("BalcUpper", (-2, -6), (0, -1), 3.0, 36.0)
 ucx_box((14.6, 12.6, 31.6), (-2, 0, 38))
 
 asset("SM_JammerTower", "City", "City_Jammer", 18, row=1, cat="Obstacle", place=dict(density=2, scale=(0.9, 1.1), spacing=250, yaw=True, align=True, cluster=1),
@@ -877,6 +1016,7 @@ for i, z in enumerate((22.0, 44.0)):
     for sx in (-1, 1):
         ball(f"Beacon{i}{sx}", 0.45, (sx * (w + 0.6), -(w + 0.6), z + 0.5), "RedLight", u=6, v=4)
     socket(f"beacon_{i + 1}", (0, 0, z + 0.6))
+    loot((0, -(w + 0.45), z + 0.15), -math.pi / 2)
 bar("Mast", (0, 0, H), (0, 0, H + 14), 0.45, "Iron", n=8)
 for i, (z, r) in enumerate(((H + 3, 2.6), (H + 7, 2.0), (H + 10.5, 1.4))):
     prism(f"CoilRing{i}", 12, r, r, z - 0.35, z + 0.35, "Copper")
@@ -947,12 +1087,19 @@ asset("SM_Mesa", "Desert", "Desert_Props", 70, row=2, cat="Obstacle", place=dict
 prism("Mesa", 9, 32, 27, -0.5, 34, "RockDesert", jitter=0.12)
 prism("Scree", 9, 38, 31, -0.5, 6, "RockDesert", jitter=0.15, top=False)
 ucx_prism(9, 33, 27, 0, 34)
+for i, (x, y) in enumerate(((-8, 5), (6, -9), (10, 8))):                     # smugglers' cache on the top
+    crate(f"Crate{i}", (x, y, 34.0), 1.0, random.uniform(0, 3))
+    crate(f"CrateLow{i}", (x + 1.2, y + 0.3, 34.0), 0.8, random.uniform(0, 3), spot=False)
+bar("Pole", (-8, 7, 34), (-8, 7, 39), 0.07, "WoodDark", n=6)
+box("Rag", (1.2, 0.05, 0.8), "CanvasTorn", loc=(-7.4, 7, 38.5))
 
 asset("SM_Hoodoo", "Desert", "Desert_Props", 14, row=2, cat="Obstacle", place=dict(density=4, scale=(0.7, 1.4), spacing=60, yaw=True, align=False, cluster=2),
       notes="Rock pillar, 20 m: collides")
 prism("Pillar", 7, 5.0, 3.2, -0.3, 16, "RockDesert", jitter=0.15)
 rock("Cap", 4.5, (0.5, 0, 17.5), "RockDesert", flat=0.45, jit=0.15)
 ucx_prism(7, 5.2, 4.6, 0, 19.5)
+box("Planks", (2.4, 2.4, 0.2), "WoodDark", loc=(0.5, 0, 19.35), rot=(0, 0, 0.3))
+crate("Crate", (0.5, 0, 19.45), 0.9, 0.3)
 
 for k, r in enumerate((1.8, 3.2)):
     asset(f"SM_Rock_Desert_{'AB'[k]}", "Desert", "Desert_Props", 7, place=dict(density=60, scale=(0.6, 1.6), spacing=8, yaw=True, align=True, cluster=3))
@@ -1044,6 +1191,9 @@ bar("FlagPole", (-2.9, 2.9, 24.2), (-2.9, 2.9, 28), 0.06, "IronDark", n=6)
 box("Flag", (1.4, 0.05, 0.9), "PaintRed", loc=(-2.2, 2.9, 27.4))
 ucx_pts([(sx * 3.8, sy * 3.8, 0) for sx in (-1, 1) for sy in (-1, 1)] + [(sx * 2.3, sy * 2.3, 20) for sx in (-1, 1) for sy in (-1, 1)])
 ucx_box((7.0, 7.0, 6.0), (0, 0, 23.0))
+crate("CrateA", (-1.9, 1.7, 20.4), 0.9, 0.3)
+crate("CrateB", (1.9, 1.8, 20.4), 0.8, -0.2)
+crate("CrateC", (1.85, 1.8, 21.04), 0.6, 0.5, spot=False)
 
 # -- lighthouse: skeletal (head rotates, lamp can be destroyed)
 asset("SK_Lighthouse", "Desert", "Desert_Lighthouse", 14, row=1, kind="skeletal", cat="Hazard",
@@ -1071,6 +1221,9 @@ for i in range(12):
     a = 2 * math.pi * i / 12
     bar(f"Railpost{i}", (3.7 * math.cos(a), 3.7 * math.sin(a), 30.8), (3.7 * math.cos(a), 3.7 * math.sin(a), 31.9), 0.05, "IronDark")
 ring_bars("Rail", 3.7, 31.9, "IronDark", n=12, th=0.06)
+for i, a in enumerate((math.radians(200), math.radians(340))):              # supply crates on the gallery
+    crate(f"Crate{i}", (3.2 * math.cos(a), 3.2 * math.sin(a), 30.8), 0.62, a, spot=False)
+    loot((3.2 * math.cos(a), 3.2 * math.sin(a), 30.8 + 0.62 * 0.8), a, parent="root")
 part_bone("head")
 prism("LanternBase", 12, 2.3, 2.3, 30.8, 31.8, "IronDark")
 for i in range(8):
@@ -1099,6 +1252,35 @@ for i in range(n):
     j = (i + 1) % n
     bm.faces.new((a_[i], a_[j], b_[j], b_[i]))
 put(bm, "Cone", "LightBeam")
+
+# ================================================================ LOOT (snaps onto loot_NN sockets / bones)
+group("Loot", "Loot", 256)
+
+asset("SM_Loot_CoalSack", "Loot", "Loot", 2, cat="Loot", notes="Coal pickup. Pivot = base centre: snap it onto a loot_NN socket/bone")
+ball("Sack", 0.3, (0, 0, 0.3), "Burlap", u=8, v=5, scale=(1.0, 0.85, 1.05), jitter=0.06)
+prism("Neck", 6, 0.12, 0.17, 0.58, 0.7, "Burlap", top=False)
+prism("Tie", 6, 0.13, 0.13, 0.56, 0.6, "Rope")
+for i in range(5):
+    a_ = i * 1.3
+    rock(f"Lump{i}", 0.07, (0.06 * math.cos(a_), 0.06 * math.sin(a_), 0.72 + 0.03 * (i % 2)), "Coal", flat=0.8, jit=0.2, u=5, v=3)
+ucx_box((0.62, 0.55, 0.8), (0, 0, 0.4))
+
+asset("SM_Loot_AmmoBox", "Loot", "Loot", 2, cat="Loot", notes="Ammo pickup. Pivot = base centre: snap it onto a loot_NN socket/bone")
+box("Box", (0.7, 0.4, 0.3), "ArmyGreen", loc=(0, 0, 0.15))
+box("Lid", (0.72, 0.42, 0.06), "ArmyGreen", loc=(0, 0, 0.33))
+for x in (-0.25, 0.25):
+    box(f"Band{x}", (0.05, 0.43, 0.37), "IronDark", loc=(x, 0, 0.18))
+box("Plate", (0.2, 0.01, 0.1), "Brass", loc=(0, -0.205, 0.17))
+box("Stripe", (0.72, 0.41, 0.04), "PaintRed", loc=(0, 0, 0.25))
+for s_ in (-1, 1):
+    bar(f"Handle{s_}", (s_ * 0.36, -0.06, 0.2), (s_ * 0.36, 0.06, 0.2), 0.015, "IronDark")
+ucx_box((0.75, 0.45, 0.38), (0, 0, 0.19))
+
+asset("SM_Loot_CoalCrate", "Loot", "Loot", 2, cat="Loot", notes="Bigger coal pickup (open crate). Pivot = base centre")
+box("Crate", (0.7, 0.55, 0.35), "Crate", loc=(0, 0, 0.175))
+for k in range(7):
+    rock(f"Lump{k}", 0.09, (random.uniform(-0.25, 0.25), random.uniform(-0.18, 0.18), 0.36), "Coal", flat=0.7, jit=0.25, u=5, v=3)
+ucx_box((0.72, 0.57, 0.45), (0, 0, 0.225))
 
 # ---------------------------------------------------------------- store metadata for the export
 for lv in LEVELS:

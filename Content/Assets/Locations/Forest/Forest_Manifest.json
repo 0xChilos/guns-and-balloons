@@ -17,6 +17,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Small_B": {
@@ -37,6 +38,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Small_C": {
@@ -57,47 +59,60 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Small pine, fills the map, no collision"
  },
  "SM_Pine_Tall_A": {
   "file": "SM_Pine_Tall_A.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 196,
+  "tris": 410,
   "size_m": [
    11.07,
    11.1,
-   28.0
+   29.61
   ],
-  "texture": "T_Forest_PineTall.png",
+  "texture": "T_Forest_Tall.png",
   "materials": [
-   "M_Forest_PineTall"
+   "M_Forest_Tall"
   ],
   "collision_hulls": 2,
-  "sockets": [],
+  "sockets": [
+   "loot_01"
+  ],
   "bones": [],
   "anims": [],
-  "notes": "Tall pine with collision: the balloon can bump into it"
+  "loot_spots": [
+   "loot_01"
+  ],
+  "notes": "Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot)"
  },
  "SM_Pine_Tall_B": {
   "file": "SM_Pine_Tall_B.fbx",
   "kind": "static",
   "category": "Obstacle",
-  "tris": 196,
+  "tris": 574,
   "size_m": [
    10.69,
-   10.86,
-   34.0
+   11.18,
+   35.61
   ],
-  "texture": "T_Forest_PineTall.png",
+  "texture": "T_Forest_Tall.png",
   "materials": [
-   "M_Forest_PineTall"
+   "M_Forest_Tall"
   ],
   "collision_hulls": 2,
-  "sockets": [],
+  "sockets": [
+   "loot_01",
+   "loot_02"
+  ],
   "bones": [],
   "anims": [],
-  "notes": "Tall pine with collision: the balloon can bump into it"
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "notes": "Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot), second nest on a long branch"
  },
  "SM_Rock_A": {
   "file": "SM_Rock_A.fbx",
@@ -117,6 +132,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Rock_B": {
@@ -137,6 +153,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_Stump": {
@@ -157,6 +174,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_FallenLog": {
@@ -177,6 +195,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_LogCabin": {
@@ -198,27 +217,35 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": ""
  },
  "SM_RangerTower": {
   "file": "SM_RangerTower.fbx",
   "kind": "static",
-  "category": "Filler",
-  "tris": 200,
+  "category": "Obstacle",
+  "tris": 308,
   "size_m": [
    4.68,
    4.68,
    13.76
   ],
-  "texture": "T_Forest_Props.png",
+  "texture": "T_Forest_Tall.png",
   "materials": [
-   "M_Forest_Props"
+   "M_Forest_Tall"
   ],
-  "collision_hulls": 0,
-  "sockets": [],
+  "collision_hulls": 2,
+  "sockets": [
+   "loot_01",
+   "loot_02"
+  ],
   "bones": [],
   "anims": [],
-  "notes": "Wooden fire lookout, 13 m: shorter than the tall pines, no collision"
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "notes": "Wooden fire lookout, 13 m, collides. Loot spots on the walkway round the cabin"
  },
  "SM_Mountain_A": {
   "file": "SM_Mountain_A.fbx",
@@ -238,6 +265,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "SM_Mountain_B": {
@@ -258,6 +286,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "SM_Mountain_C": {
@@ -278,6 +307,7 @@
   "sockets": [],
   "bones": [],
   "anims": [],
+  "loot_spots": [],
   "notes": "Ultra low poly background mountain: place in a ring around the playable area"
  },
  "_ground": {

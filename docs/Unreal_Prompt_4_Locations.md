@@ -1,7 +1,7 @@
-You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Set up the 4 game locations: Forest, Field, City and Desert. Each location is its own level, generated randomly from the assets below. Work through the steps in order and verify each one. Where possible use the editor Python API (`unreal` module: AssetImportTask, AssetToolsHelpers, MaterialEditingLibrary, EditorAssetLibrary, DataTableFunctionLibrary). If something can't be authored through your tools (for example Blueprint graph nodes, AnimGraph, Niagara modules), create everything else and give me exact click-by-click steps for the missing part.
+You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Set up the 4 game locations: Forest, Field, City and Desert. Each location is its own level, generated randomly from the assets below. Tall structures carry loot spots where pickups (coal, ammo boxes) snap on. Work through the steps in order and verify each one. Where possible use the editor Python API (`unreal` module: AssetImportTask, AssetToolsHelpers, MaterialEditingLibrary, EditorAssetLibrary, DataTableFunctionLibrary). If something can't be authored through your tools (for example Blueprint graph nodes, AnimGraph, Niagara modules), create everything else and give me exact click-by-click steps for the missing part.
 
 ## Source files
-On disk: D:\test_git\guns-and-balloons\Content\Assets\Locations\<Level>\ (Forest, Field, City, Desert). Every asset goes into /Game/Assets/Locations/<Level>. Replace existing assets with the same name.
+On disk: D:\test_git\guns-and-balloons\Content\Assets\Locations\<Level>\ (Forest, Field, City, Desert, plus Loot for the pickups). Every asset goes into /Game/Assets/Locations/<Level>. Replace existing assets with the same name.
 
 Each level folder contains:
 - `SM_*.fbx`: static meshes. Some contain `UCX_<Mesh>_NN` convex collision hulls and `SOCKET_<name>` empties.
@@ -13,6 +13,12 @@ Each level folder contains:
 
 City also contains T_Smoke_Puff.png (64 px smoke sprite with alpha).
 
+**Loot spots:**
+- Every tall structure has 1–3 loot spots: balconies on tall buildings, chimney platforms, belfry ledges, crates on desert towers and on the mesa, bird nests on tall pines, the windmill's rooftop lookout and gallery.
+- Static meshes have sockets `loot_01`, `loot_02` … (FBX empties `SOCKET_loot_NN`). SK_Lighthouse has bones `loot_01`, `loot_02` instead.
+- A pickup's pivot is its base centre: snap it onto the socket or bone with SnapToTarget and it sits on the surface. The socket's +X points out, away from the building.
+- The `loot_spots` list in each `<Level>_Manifest.json` names them.
+
 Everything is authored in metres with Z up, the same as the balloon: import at uniform scale 1.0 and Unreal gets centimetres. Every mesh pivot is at its base centre, on the ground.
 
 ### What is in each level
@@ -21,9 +27,10 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | Asset | What | Collision |
 |---|---|---|
 | SM_Pine_Small_A/B/C | Short pines 4.5–8 m that fill the map. The player never touches them | none |
-| SM_Pine_Tall_A/B | Tall pines 28 / 34 m that the balloon bumps into. Own sharper texture | UCX: trunk + canopy cone |
+| SM_Pine_Tall_A/B | Tall pines 28 / 34 m that the balloon bumps into. Own sharper texture (T_Forest_Tall). Bird nest on the broken top = loot_01. B also has a nest on a long branch = loot_02 | UCX: trunk + canopy cone |
 | SM_Rock_A/B, SM_Stump, SM_FallenLog | Ground clutter | none |
-| SM_LogCabin, SM_RangerTower | Woodcutter's cabin (one lit window, glow slot), 13 m fire lookout | none |
+| SM_LogCabin | Woodcutter's cabin (one lit window, glow slot) | none |
+| SM_RangerTower | 13 m fire lookout with a railed walkway, loot_01/02 on the walkway (T_Forest_Tall) | UCX ×2 |
 | SM_Mountain_A/B/C | Ultra low poly snow-capped mountains, 650–1450 m wide, 230–520 m high, 40–80 tris. Background only | none |
 
 **Field**: plain farmland with flocks of birds.
@@ -34,30 +41,38 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | SM_HayBale_Round, SM_HayStack, SM_HayCart, SM_Scarecrow | Farm clutter | none |
 | SM_Fence (4 m section), SM_Hedge (6 m) | Chained into lines along field borders | none |
 | SM_Farmhouse, SM_Barn, SM_Tree_Oak_A/B | Buildings and lone trees | none |
-| SM_Windmill + SM_Windmill_Blades | Windmill. Attach the blades to SOCKET_blades and spin them around their forward (X after import, see step 5) axis | none |
+| SM_Windmill + SM_Windmill_Blades | 31 m tower windmill, a tall landmark (own texture T_Field_Windmill). loot_01 is on the railed lookout on its roof, loot_02 on the gallery at 9 m. Attach the 15 m blades to SOCKET_blades and spin them around the hub axis (see step 5) | UCX ×3 on the windmill, none on the blades |
 
 **City**: Victorian London.
 
 | Asset | What | Collision |
 |---|---|---|
 | SM_House_Terrace_A/B/C, SM_Shop_Corner, SM_Warehouse, SM_Gasholder, SM_Lamppost | Short buildings 10–19 m (lit shop windows and lamps use the glow slot) | none |
-| SM_Church | 41 m spire | UCX ×3 |
-| SM_Factory_A | Sawtooth hall, 2 chimneys (32 / 28 m), glowing skylights. Smoke from SOCKET_smoke_1, SOCKET_smoke_2 | UCX ×3 |
-| SM_Factory_B | Brick block, 40 m chimney, water tank, glowing furnace. Smoke from SOCKET_smoke_1 | UCX ×2 |
-| SM_ClockTower | 64 m clock tower, glowing clock faces. Own texture | UCX ×2 |
-| SM_Tower_Office_A / _B | 51 m / 61 m tall buildings. Own textures | UCX ×2 each |
-| SM_JammerTower | 83 m giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3 (lights), jam (effect origin). Own texture | UCX ×2 |
+| SM_Church | 41 m spire. Balcony on the tower front at 16 m = loot_01 | UCX ×3 |
+| SM_Factory_A | Sawtooth hall, 2 chimneys (32 / 28 m), glowing skylights. Smoke from SOCKET_smoke_1 and SOCKET_smoke_2 (the chimney tops). A railed service platform on each chimney = loot_01/02 | UCX ×5 |
+| SM_Factory_B | Brick block, 40 m chimney, water tank, glowing furnace. Smoke from SOCKET_smoke_1. loot_01 on the chimney deck at 30 m, loot_02 on the roof | UCX ×3 |
+| SM_ClockTower | 64 m clock tower, glowing clock faces. Own texture. Balconies at 24 m and 36 m and the railed belfry ledge at 49 m = loot_01..03 | UCX ×2 |
+| SM_Tower_Office_A / _B | 51 m / 61 m tall buildings. Own textures. A: 3 balconies (18, 32, 40 m). B: 2 spots on the railed roof terrace at 22 m and a balcony at 36 m. loot_01..03 each | UCX ×2 each |
+| SM_JammerTower | 83 m giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3 (lights), jam (effect origin), loot_01/02 on the two platforms. Own texture | UCX ×2 |
 
 **Desert**: sand, dunes, guard towers and lighthouses.
 
 | Asset | What | Collision |
 |---|---|---|
 | SM_Dune_A/B/C | Crescent dunes 70–200 m long, 8–23 m high. All face the same wind: downwind = +Y in Blender (see step 5 for the axis after import) | none (the balloon flies over them) |
-| SM_Mesa (34 m), SM_Hoodoo (20 m) | Rock formations | UCX ×1 each |
+| SM_Mesa (34 m), SM_Hoodoo (20 m) | Rock formations. Smugglers' crates on the mesa top = loot_01..03. A crate on a plank platform on the hoodoo cap = loot_01 | UCX ×1 each |
 | SM_Rock_Desert_A/B, SM_Cactus_A/B, SM_Tent, SM_Wreck_Airship, SM_Ribcage | Clutter: rocks, cacti, nomad tent, crashed zeppelin, giant skeleton | none |
-| SM_GuardTower | 28 m stilted guard tower with a searchlight (SOCKET_searchlight). Own texture | UCX ×2 |
-| SK_Lighthouse | 38 m lighthouse. Bones root > head (rotates) > lamp (light source, can be destroyed), plus non-deforming socket_beam (on head, at the lamp, pointing along the beam). Own texture, glow slot = lens | physics asset (step 4) |
+| SM_GuardTower | 28 m stilted guard tower with a searchlight (SOCKET_searchlight). Supply crates on the platform = loot_01/02 (on the crate lids). Own texture | UCX ×2 |
+| SK_Lighthouse | 38 m lighthouse. Bones: root > head (rotates) > lamp (light source, can be destroyed); non-deforming socket_beam (on head, at the lamp, pointing along the beam); non-deforming loot_01/02 (on root, on the crate lids on the gallery, so they don't turn with the head). Own texture, glow slot = lens | physics asset (step 4) |
 | SM_LighthouseBeam | 90 m light cone, apex at its pivot. Attach it to socket_beam | none |
+
+**Loot** (folder Loot): the pickups that snap onto loot spots.
+
+| Asset | What | Collision |
+|---|---|---|
+| SM_Loot_CoalSack | Burlap sack of coal, 0.6 × 0.55 × 0.8 m | UCX box (for grab traces) |
+| SM_Loot_CoalCrate | Open crate heaped with coal, 0.7 × 0.55 × 0.45 m | UCX box |
+| SM_Loot_AmmoBox | Army-green ammo box with brass plate and red band, 0.75 × 0.45 × 0.38 m | UCX box |
 
 ## 1. Textures
 Import every PNG (automated, replace existing). Then:
@@ -89,7 +104,7 @@ Save them.
    - Base Color = lerp(Texture parameter `Ground` sampled at UV, vector `FarColor`, saturate((PixelDepth − `FadeStartCm`) / (`FadeEndCm` − `FadeStartCm`))). Defaults: FadeStartCm 4000, FadeEndCm 20000.
    - Roughness 1, Specular 0.1.
 5. **Material instances:**
-   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_PineTall, Forest_Mountains, Field_Props, Field_Bird, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_GuardTower and Desert_Lighthouse.
+   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_Tall, Forest_Mountains, Field_Props, Field_Bird, Field_Windmill, Loot, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_GuardTower and Desert_Lighthouse.
    - `MI_LightBeam` (parent M_LightBeam).
    - `MI_<Level>_Ground` (parent M_Ground) with Ground = T_<Level>_Ground and FarColor (linear) = the texture's average:
 
@@ -113,6 +128,7 @@ Then per mesh:
 - **Materials:** the FBX slot names are `M_<Group>`, `M_<Group>_Glow` and `M_LightBeam`. Assign `MI_<Group>`, `MI_<Group>_Glow` and `MI_LightBeam` by slot name.
 - **Collision:**
   - Meshes with UCX hulls (Collision column above): collision preset BlockAll, Collision Complexity = Use Simple Collision As Complex.
+  - Loot meshes: keep their UCX box. Collision preset = custom: Query Only, block the Visibility trace (so a grab trace or crosshair hits them), ignore Pawn (the balloon flies through them).
   - All other meshes: collision preset NoCollision, and remove any simple collision. Short trees, clutter and short buildings never touch the player.
 - **Sockets:** check against the manifest that these exist:
   - SM_Factory_A: smoke_1, smoke_2
@@ -120,6 +136,7 @@ Then per mesh:
   - SM_Windmill: blades
   - SM_JammerTower: beacon_1, beacon_2, beacon_3, jam
   - SM_GuardTower: searchlight
+  - Every `loot_NN` listed under `loot_spots` in the manifests
 
   If one is missing, add it by hand at the location in `<Level>_Manifest.json`. The FBX socket empties are `SOCKET_<name>`, so their positions can also be read from the FBX.
 - **Distance culling:** set `Min/Max Draw Distance` hints in step 6 rather than LODs. The meshes are already 24–2100 tris.
@@ -215,7 +232,35 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
        - stop rotation and detection for good
        - spawn a glass-shard burst plus sparks at BeamSocket
      - The lighthouse keeps its collision but has no function any more.
-7. **BP_GuardTower** (optional): SM_GuardTower plus a SpotLight on SOCKET_searchlight, sweeping ±40° slowly. It can reuse the lighthouse detection logic with a 60 m range.
+7. **Loot spots** (works for every tall structure):
+   - **BP_Loot** (parent class):
+     - Variables: `LootType` (enum E_LootType: Coal, Ammo), `Amount` (int).
+     - Components:
+       - StaticMesh root
+       - Sphere `GrabZone` (radius 250 cm, OverlapAllDynamic)
+     - Grabbing:
+       - When the player balloon overlaps GrabZone, or a grab trace from the player hits the mesh, call `OnLootPickedUp(LootType, Amount)` (Blueprint Interface) on the balloon.
+       - Play a small pickup puff, then DestroyActor.
+       - Expose `bAutoPickup` (default true). If false, it only reacts to the grab trace.
+     - Idle: a 1.2 s gentle bob of ±5 cm on the mesh only, never on the actor, so it stays snapped. Optional.
+   - **Children:**
+     - BP_Loot_CoalSack: SM_Loot_CoalSack, Coal, Amount 20
+     - BP_Loot_CoalCrate: SM_Loot_CoalCrate, Coal, Amount 45
+     - BP_Loot_AmmoBox: SM_Loot_AmmoBox, Ammo, Amount 30
+   - **AC_LootSpots** (Actor Component). Add it to every Blueprint of a tall structure (BP_Factory, BP_Windmill, BP_JammerTower, BP_GuardTower, BP_Lighthouse) and, for HISM/static-mesh placement, run it from the level generator.
+     - Variables:
+       - `SpawnChance` (0.6)
+       - `LootTable`: array of {Class, Weight}. Defaults: CoalSack 45, CoalCrate 15, AmmoBox 40.
+       - `bRespawn` (false)
+       - `RespawnTime` (90 s)
+     - On BeginPlay, for the owner's first Static Mesh or Skeletal Mesh component:
+       - list its socket names: GetAllSocketNames. For the lighthouse, bones count: also check GetBoneName / DoesSocketExist.
+       - keep the ones starting with `loot_`
+       - for each, with probability SpawnChance, spawn a weighted-random loot class and AttachToComponent(mesh, socket, SnapToTarget for location, rotation and scale)
+     - Keep track of which socket each loot belongs to. When one is picked up and bRespawn is true, respawn it after RespawnTime.
+     - If the structure is destroyed, detach its loot and enable physics on it, so it falls. Optional.
+   - Seed the random stream from the level generator's seed, so a level always gives the same loot.
+8. **BP_GuardTower** (optional): SM_GuardTower plus a SpotLight on SOCKET_searchlight, sweeping ±40° slowly. It can reuse the lighthouse detection logic with a 60 m range.
 
 ## 6. Random level generation data
 1. Create the struct **S_LevelAsset** with fields matching the CSV header (the first column is the row name):
@@ -240,6 +285,7 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
    | SM_GuardTower | BP_GuardTower |
    | SK_Lighthouse | BP_Lighthouse |
    | SK_Bird | BP_BirdFlock |
+   | SM_Pine_Tall_A/B, SM_RangerTower, SM_Church, SM_ClockTower, SM_Tower_Office_A/B, SM_Mesa, SM_Hoodoo | spawn as Static Mesh actors with AC_LootSpots added |
 3. Rules for the generator, which I will build. Document them as comments in the DataTable or in a README next to it:
    - `scatter`: random positions at DensityPerKm2, at least MinSpacingM apart, in clusters of ClusterSize.
    - `ring`: Forest mountains. Place them only outside the playable area, in a ring 1.5–3 km from the centre, facing inward, scaled ScaleMin–ScaleMax, overlapping so the horizon is closed.
@@ -270,5 +316,6 @@ Check, and report:
 - Factory smoke rises from the chimney tops.
 - The windmill blades spin around the right axis.
 - Birds flock, scatter near the balloon and get destroyed on contact.
+- Loot: every tall structure shows loot on its loot spots, sitting on the balcony, platform, crate or nest, not floating and not buried. Flying the balloon into a loot item picks it up and calls OnLootPickedUp. The lighthouse loot stays put while the head rotates.
 - The lighthouse head rotates. Its beam turns red when the camera or pawn stands in it, and after shooting/damaging the lamp, the light is gone and it stops working.
 - Screenshot of each test level.

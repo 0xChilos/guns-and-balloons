@@ -2,14 +2,14 @@
 SM_Pine_Small_A,SM_Pine_Small_A,Filler,false,2500,0.7,1.4,3,true,false,8,scatter,"Small pine, fills the map, no collision"
 SM_Pine_Small_B,SM_Pine_Small_B,Filler,false,2500,0.7,1.4,3,true,false,8,scatter,"Small pine, fills the map, no collision"
 SM_Pine_Small_C,SM_Pine_Small_C,Filler,false,2500,0.7,1.4,3,true,false,8,scatter,"Small pine, fills the map, no collision"
-SM_Pine_Tall_A,SM_Pine_Tall_A,Obstacle,true,120,0.85,1.25,14,true,false,3,scatter,Tall pine with collision: the balloon can bump into it
-SM_Pine_Tall_B,SM_Pine_Tall_B,Obstacle,true,120,0.85,1.25,14,true,false,3,scatter,Tall pine with collision: the balloon can bump into it
+SM_Pine_Tall_A,SM_Pine_Tall_A,Obstacle,true,120,0.85,1.25,14,true,false,3,scatter,Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot)
+SM_Pine_Tall_B,SM_Pine_Tall_B,Obstacle,true,120,0.85,1.25,14,true,false,3,scatter,"Tall pine with collision: the balloon can bump into it. Bird nest on the broken top (loot spot), second nest on a long branch"
 SM_Rock_A,SM_Rock_A,Filler,false,150,0.6,1.8,6,true,true,2,scatter,
 SM_Rock_B,SM_Rock_B,Filler,false,150,0.6,1.8,6,true,true,2,scatter,
 SM_Stump,SM_Stump,Filler,false,200,0.8,1.3,4,true,true,1,scatter,
 SM_FallenLog,SM_FallenLog,Filler,false,80,0.8,1.3,8,true,true,1,scatter,
 SM_LogCabin,SM_LogCabin,Filler,false,4,1,1,60,true,true,1,scatter,
-SM_RangerTower,SM_RangerTower,Filler,false,1,1,1,200,true,false,1,scatter,"Wooden fire lookout, 13 m: shorter than the tall pines, no collision"
+SM_RangerTower,SM_RangerTower,Obstacle,true,1,1,1,200,true,false,1,scatter,"Wooden fire lookout, 13 m, collides. Loot spots on the walkway round the cabin"
 SM_Mountain_A,SM_Mountain_A,Background,false,0,0.8,1.5,600,true,false,1,ring,Ultra low poly background mountain: place in a ring around the playable area
 SM_Mountain_B,SM_Mountain_B,Background,false,0,0.8,1.5,600,true,false,1,ring,Ultra low poly background mountain: place in a ring around the playable area
 SM_Mountain_C,SM_Mountain_C,Background,false,0,0.8,1.5,600,true,false,1,ring,Ultra low poly background mountain: place in a ring around the playable area
