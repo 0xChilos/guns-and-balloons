@@ -1,0 +1,296 @@
+{
+ "SM_Pine_Small_A": {
+  "file": "SM_Pine_Small_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 46,
+  "size_m": [
+   2.73,
+   3.33,
+   4.54
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Small pine, fills the map, no collision"
+ },
+ "SM_Pine_Small_B": {
+  "file": "SM_Pine_Small_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 56,
+  "size_m": [
+   3.26,
+   2.87,
+   6.0
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Small pine, fills the map, no collision"
+ },
+ "SM_Pine_Small_C": {
+  "file": "SM_Pine_Small_C.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 68,
+  "size_m": [
+   4.13,
+   4.14,
+   8.0
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Small pine, fills the map, no collision"
+ },
+ "SM_Pine_Tall_A": {
+  "file": "SM_Pine_Tall_A.fbx",
+  "kind": "static",
+  "category": "Obstacle",
+  "tris": 196,
+  "size_m": [
+   11.07,
+   11.1,
+   28.0
+  ],
+  "texture": "T_Forest_PineTall.png",
+  "materials": [
+   "M_Forest_PineTall"
+  ],
+  "collision_hulls": 2,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Tall pine with collision: the balloon can bump into it"
+ },
+ "SM_Pine_Tall_B": {
+  "file": "SM_Pine_Tall_B.fbx",
+  "kind": "static",
+  "category": "Obstacle",
+  "tris": 196,
+  "size_m": [
+   10.69,
+   10.86,
+   34.0
+  ],
+  "texture": "T_Forest_PineTall.png",
+  "materials": [
+   "M_Forest_PineTall"
+  ],
+  "collision_hulls": 2,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Tall pine with collision: the balloon can bump into it"
+ },
+ "SM_Rock_A": {
+  "file": "SM_Rock_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 66,
+  "size_m": [
+   3.02,
+   2.9,
+   1.78
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Rock_B": {
+  "file": "SM_Rock_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 66,
+  "size_m": [
+   5.7,
+   5.0,
+   3.39
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Stump": {
+  "file": "SM_Stump.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 86,
+  "size_m": [
+   1.67,
+   1.67,
+   0.63
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_FallenLog": {
+  "file": "SM_FallenLog.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 98,
+  "size_m": [
+   6.44,
+   1.86,
+   0.98
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_LogCabin": {
+  "file": "SM_LogCabin.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 96,
+  "size_m": [
+   7.0,
+   5.9,
+   4.8
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props",
+   "M_Forest_Props_Glow"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_RangerTower": {
+  "file": "SM_RangerTower.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 200,
+  "size_m": [
+   4.68,
+   4.68,
+   13.76
+  ],
+  "texture": "T_Forest_Props.png",
+  "materials": [
+   "M_Forest_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Wooden fire lookout, 13 m: shorter than the tall pines, no collision"
+ },
+ "SM_Mountain_A": {
+  "file": "SM_Mountain_A.fbx",
+  "kind": "static",
+  "category": "Background",
+  "tris": 40,
+  "size_m": [
+   783.6,
+   882.06,
+   340.0
+  ],
+  "texture": "T_Forest_Mountains.png",
+  "materials": [
+   "M_Forest_Mountains"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Ultra low poly background mountain: place in a ring around the playable area"
+ },
+ "SM_Mountain_B": {
+  "file": "SM_Mountain_B.fbx",
+  "kind": "static",
+  "category": "Background",
+  "tris": 80,
+  "size_m": [
+   1455.66,
+   934.52,
+   520.0
+  ],
+  "texture": "T_Forest_Mountains.png",
+  "materials": [
+   "M_Forest_Mountains"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Ultra low poly background mountain: place in a ring around the playable area"
+ },
+ "SM_Mountain_C": {
+  "file": "SM_Mountain_C.fbx",
+  "kind": "static",
+  "category": "Background",
+  "tris": 40,
+  "size_m": [
+   676.51,
+   646.92,
+   230.0
+  ],
+  "texture": "T_Forest_Mountains.png",
+  "materials": [
+   "M_Forest_Mountains"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "Ultra low poly background mountain: place in a ring around the playable area"
+ },
+ "_ground": {
+  "texture": "T_Forest_Ground.png",
+  "average_linear": [
+   0.1811,
+   0.1744,
+   0.095
+  ],
+  "average_srgb": [
+   0.4626,
+   0.4546,
+   0.3406
+  ]
+ }
+}

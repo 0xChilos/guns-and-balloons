@@ -1,0 +1,288 @@
+{
+ "SK_Bird": {
+  "file": "SK_Bird.fbx",
+  "kind": "skeletal",
+  "category": "Creature",
+  "tris": 134,
+  "size_m": [
+   1.06,
+   0.62,
+   0.16
+  ],
+  "texture": "T_Field_Bird.png",
+  "materials": [
+   "M_Field_Bird"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [
+   "root",
+   "body",
+   "wing_L",
+   "wingtip_L",
+   "wing_R",
+   "wingtip_R",
+   "tail"
+  ],
+  "anims": [
+   "Bird_Flap",
+   "Bird_Glide"
+  ],
+  "notes": "Flock bird with wing-flap animation; collides with the balloon (sphere ~0.5 m)"
+ },
+ "SM_HayBale_Round": {
+  "file": "SM_HayBale_Round.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 36,
+  "size_m": [
+   1.2,
+   1.5,
+   1.43
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_HayStack": {
+  "file": "SM_HayStack.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 42,
+  "size_m": [
+   4.28,
+   4.3,
+   4.2
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Fence": {
+  "file": "SM_Fence.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 48,
+  "size_m": [
+   4.2,
+   0.16,
+   1.3
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "4 m fence section: place end to end along field borders"
+ },
+ "SM_Hedge": {
+  "file": "SM_Hedge.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 108,
+  "size_m": [
+   6.96,
+   2.19,
+   2.39
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "6 m hedge: lines between fields"
+ },
+ "SM_Farmhouse": {
+  "file": "SM_Farmhouse.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 120,
+  "size_m": [
+   11.6,
+   8.9,
+   10.3
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Barn": {
+  "file": "SM_Barn.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 84,
+  "size_m": [
+   10.8,
+   14.6,
+   9.35
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Windmill": {
+  "file": "SM_Windmill.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 104,
+  "size_m": [
+   6.28,
+   6.39,
+   14.0
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [
+   "blades"
+  ],
+  "bones": [],
+  "anims": [],
+  "notes": "Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward (Y) axis"
+ },
+ "SM_Windmill_Blades": {
+  "file": "SM_Windmill_Blades.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 236,
+  "size_m": [
+   15.75,
+   0.9,
+   15.75
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": "4 sails, pivot = hub, spin around Y"
+ },
+ "SM_Tree_Oak_A": {
+  "file": "SM_Tree_Oak_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 188,
+  "size_m": [
+   7.21,
+   6.88,
+   7.52
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Tree_Oak_B": {
+  "file": "SM_Tree_Oak_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 188,
+  "size_m": [
+   8.15,
+   8.55,
+   9.45
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_Scarecrow": {
+  "file": "SM_Scarecrow.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 92,
+  "size_m": [
+   1.8,
+   0.64,
+   2.5
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "SM_HayCart": {
+  "file": "SM_HayCart.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 104,
+  "size_m": [
+   1.92,
+   5.11,
+   2.05
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "notes": ""
+ },
+ "_ground": {
+  "texture": "T_Field_Ground.png",
+  "average_linear": [
+   0.3874,
+   0.4104,
+   0.1761
+  ],
+  "average_srgb": [
+   0.6557,
+   0.673,
+   0.4567
+  ]
+ }
+}
