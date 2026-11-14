@@ -1,6 +1,8 @@
 #include "BalloonFlightComponent.h"
 
 #include "GameFramework/Actor.h"
+#include "Components/ShapeComponent.h"
+#include "Engine/World.h"
 
 UBalloonFlightComponent::UBalloonFlightComponent()
 {
@@ -110,7 +112,35 @@ void UBalloonFlightComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// Forward motion continues while turning; only the horizontal yaw matters for the heading.
 	const float Yaw = Owner->GetActorRotation().Yaw;
 	const FVector Forward = FRotator(0.f, Yaw, 0.f).Vector();
-	Owner->AddActorWorldOffset(Forward * (CurrentSpeed * DeltaTime), /*bSweep=*/true);
+	const FVector Delta = Forward * (CurrentSpeed * DeltaTime);
+	// Actor sweeps only test the root. Test every authored primitive so the hollow
+	// basket and rounded envelope can stop flight without a solid enclosing box.
+	float MoveFraction = 1.f;
+	bool bHasShapes = false;
+	TInlineComponentArray<UShapeComponent*> Shapes(Owner);
+	FComponentQueryParams Params(SCENE_QUERY_STAT(BalloonFlight), Owner);
+	TArray<AActor*> Riders;
+	Owner->GetAttachedActors(Riders, true, true);
+	Params.AddIgnoredActors(Riders);
+	for (UShapeComponent* Shape : Shapes)
+	{
+		if (!Shape->IsQueryCollisionEnabled()) continue;
+		bHasShapes = true;
+		TArray<FHitResult> Hits;
+		const FVector Start = Shape->GetComponentLocation();
+		GetWorld()->ComponentSweepMulti(Hits, Shape, Start, Start + Delta,
+			Shape->GetComponentQuat(), Params);
+		for (const FHitResult& Hit : Hits)
+		{
+			if (Hit.bBlockingHit)
+			{
+				// Allow movement out of an existing contact instead of sticking forever.
+				if (Hit.bStartPenetrating && FVector::DotProduct(Delta, Hit.Normal) > 0.f) continue;
+				MoveFraction = FMath::Min(MoveFraction, Hit.Time);
+			}
+		}
+	}
+	Owner->AddActorWorldOffset(Delta * MoveFraction, /*bSweep=*/!bHasShapes);
 	Owner->AddActorWorldRotation(FRotator(0.f, CurrentTurnRate * DeltaTime, 0.f));
 
 	if (bDebugLog)
