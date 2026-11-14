@@ -6,7 +6,7 @@ SM_Fence,SM_Fence,Filler,false,0,1,1,4,false,true,1,line,4 m fence section: plac
 SM_Hedge,SM_Hedge,Filler,false,0,0.8,1.5,6,false,true,1,line,6 m hedge: lines between fields
 SM_Farmhouse,SM_Farmhouse,Filler,false,3,1,1,120,true,true,1,scatter,
 SM_Barn,SM_Barn,Filler,false,3,1,1,120,true,true,1,scatter,
-SM_Windmill,SM_Windmill,Obstacle,true,1.5,0.9,1.1,300,true,true,1,scatter,"31 m tower windmill, collides. Loot spots: lookout on the roof (top) and the gallery. Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward axis"
+SK_Windmill,SK_Windmill,Obstacle,true,1.5,0.9,1.1,300,true,true,1,scatter,"31 m tower windmill, collides (physics asset). Sails on bone 'blades' spin with the looping animation Windmill_Spin. Loot spots: lookout on the roof (loot_01) and the gallery (loot_02)"
 SM_Tree_Oak_A,SM_Tree_Oak_A,Filler,false,30,0.8,1.3,10,true,false,2,scatter,
 SM_Tree_Oak_B,SM_Tree_Oak_B,Filler,false,30,0.8,1.3,10,true,false,2,scatter,
 SM_Scarecrow,SM_Scarecrow,Filler,false,4,1,1.1,40,true,true,1,scatter,

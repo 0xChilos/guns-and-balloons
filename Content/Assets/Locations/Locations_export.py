@@ -121,6 +121,24 @@ def make_smoke(level):
     bpy.data.images.remove(img)
 
 
+def make_spark(level):
+    """32 px sparkle sprite (white, alpha): 4-point star with a soft core, stepped alpha for the PS1 look.
+    Tint it per pickup in Unreal."""
+    n = 32
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    x = (xx + 0.5) / n * 2 - 1; y = (yy + 0.5) / n * 2 - 1
+    r = np.hypot(x, y)
+    star = np.clip(1 - (np.abs(x) * 7 + np.abs(y) * 1.1), 0, 1) + np.clip(1 - (np.abs(y) * 7 + np.abs(x) * 1.1), 0, 1)
+    diag = np.clip(1 - (np.abs(x - y) * 6 + np.abs(x + y) * 2.2), 0, 1) + np.clip(1 - (np.abs(x + y) * 6 + np.abs(x - y) * 2.2), 0, 1)
+    a = np.clip(star + 0.45 * diag + np.clip(1 - r / 0.35, 0, 1) ** 1.5, 0, 1)
+    a = np.floor(a * 4 + 0.35) / 4
+    out = np.ones((n, n, 4), np.float32); out[..., 3] = a
+    img = bpy.data.images.new("T_Loot_Spark", n, n, alpha=True)
+    img.pixels.foreach_set(out.ravel())
+    save_png(img, os.path.join(ROOT, level, "T_Loot_Spark.png"))
+    bpy.data.images.remove(img)
+
+
 def remove_scene(name):
     if name in bpy.data.scenes:
         s = bpy.data.scenes[name]
@@ -238,6 +256,8 @@ def export_level(level):
                         out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
                         pr = nt.nodes.new('ShaderNodeBsdfPrincipled'); pr.inputs['Base Color'].default_value = c
                         nt.links.new(pr.outputs[0], out.inputs['Surface'])
+                    for pr_ in (n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'):
+                        pr_.inputs['Metallic'].default_value = 0.0     # metals would bake dark in the colour pass
                     t = nt.nodes.new('ShaderNodeTexImage'); t.name = "BAKE_TEX"; nt.nodes.active = t
                     bake_of[m.name] = (bm_, is_glow(m))
                 o.data.materials[i] = bake_of[m.name][0]
@@ -398,7 +418,9 @@ def export_level(level):
         manifest["_ground"] = make_ground(level)
     if level == "City":
         make_smoke(level)
-    with open(os.path.join(folder, f"{level}_Placement.csv"), "w", newline="", encoding="utf-8") as f:
+    if level == "Loot":
+        make_spark(level)
+    with open(os.path.join(folder, f"{level}_Placement.csv"), "w", newline="", encoding="utf-8") if level in GROUND else open(os.devnull, "w") as f:
         w = csv.writer(f)
         w.writerow(["---", "Asset", "Category", "Collision", "DensityPerKm2", "ScaleMin", "ScaleMax", "MinSpacingM",
                     "RandomYaw", "AlignToSlope", "ClusterSize", "Rule", "Notes"])

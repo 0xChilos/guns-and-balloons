@@ -1,34 +1,13 @@
 {
- "SM_Loot_CoalSack": {
-  "file": "SM_Loot_CoalSack.fbx",
-  "kind": "static",
-  "category": "Loot",
-  "tris": 200,
-  "size_m": [
-   0.57,
-   0.49,
-   0.83
-  ],
-  "texture": "T_Loot.png",
-  "materials": [
-   "M_Loot"
-  ],
-  "collision_hulls": 1,
-  "sockets": [],
-  "bones": [],
-  "anims": [],
-  "loot_spots": [],
-  "notes": "Coal pickup. Pivot = base centre: snap it onto a loot_NN socket/bone"
- },
  "SM_Loot_AmmoBox": {
   "file": "SM_Loot_AmmoBox.fbx",
   "kind": "static",
   "category": "Loot",
-  "tris": 96,
+  "tris": 498,
   "size_m": [
-   0.74,
-   0.43,
-   0.37
+   0.86,
+   0.6,
+   0.81
   ],
   "texture": "T_Loot.png",
   "materials": [
@@ -39,17 +18,17 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
-  "notes": "Ammo pickup. Pivot = base centre: snap it onto a loot_NN socket/bone"
+  "notes": "Ammo: open wooden case full of brass cartridges"
  },
- "SM_Loot_CoalCrate": {
-  "file": "SM_Loot_CoalCrate.fbx",
+ "SM_Loot_MoneyPouch": {
+  "file": "SM_Loot_MoneyPouch.fbx",
   "kind": "static",
   "category": "Loot",
-  "tris": 152,
+  "tris": 394,
   "size_m": [
-   0.7,
-   0.55,
-   0.44
+   0.75,
+   0.75,
+   0.68
   ],
   "texture": "T_Loot.png",
   "materials": [
@@ -60,6 +39,71 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
-  "notes": "Bigger coal pickup (open crate). Pivot = base centre"
+  "notes": "Money: leather drawstring pouch with gold coins"
+ },
+ "SM_Loot_Logs": {
+  "file": "SM_Loot_Logs.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 226,
+  "size_m": [
+   0.92,
+   0.66,
+   0.63
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Wood: bundle of 3 logs tied with rope"
+ },
+ "SM_Loot_Coal": {
+  "file": "SM_Loot_Coal.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 148,
+  "size_m": [
+   0.87,
+   0.7,
+   0.61
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot",
+   "M_Loot_Glow"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Coal: one big glossy lump with glowing embers (glow slot)"
+ },
+ "SM_Loot_Crystal": {
+  "file": "SM_Loot_Crystal.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 172,
+  "size_m": [
+   0.84,
+   0.71,
+   0.89
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot",
+   "M_Loot_Glow"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "notes": "Crystal: cluster of glowing crystals on a rock (glow slot)"
  }
 }

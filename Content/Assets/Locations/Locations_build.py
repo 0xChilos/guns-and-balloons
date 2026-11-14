@@ -206,6 +206,10 @@ mk("Burlap", (0.42, 0.34, 0.20), (0.24, 0.19, 0.11), snap=0.02, nscale=14)
 mk("Rope", (0.48, 0.40, 0.25), (0.28, 0.22, 0.13), snap=0.02, nscale=14)
 mk("Coal", (0.07, 0.07, 0.07), (0.02, 0.02, 0.02), rough=0.6, snap=0.02, nscale=15)
 mk("ArmyGreen", (0.22, 0.27, 0.16), (0.11, 0.14, 0.08), snap=0.02, nscale=10)
+mk("Gold", (0.88, 0.64, 0.18), (0.52, 0.34, 0.08), metal=0.9, rough=0.35, snap=0.01, nscale=20)
+mk("Leather", (0.38, 0.21, 0.10), (0.18, 0.09, 0.04), snap=0.02, nscale=12)
+mk("CopperTip", (0.68, 0.34, 0.16), (0.40, 0.18, 0.08), metal=0.8, rough=0.4, snap=0.01, nscale=20)
+glow("CrystalGlow", (0.35, 0.92, 1.0), 5.0)
 # built
 mk("Wood", (0.42, 0.28, 0.15), (0.20, 0.12, 0.06), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
 mk("WoodDark", (0.25, 0.16, 0.09), (0.11, 0.07, 0.04), snap=0.03, nscale=8, pattern='vbands', pcol=(0.7, 0.65, 0.6), pfreq=5)
@@ -712,9 +716,14 @@ extrude("Roof", roof, -7.3, 7.3, "IronDark")
 box("Door", (0.12, 4.4, 4.2), "WoodDark", loc=(5.02, 0, 2.1))
 box("Loft", (0.12, 1.6, 1.4), "Dark", loc=(5.02, 0, 6.6))
 
-asset("SM_Windmill", "Field", "Field_Windmill", 12, row=1, cat="Obstacle", place=dict(density=1.5, scale=(0.9, 1.1), spacing=300, yaw=True, align=True, cluster=1),
-      notes="31 m tower windmill, collides. Loot spots: lookout on the roof (top) and the gallery. "
-            "Attach SM_Windmill_Blades to SOCKET_blades and spin it around its forward axis")
+asset("SK_Windmill", "Field", "Field_Windmill", 34, row=1, kind="skeletal", cat="Obstacle",
+      place=dict(density=1.5, scale=(0.9, 1.1), spacing=300, yaw=True, align=True, cluster=1),
+      notes="31 m tower windmill, collides (physics asset). Sails on bone 'blades' spin with the looping animation "
+            "Windmill_Spin. Loot spots: lookout on the roof (loot_01) and the gallery (loot_02)")
+HUB = Vector((0, 4.6, 27.4))
+bone("root", (0, 0, 0), (0, 0, 2))
+bone("blades", HUB, HUB + Vector((0, 1.5, 0)), "root")       # bone axis = hub axis: the sails spin around it
+part_bone("root")
 prism("Base", 8, 5.2, 5.0, 0, 1.2, "Stone")
 prism("Tower", 8, 4.6, 3.0, 1.2, 26.0, "Plaster")
 for i, z in enumerate((1.2, 13.0, 25.6)):
@@ -738,18 +747,13 @@ for i, z in enumerate((5.0, 12.0, 17.0, 22.0)):
     rr = 4.6 - 1.6 * (z - 1.2) / 24.8
     a_ = -math.pi / 2 + (i % 2) * 1.2
     box(f"Win{i}", (0.8, 0.25, 1.1), "Dark", loc=(rr * math.cos(a_), rr * math.sin(a_), z), rot=(0, 0, a_ + math.pi / 2))
-socket("blades", (0, 4.1, 27.4))
-ucx_prism(8, 5.2, 3.0, 0, 26.0)
-ucx_prism(8, 3.7, 2.4, 26.0, 30.6)
-ucx_prism(12, rg + 1.5, rg + 1.5, zg - 0.25, zg + 1.1)
-
-asset("SM_Windmill_Blades", "Field", "Field_Windmill", 34, row=1, place=dict(density=0), notes="4 sails, 15 m radius, pivot = hub, spin around the hub axis (Blender Y)")
-bar("Hub", (0, -0.6, 0), (0, 0.7, 0), 0.6, "WoodDark", n=8)
+part_bone("blades")
+bar("Hub", HUB + Vector((0, -0.6, 0)), HUB + Vector((0, 0.7, 0)), 0.6, "WoodDark", n=8)
 for k in range(4):
     a = k * math.pi / 2 + math.pi / 4
     d = Vector((math.cos(a), 0, math.sin(a))); side = Vector((-math.sin(a), 0, math.cos(a)))
-    bar(f"Spar{k}", d * 0.4, d * 15.0, 0.18, "WoodDark")
-    c0, c1 = d * 3.0, d * 14.7
+    bar(f"Spar{k}", HUB + d * 0.4, HUB + d * 15.0, 0.18, "WoodDark")
+    c0, c1 = HUB + d * 3.0, HUB + d * 14.7
     quad = [c0, c1, c1 + side * 2.8, c0 + side * 2.8]
     bm = bmesh.new(); vs = [bm.verts.new(q + Vector((0, 0.06, 0))) for q in quad]; bm.faces.new(vs)
     vs2 = [bm.verts.new(q + Vector((0, -0.06, 0))) for q in quad]; bm.faces.new(list(reversed(vs2)))
@@ -757,6 +761,10 @@ for k in range(4):
     for t in (0.0, 0.33, 0.66, 1.0):
         p0 = c0 + (c1 - c0) * t
         bar(f"Lat{k}{t}", p0, p0 + side * 2.8, 0.06, "Wood")
+part_bone(None)
+# one full turn in 4 s (97 keys at 24 fps, frame 96 = frame 0, so the loop is seamless). Sails turn clockwise
+# seen from the front (from +Y): rotation around -Y in Blender.
+ASSETS["SK_Windmill"]["anims"] = {"Windmill_Spin": [(f, {"blades": (0, -1, 0, 360.0 * f / 96)}, {}) for f in range(97)]}
 
 for k, (h, cr) in enumerate(((7.0, 3.0), (9.0, 3.8))):
     asset(f"SM_Tree_Oak_{'AB'[k]}", "Field", "Field_Props", 9, place=dict(density=30, scale=(0.8, 1.3), spacing=10, yaw=True, align=False, cluster=2))
@@ -1253,34 +1261,63 @@ for i in range(n):
     bm.faces.new((a_[i], a_[j], b_[j], b_[i]))
 put(bm, "Cone", "LightBeam")
 
-# ================================================================ LOOT (snaps onto loot_NN sockets / bones)
+# ================================================================ PICKUPS (snap onto loot_NN sockets)
+# Pivot = base centre, so a pickup snapped onto a loot socket sits on the surface. Each one is a bit oversized
+# (0.6-0.9 m) so it reads from the balloon. Highlight sparks are added in Unreal (T_Loot_Spark sprite).
 group("Loot", "Loot", 256)
+PICK = dict(density=0)
 
-asset("SM_Loot_CoalSack", "Loot", "Loot", 2, cat="Loot", notes="Coal pickup. Pivot = base centre: snap it onto a loot_NN socket/bone")
-ball("Sack", 0.3, (0, 0, 0.3), "Burlap", u=8, v=5, scale=(1.0, 0.85, 1.05), jitter=0.06)
-prism("Neck", 6, 0.12, 0.17, 0.58, 0.7, "Burlap", top=False)
-prism("Tie", 6, 0.13, 0.13, 0.56, 0.6, "Rope")
+asset("SM_Loot_AmmoBox", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Ammo: open wooden case full of brass cartridges")
+box("Case", (0.8, 0.5, 0.32), "Crate", loc=(0, 0, 0.16))
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        box(f"Corner{sx}{sy}", (0.08, 0.08, 0.34), "Brass", loc=(sx * 0.37, sy * 0.22, 0.17))
+box("Lid", (0.8, 0.05, 0.5), "Crate", loc=(0, 0.27, 0.56), rot=(-0.18, 0, 0))      # lid propped open at the back
+box("Stencil", (0.3, 0.01, 0.1), "PaintRed", loc=(0, -0.255, 0.18))
 for i in range(5):
-    a_ = i * 1.3
-    rock(f"Lump{i}", 0.07, (0.06 * math.cos(a_), 0.06 * math.sin(a_), 0.72 + 0.03 * (i % 2)), "Coal", flat=0.8, jit=0.2, u=5, v=3)
-ucx_box((0.62, 0.55, 0.8), (0, 0, 0.4))
+    for j in range(3):
+        x, y = -0.28 + 0.14 * i, -0.13 + 0.12 * j
+        prism(f"Shell{i}{j}", 6, 0.04, 0.04, 0.2, 0.36, "Brass", loc=(x, y, 0))
+        prism(f"Tip{i}{j}", 6, 0.04, 0, 0.36, 0.44, "CopperTip", loc=(x, y, 0), bottom=False)
+for sx in (-1, 1):
+    bar(f"Handle{sx}", (sx * 0.41, -0.1, 0.22), (sx * 0.41, 0.1, 0.22), 0.025, "Rope")
+ucx_box((0.85, 0.6, 0.75), (0, 0.03, 0.37))
 
-asset("SM_Loot_AmmoBox", "Loot", "Loot", 2, cat="Loot", notes="Ammo pickup. Pivot = base centre: snap it onto a loot_NN socket/bone")
-box("Box", (0.7, 0.4, 0.3), "ArmyGreen", loc=(0, 0, 0.15))
-box("Lid", (0.72, 0.42, 0.06), "ArmyGreen", loc=(0, 0, 0.33))
+asset("SM_Loot_MoneyPouch", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Money: leather drawstring pouch with gold coins")
+ball("Pouch", 0.26, (0, 0, 0.25), "Leather", u=8, v=6, scale=(1.0, 0.9, 0.95), jitter=0.05)
+prism("Neck", 8, 0.1, 0.16, 0.47, 0.6, "Leather", top=False, jitter=0.1)
+prism("Tie", 8, 0.11, 0.11, 0.46, 0.5, "Rope")
+bar("String", (0.1, 0, 0.48), (0.24, -0.08, 0.3), 0.012, "Rope")
+for i, (x, y, z, tilt) in enumerate(((0.32, 0.05, 0.0, 0), (0.33, 0.06, 0.02, 0.1), (0.3, 0.07, 0.04, -0.1),
+                                      (-0.28, -0.18, 0.0, 0), (0.12, -0.3, 0.0, 0), (0.0, 0.3, 0.0, 0.3), (0.06, 0.0, 0.6, 0.6))):
+    prism(f"Coin{i}", 10, 0.075, 0.075, 0, 0.018, "Gold", loc=(x, y, z), rot=(tilt, 0, 0))
+ucx_box((0.75, 0.75, 0.7), (0.02, 0, 0.35))
+
+asset("SM_Loot_Logs", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Wood: bundle of 3 logs tied with rope")
+for i, (y, z) in enumerate(((-0.15, 0.14), (0.15, 0.14), (0.0, 0.39))):
+    prism(f"Log{i}", 7, 0.14, 0.14, -0.45, 0.45, "PineBark", rot=(0, math.pi / 2, 0), loc=(0, y, z), top=False, bottom=False)
+    for sx in (-1, 1):
+        prism(f"End{i}{sx}", 7, 0.14, 0.14, 0, 0.01, "WoodEnd", rot=(0, sx * math.pi / 2, 0), loc=(sx * 0.45, y, z))
 for x in (-0.25, 0.25):
-    box(f"Band{x}", (0.05, 0.43, 0.37), "IronDark", loc=(x, 0, 0.18))
-box("Plate", (0.2, 0.01, 0.1), "Brass", loc=(0, -0.205, 0.17))
-box("Stripe", (0.72, 0.41, 0.04), "PaintRed", loc=(0, 0, 0.25))
-for s_ in (-1, 1):
-    bar(f"Handle{s_}", (s_ * 0.36, -0.06, 0.2), (s_ * 0.36, 0.06, 0.2), 0.015, "IronDark")
-ucx_box((0.75, 0.45, 0.38), (0, 0, 0.19))
+    prism(f"Rope{x}", 10, 0.33, 0.33, -0.025, 0.025, "Rope", rot=(0, math.pi / 2, 0), loc=(x, 0, 0.25), top=False, bottom=False)
+ucx_box((0.95, 0.65, 0.58), (0, 0, 0.29))
 
-asset("SM_Loot_CoalCrate", "Loot", "Loot", 2, cat="Loot", notes="Bigger coal pickup (open crate). Pivot = base centre")
-box("Crate", (0.7, 0.55, 0.35), "Crate", loc=(0, 0, 0.175))
-for k in range(7):
-    rock(f"Lump{k}", 0.09, (random.uniform(-0.25, 0.25), random.uniform(-0.18, 0.18), 0.36), "Coal", flat=0.7, jit=0.25, u=5, v=3)
-ucx_box((0.72, 0.57, 0.45), (0, 0, 0.225))
+asset("SM_Loot_Coal", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Coal: one big glossy lump with glowing embers (glow slot)")
+rock("Lump", 0.34, (0, 0, 0.28), "Coal", flat=0.85, jit=0.28, u=8, v=5)
+rock("LumpSmall", 0.16, (0.3, 0.12, 0.12), "Coal", flat=0.8, jit=0.3, u=6, v=4)
+for i, (x, y, z) in enumerate(((0.12, -0.27, 0.32), (-0.2, -0.22, 0.2), (0.25, 0.05, 0.42), (-0.05, 0.25, 0.5))):
+    box(f"Ember{i}", (0.07, 0.07, 0.07), "Fire", loc=(x, y, z), rot=(random.random(), random.random(), random.random()))
+ucx_box((0.8, 0.7, 0.6), (0.05, 0, 0.3))
+
+asset("SM_Loot_Crystal", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Crystal: cluster of glowing crystals on a rock (glow slot)")
+rock("Base", 0.27, (0, 0, 0.05), "RockGrey", flat=0.35, jit=0.2, u=7, v=4)
+for i, (ax, ay, h, r) in enumerate(((0.0, 0.0, 0.8, 0.11), (0.35, 0.1, 0.6, 0.085), (-0.3, 0.2, 0.55, 0.08),
+                                     (0.1, -0.35, 0.5, 0.075), (-0.22, -0.25, 0.42, 0.065))):
+    rot = (-ay * 1.3, ax * 1.3, 0)                                          # lean away from the centre
+    base = (ax * 0.55, ay * 0.55, 0.06)
+    prism(f"Shaft{i}", 6, r, r, 0, h * 0.75, "CrystalGlow", loc=base, rot=rot, phase=0.3 * i)
+    prism(f"Point{i}", 6, r, 0, h * 0.75, h, "CrystalGlow", loc=base, rot=rot, phase=0.3 * i, bottom=False)
+ucx_box((0.75, 0.75, 0.9), (0, 0, 0.45))
 
 # ---------------------------------------------------------------- store metadata for the export
 for lv in LEVELS:

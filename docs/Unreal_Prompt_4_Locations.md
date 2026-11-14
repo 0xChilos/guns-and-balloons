@@ -1,4 +1,4 @@
-You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Set up the 4 game locations: Forest, Field, City and Desert. Each location is its own level, generated randomly from the assets below. Tall structures carry loot spots where pickups (coal, ammo boxes) snap on. Work through the steps in order and verify each one. Where possible use the editor Python API (`unreal` module: AssetImportTask, AssetToolsHelpers, MaterialEditingLibrary, EditorAssetLibrary, DataTableFunctionLibrary). If something can't be authored through your tools (for example Blueprint graph nodes, AnimGraph, Niagara modules), create everything else and give me exact click-by-click steps for the missing part.
+You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Set up the 4 game locations: Forest, Field, City and Desert. Each location is its own level, generated randomly from the assets below. Tall structures carry loot spots (sockets) where glittering pickups snap on: ammo, money, logs, coal and crystals. Work through the steps in order and verify each one. Where possible use the editor Python API (`unreal` module: AssetImportTask, AssetToolsHelpers, MaterialEditingLibrary, EditorAssetLibrary, DataTableFunctionLibrary). If something can't be authored through your tools (for example Blueprint graph nodes, AnimGraph, Niagara modules), create everything else and give me exact click-by-click steps for the missing part.
 
 ## Source files
 On disk: D:\test_git\guns-and-balloons\Content\Assets\Locations\<Level>\ (Forest, Field, City, Desert, plus Loot for the pickups). Every asset goes into /Game/Assets/Locations/<Level>. Replace existing assets with the same name.
@@ -15,7 +15,7 @@ City also contains T_Smoke_Puff.png (64 px smoke sprite with alpha).
 
 **Loot spots:**
 - Every tall structure has 1–3 loot spots: balconies on tall buildings, chimney platforms, belfry ledges, crates on desert towers and on the mesa, bird nests on tall pines, the windmill's rooftop lookout and gallery.
-- Static meshes have sockets `loot_01`, `loot_02` … (FBX empties `SOCKET_loot_NN`). SK_Lighthouse has bones `loot_01`, `loot_02` instead.
+- Static meshes have sockets `loot_01`, `loot_02` … (FBX empties `SOCKET_loot_NN`). The two skeletal meshes, SK_Windmill and SK_Lighthouse, carry helper bones `loot_NN`, because FBX can't store skeleton sockets. In step 4, add a Skeleton socket with the same name on each of these bones, so gameplay only ever deals with sockets.
 - A pickup's pivot is its base centre: snap it onto the socket or bone with SnapToTarget and it sits on the surface. The socket's +X points out, away from the building.
 - The `loot_spots` list in each `<Level>_Manifest.json` names them.
 
@@ -41,7 +41,7 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | SM_HayBale_Round, SM_HayStack, SM_HayCart, SM_Scarecrow | Farm clutter | none |
 | SM_Fence (4 m section), SM_Hedge (6 m) | Chained into lines along field borders | none |
 | SM_Farmhouse, SM_Barn, SM_Tree_Oak_A/B | Buildings and lone trees | none |
-| SM_Windmill + SM_Windmill_Blades | 31 m tower windmill, a tall landmark (own texture T_Field_Windmill). loot_01 is on the railed lookout on its roof, loot_02 on the gallery at 9 m. Attach the 15 m blades to SOCKET_blades and spin them around the hub axis (see step 5) | UCX ×3 on the windmill, none on the blades |
+| SK_Windmill | 31 m tower windmill, a tall landmark (own texture T_Field_Windmill). Skeletal mesh: bones root, blades (the 15 m sails, spinning around the hub axis) and helper bones loot_01 (railed lookout on the roof) and loot_02 (gallery at 9 m). Animation **Windmill_Spin**: one full turn in 4 s, seamless loop. It spins constantly | physics asset (step 4) |
 
 **City**: Victorian London.
 
@@ -70,9 +70,13 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 
 | Asset | What | Collision |
 |---|---|---|
-| SM_Loot_CoalSack | Burlap sack of coal, 0.6 × 0.55 × 0.8 m | UCX box (for grab traces) |
-| SM_Loot_CoalCrate | Open crate heaped with coal, 0.7 × 0.55 × 0.45 m | UCX box |
-| SM_Loot_AmmoBox | Army-green ammo box with brass plate and red band, 0.75 × 0.45 × 0.38 m | UCX box |
+| SM_Loot_AmmoBox | Open wooden case with brass corners, full of brass cartridges, 0.85 × 0.6 × 0.75 m | UCX box (for grab traces) |
+| SM_Loot_MoneyPouch | Leather drawstring pouch with gold coins spilling out, 0.75 × 0.75 × 0.7 m | UCX box |
+| SM_Loot_Logs | Bundle of 3 logs tied with rope, 0.95 × 0.65 × 0.58 m | UCX box |
+| SM_Loot_Coal | One big glossy lump of coal with glowing embers (glow slot), 0.8 × 0.7 × 0.6 m | UCX box |
+| SM_Loot_Crystal | Cluster of 5 glowing cyan crystals on a rock (glow slot), 0.75 × 0.75 × 0.9 m | UCX box |
+
+The folder also has **T_Loot_Spark.png**: a 32 px white 4-point star sprite with stepped alpha, for the pickup sparkle. The items are deliberately a bit oversized so they read from the balloon.
 
 ## 1. Textures
 Import every PNG (automated, replace existing). Then:
@@ -81,7 +85,7 @@ Import every PNG (automated, replace existing). Then:
   - LODGroup = TEXTUREGROUP_World
   - MipGenSettings = FromTextureGroup (mipmaps ON: this is what stops distant objects and the ground from shimmering)
   - sRGB on, CompressionSettings = Default
-- **T_Smoke_Puff:**
+- **T_Smoke_Puff** and **T_Loot_Spark:**
   - Filter = Nearest
   - CompressionSettings = Default (with alpha)
   - MipGenSettings = NoMipmaps
@@ -103,8 +107,14 @@ Save them.
    - UV = AbsoluteWorldPosition.xy / scalar `TileCm` (default 800).
    - Base Color = lerp(Texture parameter `Ground` sampled at UV, vector `FarColor`, saturate((PixelDepth − `FadeStartCm`) / (`FadeEndCm` − `FadeStartCm`))). Defaults: FadeStartCm 4000, FadeEndCm 20000.
    - Roughness 1, Specular 0.1.
-5. **Material instances:**
-   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_Tall, Forest_Mountains, Field_Props, Field_Bird, Field_Windmill, Loot, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_GuardTower and Desert_Lighthouse.
+5. **M_LocPickup** (Opaque, Default Lit). Pickups pulse and glint so the player knows they can be grabbed:
+   - Same as M_LocProp (Atlas → Base Color).
+   - Emissive = vector `HighlightColor` × scalar `HighlightStrength` (default 3) × pulse `0.5 + 0.5 * sin(Time * 4)` × Fresnel(exponent 2.5), so only the rim glows.
+   - Plus Atlas × scalar `SelfGlow` (default 0; 4 for Coal and Crystal, which makes their glow-slot faces burn brighter).
+   - Create `MI_Loot` (parent M_LocPickup, Atlas = T_Loot) and `MI_Loot_Glow` (parent M_LocPickup, Atlas = T_Loot, SelfGlow = 4). Each BP_Loot child sets its own HighlightColor through a Dynamic Material Instance (step 5.7).
+6. **M_LootSpark** (Translucent, Unlit, Additive): T_Loot_Spark (Nearest) × Particle Color, two-sided.
+7. **Material instances:**
+   - For every texture group, create `MI_<Group>` (parent M_LocProp, Atlas = T_<Group>) and `MI_<Group>_Glow` (parent M_LocGlow, same atlas). The groups are Forest_Props, Forest_Tall, Forest_Mountains, Field_Props, Field_Bird, Field_Windmill, City_Props, City_ClockTower, City_TowerA, City_TowerB, City_Jammer, Desert_Props, Desert_GuardTower and Desert_Lighthouse.
    - `MI_LightBeam` (parent M_LightBeam).
    - `MI_<Level>_Ground` (parent M_Ground) with Ground = T_<Level>_Ground and FarColor (linear) = the texture's average:
 
@@ -116,7 +126,7 @@ Save them.
      | Desert | (0.729, 0.558, 0.349) |
 
 ## 3. Static meshes
-Import every `SM_*.fbx` from the 4 folders with these settings:
+Import every `SM_*.fbx` from the 5 folders (including Loot) with these settings:
 - import_mesh = true, combine_meshes = true
 - auto_generate_collision = **false** (UCX hulls are imported instead)
 - import_materials = false, import_textures = false
@@ -125,7 +135,7 @@ Import every `SM_*.fbx` from the 4 folders with these settings:
 - Nanite off
 
 Then per mesh:
-- **Materials:** the FBX slot names are `M_<Group>`, `M_<Group>_Glow` and `M_LightBeam`. Assign `MI_<Group>`, `MI_<Group>_Glow` and `MI_LightBeam` by slot name.
+- **Materials:** the FBX slot names are `M_<Group>`, `M_<Group>_Glow` and `M_LightBeam`. Assign `MI_<Group>`, `MI_<Group>_Glow` and `MI_LightBeam` by slot name. Loot meshes get MI_Loot / MI_Loot_Glow.
 - **Collision:**
   - Meshes with UCX hulls (Collision column above): collision preset BlockAll, Collision Complexity = Use Simple Collision As Complex.
   - Loot meshes: keep their UCX box. Collision preset = custom: Query Only, block the Visibility trace (so a grab trace or crosshair hits them), ignore Pawn (the balloon flies through them).
@@ -133,7 +143,6 @@ Then per mesh:
 - **Sockets:** check against the manifest that these exist:
   - SM_Factory_A: smoke_1, smoke_2
   - SM_Factory_B: smoke_1
-  - SM_Windmill: blades
   - SM_JammerTower: beacon_1, beacon_2, beacon_3, jam
   - SM_GuardTower: searchlight
   - Every `loot_NN` listed under `loot_spots` in the manifests
@@ -149,6 +158,15 @@ Report the triangle count and bounds of every mesh against `<Level>_Manifest.jso
   - Expect SK_Bird, SK_Bird_Skeleton, SK_Bird_PhysicsAsset and the animation sequences for Bird_Flap and Bird_Glide. Rename them to `A_Bird_Flap` and `A_Bird_Glide`. Set A_Bird_Flap to loop.
   - Physics asset: one sphere, radius 35 cm, on bone body. Delete the other bodies.
   - Slot M_Field_Bird → MI_Field_Bird.
+- **SK_Windmill.fbx:**
+  - Import as skeletal mesh with import_animations = true and create_physics_asset = true.
+  - Expect SK_Windmill, SK_Windmill_Skeleton, SK_Windmill_PhysicsAsset and the sequence for Windmill_Spin. Rename it to `A_Windmill_Spin`, set it to loop, and make sure it is linear: no interpolation easing at the loop point, so the sails never hitch.
+  - Physics asset:
+    - a convex/capsule body on `root` covering the tower: radius 500 cm at the base, 0–3100 cm high, Block All
+    - a cylinder for the gallery: radius 600 cm at 900 cm
+    - no bodies on `blades`. The sails are visual. If you want them to hit the balloon, add a thin box per sail on `blades`, profile BlockAllDynamic.
+  - Slots → MI_Field_Windmill.
+  - Add Skeleton sockets `loot_01` and `loot_02` on the bones with the same names (zero offset).
 - **SK_Lighthouse.fbx:**
   - Import as skeletal mesh, no animations, create_physics_asset = true.
   - Replace the generated bodies with:
@@ -156,7 +174,7 @@ Report the triangle count and bounds of every mesh against `<Level>_Manifest.jso
     - a sphere on `lamp`, radius 110 cm, profile BlockAllDynamic (the destroyable light source)
   - Slots → MI_Desert_Lighthouse and MI_Desert_Lighthouse_Glow.
   - Verify the bones root > head > lamp, and socket_beam under head.
-  - Add a Skeleton socket `BeamSocket` on bone socket_beam (zero offset).
+  - Add a Skeleton socket `BeamSocket` on bone socket_beam (zero offset), and Skeleton sockets `loot_01` and `loot_02` on the bones with the same names.
 
 ## 5. Blueprints (in /Game/Assets/Locations/Blueprints)
 Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes above) into Unreal −Y or +X depending on the importer. Check each asset once in the viewport and use the axis that matches, then tell me which you used.
@@ -170,9 +188,14 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
 2. **BP_Factory**:
    - Static mesh component (default SM_Factory_A).
    - On BeginPlay, spawn NS_FactorySmoke attached to every socket whose name starts with "smoke". This works for both factories: create BP_Factory_A and BP_Factory_B as children with their meshes.
-3. **BP_Windmill**:
-   - SM_Windmill, plus SM_Windmill_Blades attached to socket "blades".
-   - The blades spin around the axis that points out of the windmill's front, at 30°/s with a random ±10°/s per instance. Use a Rotating Movement component on the blades with the rotation axis set accordingly.
+3. **BP_Windmill**: the windmill spins constantly.
+   - SkeletalMeshComponent with SK_Windmill.
+   - Animation Mode = Use Animation Asset, Anim To Play = A_Windmill_Spin, Looping on, Playing on. No AnimBP needed.
+   - On BeginPlay:
+     - random play rate 0.8–1.2, so windmills next to each other don't spin in sync
+     - random start position
+   - VisibilityBasedAnimTickOption = AlwaysTickPose, so it keeps turning when barely on screen.
+   - Add AC_LootSpots.
 4. **BP_JammerTower**:
    - SM_JammerTower, plus 3 small red PointLights (radius 1500 cm) attached to sockets beacon_1..3.
    - A timer blinks them together with the Glow MID's `Flicker` (0 ↔ 1, 1 s period, 50% duty).
@@ -234,27 +257,51 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
      - The lighthouse keeps its collision but has no function any more.
 7. **Loot spots** (works for every tall structure):
    - **BP_Loot** (parent class):
-     - Variables: `LootType` (enum E_LootType: Coal, Ammo), `Amount` (int).
+     - Variables:
+       - `LootType` (enum E_LootType: Ammo, Money, Wood, Coal, Crystal)
+       - `Amount` (int)
+       - `HighlightColor` (linear colour)
      - Components:
        - StaticMesh root
        - Sphere `GrabZone` (radius 250 cm, OverlapAllDynamic)
+       - Niagara `Sparkle` (NS_LootSparkle, below)
+       - PointLight `Glint`: radius 400 cm, intensity 8 cd, colour = HighlightColor, no shadows
+     - **Highlight, so the player can see it is a pickup:**
+       - On BeginPlay, create a DMI of the mesh material(s) and set HighlightColor.
+       - Set the Sparkle user parameter `SparkColor` = HighlightColor.
+       - Hide Sparkle and Glint, and stop the pulse (HighlightStrength 0), once the item is picked up.
+       - Optional: double the sparkle rate while the balloon is within 30 m.
      - Grabbing:
        - When the player balloon overlaps GrabZone, or a grab trace from the player hits the mesh, call `OnLootPickedUp(LootType, Amount)` (Blueprint Interface) on the balloon.
        - Play a small pickup puff, then DestroyActor.
        - Expose `bAutoPickup` (default true). If false, it only reacts to the grab trace.
      - Idle: a 1.2 s gentle bob of ±5 cm on the mesh only, never on the actor, so it stays snapped. Optional.
+   - **NS_LootSparkle** (Niagara, sprite emitter, material M_LootSpark):
+     - Spawn 6 particles per second, lifetime 0.6–1.0 s.
+     - Spawn on a sphere surface, radius 70 cm, centred 40 cm above the pivot.
+     - Small upward drift (20–60 cm/s).
+     - Sprite size 12–28 cm, with a scale curve 0 → 1 → 0 (twinkle).
+     - Random rotation 0 or 45°.
+     - Colour = user parameter `SparkColor` × 2.5 (HDR, so it blooms).
+     - Plus a second, slow emitter: one big soft spark (60 cm) at the centre that pulses every 1.5 s.
+     - Bounds fixed at 200 cm. Keep it cheap: these sit on many buildings.
    - **Children:**
-     - BP_Loot_CoalSack: SM_Loot_CoalSack, Coal, Amount 20
-     - BP_Loot_CoalCrate: SM_Loot_CoalCrate, Coal, Amount 45
-     - BP_Loot_AmmoBox: SM_Loot_AmmoBox, Ammo, Amount 30
+
+     | Blueprint | Mesh | LootType | Amount | HighlightColor (linear) |
+     |---|---|---|---|---|
+     | BP_Loot_AmmoBox | SM_Loot_AmmoBox | Ammo | 30 | (1.0, 0.7, 0.2) warm brass |
+     | BP_Loot_MoneyPouch | SM_Loot_MoneyPouch | Money | 25 | (1.0, 0.85, 0.25) gold |
+     | BP_Loot_Logs | SM_Loot_Logs | Wood | 3 | (0.6, 1.0, 0.4) green |
+     | BP_Loot_Coal | SM_Loot_Coal | Coal | 30 | (1.0, 0.35, 0.1) ember orange |
+     | BP_Loot_Crystal | SM_Loot_Crystal | Crystal | 1 | (0.35, 0.9, 1.0) cyan |
    - **AC_LootSpots** (Actor Component). Add it to every Blueprint of a tall structure (BP_Factory, BP_Windmill, BP_JammerTower, BP_GuardTower, BP_Lighthouse) and, for HISM/static-mesh placement, run it from the level generator.
      - Variables:
        - `SpawnChance` (0.6)
-       - `LootTable`: array of {Class, Weight}. Defaults: CoalSack 45, CoalCrate 15, AmmoBox 40.
+       - `LootTable`: array of {Class, Weight}. Defaults: Coal 30, AmmoBox 25, Logs 20, MoneyPouch 18, Crystal 7. Per level, crystals can be rarer or more common, for example Desert 12, City 4.
        - `bRespawn` (false)
        - `RespawnTime` (90 s)
      - On BeginPlay, for the owner's first Static Mesh or Skeletal Mesh component:
-       - list its socket names: GetAllSocketNames. For the lighthouse, bones count: also check GetBoneName / DoesSocketExist.
+       - list its socket names: GetAllSocketNames. This includes the Skeleton sockets added on SK_Windmill and SK_Lighthouse.
        - keep the ones starting with `loot_`
        - for each, with probability SpawnChance, spawn a weighted-random loot class and AttachToComponent(mesh, socket, SnapToTarget for location, rotation and scale)
      - Keep track of which socket each loot belongs to. When one is picked up and bRespawn is true, respawn it after RespawnTime.
@@ -280,7 +327,7 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
    | Row | Use |
    |---|---|
    | SM_Factory_A / _B | BP_Factory_A / _B |
-   | SM_Windmill | BP_Windmill |
+   | SK_Windmill | BP_Windmill |
    | SM_JammerTower | BP_JammerTower |
    | SM_GuardTower | BP_GuardTower |
    | SK_Lighthouse | BP_Lighthouse |
@@ -316,6 +363,8 @@ Check, and report:
 - Factory smoke rises from the chimney tops.
 - The windmill blades spin around the right axis.
 - Birds flock, scatter near the balloon and get destroyed on contact.
+- Windmill: the sails spin constantly and smoothly, with no hitch at the loop, at slightly different speeds per windmill.
+- Pickups sparkle and their rims pulse in their colour (brass, gold, green, orange, cyan). They are visible from 100 m away.
 - Loot: every tall structure shows loot on its loot spots, sitting on the balcony, platform, crate or nest, not floating and not buried. Flying the balloon into a loot item picks it up and calls OnLootPickedUp. The lighthouse loot stays put while the head rotates.
 - The lighthouse head rotates. Its beam turns red when the camera or pawn stands in it, and after shooting/damaging the lamp, the light is gone and it stops working.
 - Screenshot of each test level.
