@@ -412,7 +412,7 @@ def export_level(level):
             "texture": None if groups[a["group"]] == 0 else f"T_{a['group']}.png",
             "materials": [m.name for m in me.materials], "collision_hulls": len(a["ucx"]),
             "sockets": list(a["sockets"]), "bones": [b["name"] for b in a["bones"]], "anims": list(a["anims"]),
-            "loot_spots": a.get("loot", []), "notes": a["notes"]}
+            "loot_spots": a.get("loot", []), "physics_bodies": a.get("bodies", []), "notes": a["notes"]}
     # ---- 4. ground, smoke, placement table
     if level in GROUND:
         manifest["_ground"] = make_ground(level)

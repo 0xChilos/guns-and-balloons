@@ -41,7 +41,7 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 | SM_HayBale_Round, SM_HayStack, SM_HayCart, SM_Scarecrow | Farm clutter | none |
 | SM_Fence (4 m section), SM_Hedge (6 m) | Chained into lines along field borders | none |
 | SM_Farmhouse, SM_Barn, SM_Tree_Oak_A/B | Buildings and lone trees | none |
-| SK_Windmill | 31 m tower windmill, a tall landmark (own texture T_Field_Windmill). Skeletal mesh: bones root, blades (the 15 m sails, spinning around the hub axis) and helper bones loot_01 (railed lookout on the roof) and loot_02 (gallery at 9 m). Animation **Windmill_Spin**: one full turn in 4 s, seamless loop. It spins constantly | physics asset (step 4) |
+| SK_Windmill | 31 m tower windmill, a tall landmark (own texture T_Field_Windmill). Skeletal mesh: bones root, blades (the 15 m sails, spinning around the hub axis) and helper bones loot_01 (railed lookout on the roof) and loot_02 (gallery at 9 m). Animation **Windmill_Spin**: one full turn in 4 s, seamless loop. It spins constantly | physics asset with a box per sail, so the balloon bumps into the blades (step 4) |
 
 **City**: Victorian London.
 
@@ -70,10 +70,10 @@ Everything is authored in metres with Z up, the same as the balloon: import at u
 
 | Asset | What | Collision |
 |---|---|---|
-| SM_Loot_AmmoBox | Open wooden case with brass corners, full of brass cartridges, 0.85 × 0.6 × 0.75 m | UCX box (for grab traces) |
+| SM_Loot_AmmoBox | Open wooden case with brass corners, heaped with a mixed pile of red shotgun shells, short pistol rounds and long pointed rifle rounds, a few spilled beside it. 0.85 × 0.6 × 0.75 m | UCX box (for grab traces) |
 | SM_Loot_MoneyPouch | Leather drawstring pouch with gold coins spilling out, 0.75 × 0.75 × 0.7 m | UCX box |
-| SM_Loot_Logs | Bundle of 3 logs tied with rope, 0.95 × 0.65 × 0.58 m | UCX box |
-| SM_Loot_Coal | One big glossy lump of coal with glowing embers (glow slot), 0.8 × 0.7 × 0.6 m | UCX box |
+| SM_Loot_Log | One thick log with a branch stub and a patch of moss, 1.0 × 0.4 × 0.4 m | UCX box |
+| SM_Loot_Coal | Big glossy black lump of coal with two smaller pieces. Nothing orange in the model: the orange glow and sparks come from its Unreal effect (BP_Loot_Coal). 0.8 × 0.7 × 0.6 m | UCX box |
 | SM_Loot_Crystal | Cluster of 5 glowing cyan crystals on a rock (glow slot), 0.75 × 0.75 × 0.9 m | UCX box |
 
 The folder also has **T_Loot_Spark.png**: a 32 px white 4-point star sprite with stepped alpha, for the pickup sparkle. The items are deliberately a bit oversized so they read from the balloon.
@@ -110,7 +110,7 @@ Save them.
 5. **M_LocPickup** (Opaque, Default Lit). Pickups pulse and glint so the player knows they can be grabbed:
    - Same as M_LocProp (Atlas → Base Color).
    - Emissive = vector `HighlightColor` × scalar `HighlightStrength` (default 3) × pulse `0.5 + 0.5 * sin(Time * 4)` × Fresnel(exponent 2.5), so only the rim glows.
-   - Plus Atlas × scalar `SelfGlow` (default 0; 4 for Coal and Crystal, which makes their glow-slot faces burn brighter).
+   - Plus Atlas × scalar `SelfGlow` (default 0; 4 for the crystal's glow-slot faces).
    - Create `MI_Loot` (parent M_LocPickup, Atlas = T_Loot) and `MI_Loot_Glow` (parent M_LocPickup, Atlas = T_Loot, SelfGlow = 4). Each BP_Loot child sets its own HighlightColor through a Dynamic Material Instance (step 5.7).
 6. **M_LootSpark** (Translucent, Unlit, Additive): T_Loot_Spark (Nearest) × Particle Color, two-sided.
 7. **Material instances:**
@@ -161,10 +161,26 @@ Report the triangle count and bounds of every mesh against `<Level>_Manifest.jso
 - **SK_Windmill.fbx:**
   - Import as skeletal mesh with import_animations = true and create_physics_asset = true.
   - Expect SK_Windmill, SK_Windmill_Skeleton, SK_Windmill_PhysicsAsset and the sequence for Windmill_Spin. Rename it to `A_Windmill_Spin`, set it to loop, and make sure it is linear: no interpolation easing at the loop point, so the sails never hitch.
-  - Physics asset:
-    - a convex/capsule body on `root` covering the tower: radius 500 cm at the base, 0–3100 cm high, Block All
-    - a cylinder for the gallery: radius 600 cm at 900 cm
-    - no bodies on `blades`. The sails are visual. If you want them to hit the balloon, add a thin box per sail on `blades`, profile BlockAllDynamic.
+  - **Physics asset**: the balloon must be able to bump into the tower *and* the spinning blades.
+    - Delete the generated bodies and build exactly these. They are also listed in `Field_Manifest.json` → SK_Windmill → `physics_bodies`.
+    - Centres are in component space at the reference pose, in cm. Blender +Y became Unreal −Y, as with the balloon: the sails are on the −Y side of the tower. If they show up on +Y after import, mirror the Y values.
+    - The Physics Asset editor can place bodies in world space. Relative to the `blades` bone, a body's offset = centre − (0, −460, 2740).
+
+      | Bone | Shape | Size (cm) | Centre (X, Y, Z) | Rotation |
+      |---|---|---|---|---|
+      | root | capsule (along Z) | radius 430, total length 2720 | (0, 0, 1360) | – |
+      | root | box | 720 × 800 × 460 | (0, −40, 2830) | – (cap and roof lookout) |
+      | root | box | 1120 × 1120 × 130 | (0, 0, 940) | – (gallery) |
+      | root | box | 1000 × 1000 × 200 | (0, 0, 100) | – (plinth) |
+      | blades | sphere | radius 80 | (0, −460, 2740) | – (hub) |
+      | blades | box | X 1460 × Y 40 × Z 280 | (445.5, −460, 3383.5) | Pitch +45° (sail up-right) |
+      | blades | box | X 1460 × Y 40 × Z 280 | (−643.5, −460, 3185.5) | Pitch −45° (sail up-left) |
+      | blades | box | X 1460 × Y 40 × Z 280 | (−445.5, −460, 2096.5) | Pitch +45° (sail down-left) |
+      | blades | box | X 1460 × Y 40 × Z 280 | (643.5, −460, 2294.5) | Pitch −45° (sail down-right) |
+
+      Each sail box's long axis (X) runs along the spar from the hub out to the tip, its Z is the sail's width, and its thin Y is along the hub axis.
+    - All bodies: Physics Type = **Kinematic**, Collision Response = Enabled, Block All. The blade bodies then follow the spinning bone from the animation.
+    - Skeletal mesh asset: no per-poly collision. Verify in the Physics Asset editor with the animation playing that the 4 boxes stay on the sails.
   - Slots → MI_Field_Windmill.
   - Add Skeleton sockets `loot_01` and `loot_02` on the bones with the same names (zero offset).
 - **SK_Lighthouse.fbx:**
@@ -194,7 +210,15 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
    - On BeginPlay:
      - random play rate 0.8–1.2, so windmills next to each other don't spin in sync
      - random start position
-   - VisibilityBasedAnimTickOption = AlwaysTickPose, so it keeps turning when barely on screen.
+   - VisibilityBasedAnimTickOption = AlwaysTickPose, so it keeps turning when barely on screen. The blade collision follows the pose, so the pose must keep ticking even off screen.
+   - Mesh collision: Collision Enabled = Query and Physics, preset BlockAll, Kinematic Bones Update To Physics = SkipSimulatingBones (the default). The physics asset bodies are Kinematic, so they follow the animation.
+   - **Blades hitting the balloon:**
+     - A spinning kinematic body only blocks things that move into it. It doesn't push a balloon that is standing still.
+     - So, on BeginPlay (while the pose is still the reference pose), add 4 Box Collision components with the same sizes and component-space transforms as the 4 sail boxes in the table.
+     - Attach them to the mesh at socket/bone `blades` with Keep World Transform, so they spin with the sails.
+     - Set them to Overlap Pawn and generate overlap events.
+     - On BeginOverlap with the player balloon, call `OnWindmillHit(HitLocation, PushDirection)` (Blueprint Interface) on the balloon. PushDirection = the blade's velocity at the hit point: cross(hub axis × angular speed, HitLocation − hub), normalised, plus a little outward.
+     - The balloon applies the knock-back and damage. Re-trigger at most once per 0.5 s per blade.
    - Add AC_LootSpots.
 4. **BP_JammerTower**:
    - SM_JammerTower, plus 3 small red PointLights (radius 1500 cm) attached to sockets beacon_1..3.
@@ -291,13 +315,13 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
      |---|---|---|---|---|
      | BP_Loot_AmmoBox | SM_Loot_AmmoBox | Ammo | 30 | (1.0, 0.7, 0.2) warm brass |
      | BP_Loot_MoneyPouch | SM_Loot_MoneyPouch | Money | 25 | (1.0, 0.85, 0.25) gold |
-     | BP_Loot_Logs | SM_Loot_Logs | Wood | 3 | (0.6, 1.0, 0.4) green |
+     | BP_Loot_Log | SM_Loot_Log | Wood | 1 | (0.6, 1.0, 0.4) green |
      | BP_Loot_Coal | SM_Loot_Coal | Coal | 30 | (1.0, 0.35, 0.1) ember orange |
      | BP_Loot_Crystal | SM_Loot_Crystal | Crystal | 1 | (0.35, 0.9, 1.0) cyan |
    - **AC_LootSpots** (Actor Component). Add it to every Blueprint of a tall structure (BP_Factory, BP_Windmill, BP_JammerTower, BP_GuardTower, BP_Lighthouse) and, for HISM/static-mesh placement, run it from the level generator.
      - Variables:
        - `SpawnChance` (0.6)
-       - `LootTable`: array of {Class, Weight}. Defaults: Coal 30, AmmoBox 25, Logs 20, MoneyPouch 18, Crystal 7. Per level, crystals can be rarer or more common, for example Desert 12, City 4.
+       - `LootTable`: array of {Class, Weight}. Defaults: Coal 30, AmmoBox 25, Log 20, MoneyPouch 18, Crystal 7. Per level, crystals can be rarer or more common, for example Desert 12, City 4.
        - `bRespawn` (false)
        - `RespawnTime` (90 s)
      - On BeginPlay, for the owner's first Static Mesh or Skeletal Mesh component:
@@ -307,6 +331,11 @@ Axis note: FBX conversion turns Blender +Y (the "forward" used in the notes abov
      - Keep track of which socket each loot belongs to. When one is picked up and bRespawn is true, respawn it after RespawnTime.
      - If the structure is destroyed, detach its loot and enable physics on it, so it falls. Optional.
    - Seed the random stream from the level generator's seed, so a level always gives the same loot.
+   - **BP_Loot_Coal's orange glow** is all in Unreal (the model is plain black coal):
+     - Its NS_LootSparkle uses SparkColor orange (1.0, 0.35, 0.1).
+     - Plus a second emitter, `Embers`: 10 per second, tiny orange-yellow sparks (6–12 cm) rising 80–160 cm/s with sideways jitter, flickering alpha, lifetime 0.8–1.4 s, colour lerping from (1.0, 0.75, 0.3) to (1.0, 0.25, 0.05).
+     - The Glint point light is orange and flickers (0.7–1.3 × intensity, noise at 8 Hz).
+     - The rim pulse (HighlightColor) is orange too, so the lump looks hot without any orange in its texture.
 8. **BP_GuardTower** (optional): SM_GuardTower plus a SpotLight on SOCKET_searchlight, sweeping ±40° slowly. It can reuse the lighthouse detection logic with a 60 m range.
 
 ## 6. Random level generation data
@@ -363,7 +392,8 @@ Check, and report:
 - Factory smoke rises from the chimney tops.
 - The windmill blades spin around the right axis.
 - Birds flock, scatter near the balloon and get destroyed on contact.
-- Windmill: the sails spin constantly and smoothly, with no hitch at the loop, at slightly different speeds per windmill.
+- Windmill: the sails spin constantly and smoothly, with no hitch at the loop, at slightly different speeds per windmill. Flying the balloon into a sail, or parking it in the sails' path, makes it collide or get knocked back. The tower, gallery and cap block it too.
+- Coal shows an orange glow and rising embers in game, though its model has no orange in it.
 - Pickups sparkle and their rims pulse in their colour (brass, gold, green, orange, cyan). They are visible from 100 m away.
 - Loot: every tall structure shows loot on its loot spots, sitting on the balcony, platform, crate or nest, not floating and not buried. Flying the balloon into a loot item picks it up and calls OnLootPickedUp. The lighthouse loot stays put while the head rotates.
 - The lighthouse head rotates. Its beam turns red when the camera or pawn stands in it, and after shooting/damaging the lamp, the light is gone and it stops working.

@@ -29,6 +29,7 @@
    "Bird_Glide"
   ],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Flock bird with wing-flap animation; collides with the balloon (sphere ~0.5 m)"
  },
  "SM_HayBale_Round": {
@@ -50,6 +51,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_HayStack": {
@@ -71,6 +73,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Fence": {
@@ -92,6 +95,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "4 m fence section: place end to end along field borders"
  },
  "SM_Hedge": {
@@ -113,6 +117,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "6 m hedge: lines between fields"
  },
  "SM_Farmhouse": {
@@ -134,6 +139,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Barn": {
@@ -155,6 +161,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SK_Windmill": {
@@ -186,7 +193,354 @@
    "loot_01",
    "loot_02"
   ],
-  "notes": "31 m tower windmill, collides (physics asset). Sails on bone 'blades' spin with the looping animation Windmill_Spin. Loot spots: lookout on the roof (loot_01) and the gallery (loot_02)"
+  "physics_bodies": [
+   {
+    "bone": "root",
+    "type": "capsule",
+    "size_m": [
+     4.3,
+     27.2
+    ],
+    "size_cm": [
+     430.0,
+     2720.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     13.600000381469727
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     1360.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     7.2,
+     8.0,
+     4.6
+    ],
+    "size_cm": [
+     720.0,
+     800.0,
+     460.0
+    ],
+    "center_m": [
+     0.0,
+     0.4000000059604645,
+     28.299999237060547
+    ],
+    "center_ue_cm": [
+     0.0,
+     -40.0,
+     2830.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     11.2,
+     11.2,
+     1.3
+    ],
+    "size_cm": [
+     1120.0,
+     1120.0,
+     130.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     9.399999618530273
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     940.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     10.0,
+     10.0,
+     2.0
+    ],
+    "size_cm": [
+     1000.0,
+     1000.0,
+     200.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     100.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "sphere",
+    "size_m": [
+     0.8
+    ],
+    "size_cm": [
+     80.0
+    ],
+    "center_m": [
+     0.0,
+     4.599999904632568,
+     27.399999618530273
+    ],
+    "center_ue_cm": [
+     0.0,
+     -460.0,
+     2740.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     4.45477294921875,
+     4.599999904632568,
+     33.83467102050781
+    ],
+    "center_ue_cm": [
+     445.5,
+     -460.0,
+     3383.5
+    ],
+    "x_axis_ue": [
+     0.7,
+     -0.0,
+     0.7
+    ],
+    "y_axis_ue": [
+     -0.7,
+     -0.0,
+     0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     -6.434671401977539,
+     4.599999904632568,
+     31.854772567749023
+    ],
+    "center_ue_cm": [
+     -643.5,
+     -460.0,
+     3185.5
+    ],
+    "x_axis_ue": [
+     -0.7,
+     -0.0,
+     0.7
+    ],
+    "y_axis_ue": [
+     -0.7,
+     -0.0,
+     -0.7
+    ],
+    "z_axis_ue": [
+     -0.0,
+     1.0,
+     0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     -4.45477294921875,
+     4.599999904632568,
+     20.9653263092041
+    ],
+    "center_ue_cm": [
+     -445.5,
+     -460.0,
+     2096.5
+    ],
+    "x_axis_ue": [
+     -0.7,
+     -0.0,
+     -0.7
+    ],
+    "y_axis_ue": [
+     0.7,
+     -0.0,
+     -0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     -0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     6.434671401977539,
+     4.599999904632568,
+     22.945226669311523
+    ],
+    "center_ue_cm": [
+     643.5,
+     -460.0,
+     2294.5
+    ],
+    "x_axis_ue": [
+     0.7,
+     -0.0,
+     -0.7
+    ],
+    "y_axis_ue": [
+     0.7,
+     -0.0,
+     0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  ],
+  "notes": "31 m tower windmill, collides (physics asset). Sails on bone 'blades' spin with the looping animation Windmill_Spin. Loot spots: lookout on the roof (loot_01) and the gallery (loot_02). Physics bodies (incl. one box per sail on bone 'blades') are listed in Field_Manifest.json"
  },
  "SM_Tree_Oak_A": {
   "file": "SM_Tree_Oak_A.fbx",
@@ -207,6 +561,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Tree_Oak_B": {
@@ -228,6 +583,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_Scarecrow": {
@@ -249,6 +605,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "SM_HayCart": {
@@ -270,6 +627,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": ""
  },
  "_ground": {

@@ -766,6 +766,29 @@ part_bone(None)
 # seen from the front (from +Y): rotation around -Y in Blender.
 ASSETS["SK_Windmill"]["anims"] = {"Windmill_Spin": [(f, {"blades": (0, -1, 0, 360.0 * f / 96)}, {}) for f in range(97)]}
 
+
+def body(bone_, kind, center, size, x_axis=(1, 0, 0), y_axis=(0, 1, 0)):
+    """Physics-asset body for a skeletal mesh, rest pose, asset space. Exported to the manifest in Blender metres
+    and in Unreal centimetres (Unreal Y = -Blender Y). size: box (x, y, z) along x_axis / y_axis / their cross;
+    sphere (r,); capsule (radius, total length) along z."""
+    c = Vector(center); xa = Vector(x_axis).normalized(); ya = Vector(y_axis).normalized(); za = xa.cross(ya)
+    ue = lambda v, k=100.0: [round(v[0] * k, 1), round(-v[1] * k, 1), round(v[2] * k, 1)]
+    ASSETS[CUR].setdefault("bodies", []).append({
+        "bone": bone_, "type": kind, "size_m": list(size), "size_cm": [round(x * 100, 1) for x in size],
+        "center_m": list(c), "center_ue_cm": ue(c), "x_axis_ue": ue(xa, 1.0), "y_axis_ue": ue(ya, 1.0), "z_axis_ue": ue(za, 1.0)})
+
+
+body("root", "capsule", (0, 0, 13.6), (4.3, 27.2))                           # tower
+body("root", "box", (0, 0.4, 28.3), (7.2, 8.0, 4.6))                        # cap + lookout
+body("root", "box", (0, 0, 9.4), (11.2, 11.2, 1.3))                         # gallery
+body("root", "box", (0, 0, 1.0), (10.0, 10.0, 2.0))                         # stone plinth + foot of the tower
+body("blades", "sphere", tuple(HUB), (0.8,))                                # hub
+for k in range(4):                                                          # one box per sail: spar + sail cloth
+    a = k * math.pi / 2 + math.pi / 4
+    d = Vector((math.cos(a), 0, math.sin(a))); side = Vector((-math.sin(a), 0, math.cos(a)))
+    body("blades", "box", tuple(HUB + d * 7.7 + side * 1.4), (14.6, 2.8, 0.4), x_axis=tuple(d), y_axis=tuple(side))
+ASSETS["SK_Windmill"]["notes"] += ". Physics bodies (incl. one box per sail on bone 'blades') are listed in Field_Manifest.json"
+
 for k, (h, cr) in enumerate(((7.0, 3.0), (9.0, 3.8))):
     asset(f"SM_Tree_Oak_{'AB'[k]}", "Field", "Field_Props", 9, place=dict(density=30, scale=(0.8, 1.3), spacing=10, yaw=True, align=False, cluster=2))
     prism("Trunk", 6, 0.45, 0.28, 0, h * 0.55, "Bark", jitter=0.08)
@@ -1267,20 +1290,41 @@ put(bm, "Cone", "LightBeam")
 group("Loot", "Loot", 256)
 PICK = dict(density=0)
 
-asset("SM_Loot_AmmoBox", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Ammo: open wooden case full of brass cartridges")
-box("Case", (0.8, 0.5, 0.32), "Crate", loc=(0, 0, 0.16))
+asset("SM_Loot_AmmoBox", "Loot", "Loot", 2, cat="Loot", place=PICK,
+      notes="Ammo: open wooden case heaped with shotgun shells, pistol and rifle rounds")
+box("Case", (0.8, 0.5, 0.3), "Crate", loc=(0, 0, 0.15))
+box("Inside", (0.7, 0.4, 0.02), "Dark", loc=(0, 0, 0.27))
 for sx in (-1, 1):
     for sy in (-1, 1):
-        box(f"Corner{sx}{sy}", (0.08, 0.08, 0.34), "Brass", loc=(sx * 0.37, sy * 0.22, 0.17))
-box("Lid", (0.8, 0.05, 0.5), "Crate", loc=(0, 0.27, 0.56), rot=(-0.18, 0, 0))      # lid propped open at the back
-box("Stencil", (0.3, 0.01, 0.1), "PaintRed", loc=(0, -0.255, 0.18))
-for i in range(5):
-    for j in range(3):
-        x, y = -0.28 + 0.14 * i, -0.13 + 0.12 * j
-        prism(f"Shell{i}{j}", 6, 0.04, 0.04, 0.2, 0.36, "Brass", loc=(x, y, 0))
-        prism(f"Tip{i}{j}", 6, 0.04, 0, 0.36, 0.44, "CopperTip", loc=(x, y, 0), bottom=False)
+        box(f"Corner{sx}{sy}", (0.08, 0.08, 0.32), "Brass", loc=(sx * 0.37, sy * 0.22, 0.16))
+box("Lid", (0.8, 0.05, 0.5), "Crate", loc=(0, 0.27, 0.54), rot=(-0.18, 0, 0))      # lid propped open at the back
+box("Stencil", (0.3, 0.01, 0.1), "PaintRed", loc=(0, -0.255, 0.16))
 for sx in (-1, 1):
-    bar(f"Handle{sx}", (sx * 0.41, -0.1, 0.22), (sx * 0.41, 0.1, 0.22), 0.025, "Rope")
+    bar(f"Handle{sx}", (sx * 0.41, -0.1, 0.2), (sx * 0.41, 0.1, 0.2), 0.025, "Rope")
+
+def round_(p, kind, loc, rot):
+    """One cartridge lying in the pile, built along +Z then rotated. Sizes exaggerated ~2x so they read in game."""
+    if kind == "shotgun":                                   # red paper hull, brass head
+        prism(p + "Hull", 6, 0.045, 0.045, 0.03, 0.15, "PaintRed", loc=loc, rot=rot)
+        prism(p + "Head", 6, 0.048, 0.048, 0.0, 0.03, "Brass", loc=loc, rot=rot)
+    elif kind == "pistol":                                  # short brass case, round copper nose
+        prism(p + "Case", 6, 0.027, 0.027, 0.0, 0.06, "Brass", loc=loc, rot=rot)
+        prism(p + "Nose", 6, 0.025, 0.008, 0.06, 0.095, "CopperTip", loc=loc, rot=rot, bottom=False)
+    else:                                                   # rifle: long bottle-neck case, pointed bullet
+        prism(p + "Case", 6, 0.03, 0.03, 0.0, 0.13, "Brass", loc=loc, rot=rot)
+        prism(p + "Neck", 6, 0.03, 0.018, 0.13, 0.16, "Brass", loc=loc, rot=rot, top=False, bottom=False)
+        prism(p + "Tip", 6, 0.018, 0, 0.16, 0.23, "CopperTip", loc=loc, rot=rot, bottom=False)
+
+kinds = ["shotgun"] * 9 + ["pistol"] * 10 + ["rifle"] * 9
+random.shuffle(kinds)
+for i, kd in enumerate(kinds):
+    x, y = random.uniform(-0.3, 0.3), random.uniform(-0.15, 0.15)
+    hump = 0.12 * (1 - (x / 0.34) ** 2) * (1 - (y / 0.2) ** 2)              # heap is higher in the middle
+    z = 0.28 + hump * random.uniform(0.3, 1.0) + (i % 3) * 0.015
+    rot = (math.pi / 2 + random.uniform(-0.35, 0.35), random.uniform(-0.3, 0.3), random.uniform(0, 2 * math.pi))
+    round_(f"R{i}", kd, (x, y, z), rot)
+for i, (kd, x, y) in enumerate((("shotgun", 0.5, -0.15), ("rifle", -0.48, -0.3), ("pistol", 0.2, -0.38))):   # spilled
+    round_(f"Spill{i}", kd, (x, y, 0.045 if kd == "shotgun" else 0.03), (math.pi / 2, 0, random.uniform(0, 6.3)))
 ucx_box((0.85, 0.6, 0.75), (0, 0.03, 0.37))
 
 asset("SM_Loot_MoneyPouch", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Money: leather drawstring pouch with gold coins")
@@ -1293,20 +1337,19 @@ for i, (x, y, z, tilt) in enumerate(((0.32, 0.05, 0.0, 0), (0.33, 0.06, 0.02, 0.
     prism(f"Coin{i}", 10, 0.075, 0.075, 0, 0.018, "Gold", loc=(x, y, z), rot=(tilt, 0, 0))
 ucx_box((0.75, 0.75, 0.7), (0.02, 0, 0.35))
 
-asset("SM_Loot_Logs", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Wood: bundle of 3 logs tied with rope")
-for i, (y, z) in enumerate(((-0.15, 0.14), (0.15, 0.14), (0.0, 0.39))):
-    prism(f"Log{i}", 7, 0.14, 0.14, -0.45, 0.45, "PineBark", rot=(0, math.pi / 2, 0), loc=(0, y, z), top=False, bottom=False)
-    for sx in (-1, 1):
-        prism(f"End{i}{sx}", 7, 0.14, 0.14, 0, 0.01, "WoodEnd", rot=(0, sx * math.pi / 2, 0), loc=(sx * 0.45, y, z))
-for x in (-0.25, 0.25):
-    prism(f"Rope{x}", 10, 0.33, 0.33, -0.025, 0.025, "Rope", rot=(0, math.pi / 2, 0), loc=(x, 0, 0.25), top=False, bottom=False)
-ucx_box((0.95, 0.65, 0.58), (0, 0, 0.29))
+asset("SM_Loot_Log", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Wood: one thick log")
+prism("Log", 8, 0.19, 0.17, -0.5, 0.5, "PineBark", rot=(0, math.pi / 2, 0), loc=(0, 0, 0.19), top=False, bottom=False, jitter=0.05)
+prism("EndA", 8, 0.19, 0.19, 0, 0.01, "WoodEnd", rot=(0, -math.pi / 2, 0), loc=(-0.5, 0, 0.19))
+prism("EndB", 8, 0.17, 0.17, 0, 0.01, "WoodEnd", rot=(0, math.pi / 2, 0), loc=(0.5, 0, 0.19))
+bar("Stub", (0.15, 0.0, 0.3), (0.28, -0.12, 0.47), 0.04, "PineBark", n=5)
+ball("Moss", 0.12, (-0.25, 0.05, 0.36), "Moss", u=6, v=3, scale=(1.4, 1, 0.35))
+ucx_box((1.02, 0.42, 0.42), (0, 0, 0.21))
 
-asset("SM_Loot_Coal", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Coal: one big glossy lump with glowing embers (glow slot)")
+asset("SM_Loot_Coal", "Loot", "Loot", 2, cat="Loot", place=PICK,
+      notes="Coal: big glossy black lump, nothing orange in the model: the orange glow and sparks are added in Unreal")
 rock("Lump", 0.34, (0, 0, 0.28), "Coal", flat=0.85, jit=0.28, u=8, v=5)
 rock("LumpSmall", 0.16, (0.3, 0.12, 0.12), "Coal", flat=0.8, jit=0.3, u=6, v=4)
-for i, (x, y, z) in enumerate(((0.12, -0.27, 0.32), (-0.2, -0.22, 0.2), (0.25, 0.05, 0.42), (-0.05, 0.25, 0.5))):
-    box(f"Ember{i}", (0.07, 0.07, 0.07), "Fire", loc=(x, y, z), rot=(random.random(), random.random(), random.random()))
+rock("Chip", 0.08, (-0.28, -0.18, 0.05), "Coal", flat=0.7, jit=0.3, u=5, v=3)
 ucx_box((0.8, 0.7, 0.6), (0.05, 0, 0.3))
 
 asset("SM_Loot_Crystal", "Loot", "Loot", 2, cat="Loot", place=PICK, notes="Crystal: cluster of glowing crystals on a rock (glow slot)")

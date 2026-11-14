@@ -3,11 +3,11 @@
   "file": "SM_Loot_AmmoBox.fbx",
   "kind": "static",
   "category": "Loot",
-  "tris": 498,
+  "tris": 1296,
   "size_m": [
-   0.86,
-   0.6,
-   0.81
+   1.04,
+   0.73,
+   0.79
   ],
   "texture": "T_Loot.png",
   "materials": [
@@ -18,7 +18,8 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
-  "notes": "Ammo: open wooden case full of brass cartridges"
+  "physics_bodies": [],
+  "notes": "Ammo: open wooden case heaped with shotgun shells, pistol and rifle rounds"
  },
  "SM_Loot_MoneyPouch": {
   "file": "SM_Loot_MoneyPouch.fbx",
@@ -39,17 +40,18 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Money: leather drawstring pouch with gold coins"
  },
- "SM_Loot_Logs": {
-  "file": "SM_Loot_Logs.fbx",
+ "SM_Loot_Log": {
+  "file": "SM_Loot_Log.fbx",
   "kind": "static",
   "category": "Loot",
-  "tris": 226,
+  "tris": 112,
   "size_m": [
-   0.92,
-   0.66,
-   0.63
+   1.02,
+   0.36,
+   0.49
   ],
   "texture": "T_Loot.png",
   "materials": [
@@ -60,29 +62,30 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
-  "notes": "Wood: bundle of 3 logs tied with rope"
+  "physics_bodies": [],
+  "notes": "Wood: one thick log"
  },
  "SM_Loot_Coal": {
   "file": "SM_Loot_Coal.fbx",
   "kind": "static",
   "category": "Loot",
-  "tris": 148,
+  "tris": 120,
   "size_m": [
    0.87,
-   0.7,
+   0.69,
    0.61
   ],
   "texture": "T_Loot.png",
   "materials": [
-   "M_Loot",
-   "M_Loot_Glow"
+   "M_Loot"
   ],
   "collision_hulls": 1,
   "sockets": [],
   "bones": [],
   "anims": [],
   "loot_spots": [],
-  "notes": "Coal: one big glossy lump with glowing embers (glow slot)"
+  "physics_bodies": [],
+  "notes": "Coal: big glossy black lump, nothing orange in the model: the orange glow and sparks are added in Unreal"
  },
  "SM_Loot_Crystal": {
   "file": "SM_Loot_Crystal.fbx",
@@ -104,6 +107,7 @@
   "bones": [],
   "anims": [],
   "loot_spots": [],
+  "physics_bodies": [],
   "notes": "Crystal: cluster of glowing crystals on a rock (glow slot)"
  }
 }
