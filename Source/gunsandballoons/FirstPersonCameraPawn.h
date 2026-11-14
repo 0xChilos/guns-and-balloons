@@ -4,6 +4,13 @@
 #include "GameFramework/Pawn.h"
 #include "FirstPersonCameraPawn.generated.h"
 
+class UWeaponRackComponent;
+
+UENUM(BlueprintType)
+enum class EPlayerHandState : uint8 { Armed, Holstering, Empty, Drawing };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandState, HandState);
+
 class UCameraComponent;
 class URevolverComponent;
 class USkeletalMeshComponent;
@@ -29,6 +36,8 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void NotifyControllerChanged() override;
+	virtual void UnPossessed() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UCameraComponent* GetCamera() const { return Camera; }
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
@@ -45,7 +54,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool TryInteract();
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
+	bool HolsterWeapon(UWeaponRackComponent* Rack);
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
+	bool DrawWeapon(UWeaponRackComponent* Rack);
+	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
+	EPlayerHandState GetHandState() const { return HandState; }
+	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
+	bool IsHandEmpty() const { return HandState == EPlayerHandState::Empty; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Hand")
+	FOnHandStateChanged OnHandStateChanged;
+
 protected:
+	/** Only Armed and Empty are valid initial states. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Hand")
+	EPlayerHandState InitialHandState = EPlayerHandState::Armed;
+	/** TBD: prototype duration, needs tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Hand", meta = (ClampMin = "0.0"))
+	float HolsterTime = 0.35f;
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Weapon|Hand")
+	EPlayerHandState HandState = EPlayerHandState::Armed;
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 
@@ -65,6 +94,14 @@ protected:
 	/** How far from the camera (cm) the player can interact. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0"))
 	float InteractRange = 400.f;
+
+	/** TBD: prototype centimeters per mouse delta unit, needs tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Grab", meta = (ClampMin = "0.0"))
+	float GrabDragScale = 0.5f;
+
+	/** TBD: break distance in cm; 0 uses InteractRange * 1.25 (needs tuning). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Grab", meta = (ClampMin = "0.0"))
+	float GrabBreakDistance = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	TEnumAsByte<ECollisionChannel> InteractTraceChannel = ECC_Visibility;
@@ -178,6 +215,15 @@ protected:
 	float RecoilRecoverySpeed = 12.f;
 
 private:
+	friend class FPlayerGrabTest;
+	bool TryBeginGrab();
+	void UpdateHeldGrab(APlayerController* PC);
+	void EndGrab();
+	TWeakObjectPtr<UObject> GrabTarget;
+	void SetHandState(EPlayerHandState NewState);
+	void UpdateHandState(float DeltaSeconds);
+	TWeakObjectPtr<UWeaponRackComponent> TransitionRack;
+	float HandLowerAlpha = 0.f;
 	/** Ensure the balloon moves before the rider reads its transform. */
 	void SetupBalloonTickPrerequisite();
 

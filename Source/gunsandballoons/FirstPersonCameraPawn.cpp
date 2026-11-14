@@ -9,8 +9,10 @@
 #include "BalloonFlightComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Interactable.h"
+#include "Grabbable.h"
 #include "RevolverAnimInstance.h"
 #include "RevolverComponent.h"
+#include "WeaponRackComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 AFirstPersonCameraPawn::AFirstPersonCameraPawn()
@@ -75,6 +77,9 @@ void AFirstPersonCameraPawn::BeginPlay()
 
 	Super::BeginPlay();
 
+	HandLowerAlpha = InitialHandState == EPlayerHandState::Empty ? 1.f : 0.f;
+	WeaponMesh->SetVisibility(InitialHandState != EPlayerHandState::Empty);
+	SetHandState(InitialHandState == EPlayerHandState::Empty ? EPlayerHandState::Empty : EPlayerHandState::Armed);
 	SetupBalloonTickPrerequisite();
 }
 
@@ -140,6 +145,8 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	UpdateHandState(DeltaSeconds);
+
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC || !PC->IsLocalController())
 	{
@@ -149,10 +156,10 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 	// Aiming at ammo opens the loading gate, ready for the click that hands over a round.
 	const AActor* Aimed = TraceAimedTarget(/*bDebugDraw=*/false);
 	const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
-	Revolver->SetHoldGateOpen(AimedSupply && AimedSupply->HasRounds());
+	Revolver->SetHoldGateOpen(HandState == EPlayerHandState::Armed && AimedSupply && AimedSupply->HasRounds());
 
 	// The only input besides the mouse look. There is no reload key: rounds come from ammo supplies.
-	if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryInteract())
+	if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryBeginGrab() && !TryInteract() && HandState == EPlayerHandState::Armed)
 	{
 		Revolver->PullTrigger();
 	}
@@ -180,8 +187,83 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 		bHasParentYaw = false;
 	}
 
-	UpdateLook(PC);
+	// Preserve carried balloon yaw, but route mouse movement exclusively to the held object.
+	const bool bHadGrab = GrabTarget.IsValid();
+	UpdateHeldGrab(PC);
+	if (!bHadGrab) UpdateLook(PC);
 	UpdateWeaponSway(DeltaSeconds);
+}
+
+bool AFirstPersonCameraPawn::TryBeginGrab()
+{
+	if (!IsHandEmpty()) return false;
+	FHitResult Hit;
+	if (!TraceAimed(Hit, bDebugInteractTrace)) return false;
+	AActor* Actor = Hit.GetActor();
+	if (!Actor) return false;
+
+	auto TryTarget = [this, &Hit](UObject* Target)
+	{
+		if (!IsValid(Target) || !Target->Implements<UGrabbable>() ||
+			!IGrabbable::Execute_CanGrab(Target, this, Hit)) return false;
+		GrabTarget = Target;
+		IGrabbable::Execute_BeginGrab(Target, this, Hit);
+		// A valid grab attempt consumes the click, even if the target immediately releases it.
+		return true;
+	};
+	TInlineComponentArray<UActorComponent*> Components(Actor);
+	for (UActorComponent* Component : Components)
+	{
+		if (TryTarget(Component)) return true;
+	}
+	return TryTarget(Actor);
+}
+
+void AFirstPersonCameraPawn::UpdateHeldGrab(APlayerController* PC)
+{
+	UObject* Target = GrabTarget.Get();
+	if (!Target)
+	{
+		GrabTarget.Reset();
+		return;
+	}
+	if (!IGrabbable::Execute_IsGrabbed(Target))
+	{
+		GrabTarget.Reset();
+		return;
+	}
+	const float BreakDistance = GrabBreakDistance > 0.f ? GrabBreakDistance : InteractRange * 1.25f;
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) || !IsHandEmpty() ||
+		FVector::DistSquared(Camera->GetComponentLocation(), IGrabbable::Execute_GetGrabLocation(Target)) > FMath::Square(BreakDistance))
+	{
+		EndGrab();
+		return;
+	}
+	float DX = 0.f, DY = 0.f;
+	PC->GetInputMouseDelta(DX, DY);
+	const FQuat View = GetViewRotation().Quaternion();
+	const FVector Delta = (View.GetRightVector() * DX + View.GetUpVector() * DY) * GrabDragScale;
+	IGrabbable::Execute_UpdateGrab(Target, this, Delta);
+	if (!GrabTarget.IsValid() || !IGrabbable::Execute_IsGrabbed(GrabTarget.Get())) GrabTarget.Reset();
+}
+
+void AFirstPersonCameraPawn::EndGrab()
+{
+	UObject* Target = GrabTarget.Get();
+	GrabTarget.Reset(); // Clear before dispatching events, which may re-enter the pawn.
+	if (Target) IGrabbable::Execute_EndGrab(Target, this);
+}
+
+void AFirstPersonCameraPawn::UnPossessed()
+{
+	EndGrab();
+	Super::UnPossessed();
+}
+
+void AFirstPersonCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	EndGrab();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AFirstPersonCameraPawn::UpdateLook(APlayerController* PC)
@@ -258,7 +340,11 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 	{
 		RaiseAlpha = FMath::FInterpConstantTo(RaiseAlpha, 0.f, DeltaSeconds, 1.f / RaiseTime);
 	}
-	const float Lowered = FMath::Square(RaiseAlpha); // fast at first, settling softly
+	else
+	{
+		RaiseAlpha = 0.f;
+	}
+	const float Lowered = FMath::Max(FMath::Square(RaiseAlpha), FMath::Square(HandLowerAlpha)); // fast at first, settling softly
 	const FVector Raise(0.f, 0.f, -Lowered * RaiseDrop);
 	const FRotator RaiseRotation(-Lowered * RaisePitch, 0.f, 0.f);
 
@@ -312,6 +398,7 @@ bool AFirstPersonCameraPawn::TryInteract()
 		TInlineComponentArray<UActorComponent*> Components(HitActor);
 		for (UActorComponent* Component : Components)
 		{
+			if (HandState != EPlayerHandState::Armed && Component->IsA<UAmmoSupplyComponent>()) continue;
 			if (Component->Implements<UInteractable>() &&
 				IInteractable::Execute_AcceptsHit(Component, Hit) &&
 				IInteractable::Execute_CanInteract(Component, this))
@@ -327,6 +414,12 @@ bool AFirstPersonCameraPawn::TryInteract()
 	if (!Target)
 	{
 		return false;
+	}
+
+	// An empty or transitioning hand cannot activate an ammo crate, including its actor interface.
+	if (HandState != EPlayerHandState::Armed && Target->FindComponentByClass<UAmmoSupplyComponent>())
+	{
+		return true;
 	}
 
 	bool bHandled = false;
@@ -345,4 +438,63 @@ bool AFirstPersonCameraPawn::TryInteract()
 	}
 
 	return bHandled;
+}
+
+void AFirstPersonCameraPawn::SetHandState(EPlayerHandState NewState)
+{
+	if (HandState == NewState) return;
+	HandState = NewState;
+	if (HandState != EPlayerHandState::Armed) Revolver->SetHoldGateOpen(false);
+	OnHandStateChanged.Broadcast(HandState);
+}
+
+bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
+{
+	if (HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon() || Revolver->IsReloading() || Revolver->GetState() == ERevolverState::Firing) return false;
+	TransitionRack = Rack;
+	HandLowerAlpha = 0.f;
+	SetHandState(EPlayerHandState::Holstering);
+	return true;
+}
+
+bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
+{
+	if (!IsHandEmpty() || !IsValid(Rack) || !Rack->HasWeapon() || Revolver->IsReloading()) return false;
+	TransitionRack.Reset();
+	Rack->SetHasWeapon(false);
+	HandLowerAlpha = 0.f;
+	RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
+	// Place it below the camera before making it visible.
+	UpdateWeaponSway(0.f);
+	WeaponMesh->SetVisibility(true);
+	SetHandState(EPlayerHandState::Drawing);
+	return true;
+}
+
+void AFirstPersonCameraPawn::UpdateHandState(float DeltaSeconds)
+{
+	if (HandState == EPlayerHandState::Holstering)
+	{
+		if (!TransitionRack.IsValid() || TransitionRack->HasWeapon())
+		{
+			// The rack disappeared or became occupied: keep the player's gun.
+			HandLowerAlpha = 0.f;
+			RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
+			TransitionRack.Reset();
+			SetHandState(EPlayerHandState::Drawing);
+			return;
+		}
+		HandLowerAlpha = HolsterTime > 0.f ? FMath::Min(1.f, HandLowerAlpha + DeltaSeconds / HolsterTime) : 1.f;
+		if (HandLowerAlpha >= 1.f)
+		{
+			WeaponMesh->SetVisibility(false);
+			TransitionRack->SetHasWeapon(true);
+			TransitionRack.Reset();
+			SetHandState(EPlayerHandState::Empty);
+		}
+	}
+	else if (HandState == EPlayerHandState::Drawing && RaiseAlpha <= 0.f)
+	{
+		SetHandState(EPlayerHandState::Armed);
+	}
 }
