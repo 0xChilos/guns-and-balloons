@@ -59,10 +59,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UBalloonFlightComponent> Flight = nullptr;
 
-	// Edge detection / timing state.
+	// Edge detection state. Send one neutral input even when initially disabled.
+	bool bWasEnabled = true;
 	bool bPrevSpeedUp = false;
 	bool bPrevSpeedDown = false;
 	bool bPrevTurnLeft = false;
 	bool bPrevTurnRight = false;
-	float TurnTimer = 0.f;
 };

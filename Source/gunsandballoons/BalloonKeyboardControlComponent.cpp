@@ -37,10 +37,16 @@ void UBalloonKeyboardControlComponent::TickComponent(float DeltaTime, ELevelTick
 
 	if (!bEnabled)
 	{
-		Flight->SetTurnInput(0.f);
-		TurnTimer = 0.f;
+		if (bWasEnabled)
+		{
+			Flight->SetTurnInput(0.f);
+			bPrevSpeedUp = bPrevSpeedDown = false;
+			bPrevTurnLeft = bPrevTurnRight = false;
+		}
+		bWasEnabled = false;
 		return;
 	}
+	bWasEnabled = true;
 
 	const APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
 	if (!PC)
@@ -63,19 +69,11 @@ void UBalloonKeyboardControlComponent::TickComponent(float DeltaTime, ELevelTick
 		Flight->SetTargetSpeed(Flight->GetTargetSpeed() - SpeedStep);
 	}
 
-	// Turn: while a turn key is held the turn input stays active (hold-to-turn);
-	// releasing the key stops the turn.
-	if (bTurnLeft)
+	// Flight retains the input while held. Only key transitions write it, so idle
+	// keyboard polling does not overwrite another control source. Left takes priority.
+	if (bTurnLeft != bPrevTurnLeft || bTurnRight != bPrevTurnRight)
 	{
-		Flight->SetTurnInput(-1.f);
-	}
-	else if (bTurnRight)
-	{
-		Flight->SetTurnInput(1.f);
-	}
-	else
-	{
-		Flight->SetTurnInput(0.f);
+		Flight->SetTurnInput(bTurnLeft ? -1.f : (bTurnRight ? 1.f : 0.f));
 	}
 
 	bPrevSpeedUp = bSpeedUp;
