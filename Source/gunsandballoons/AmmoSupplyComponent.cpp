@@ -1,7 +1,7 @@
 #include "AmmoSupplyComponent.h"
 
 #include "GameFramework/Pawn.h"
-#include "RevolverComponent.h"
+#include "GunComponent.h"
 
 bool UAmmoSupplyComponent::GiveRound(APawn* InstigatorPawn)
 {
@@ -10,8 +10,19 @@ bool UAmmoSupplyComponent::GiveRound(APawn* InstigatorPawn)
 		return false;
 	}
 
-	URevolverComponent* Revolver = InstigatorPawn->FindComponentByClass<URevolverComponent>();
-	if (!Revolver || !Revolver->LoadRound())
+	// The gun in the player's hand takes it (a holstered gun keeps what it has).
+	UGunComponent* Gun = nullptr;
+	TInlineComponentArray<UGunComponent*> Guns(InstigatorPawn);
+	for (UGunComponent* Candidate : Guns)
+	{
+		if (Candidate->IsEquipped())
+		{
+			Gun = Candidate;
+			break;
+		}
+	}
+
+	if (!Gun || !Gun->LoadRound())
 	{
 		OnRoundRefused.Broadcast(this, InstigatorPawn);
 		return false;
