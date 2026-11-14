@@ -20,6 +20,7 @@
 | [features/safe-zone.md](features/safe-zone.md) | Безпечна зона між рівнями: ремонт, магазин, апгрейди | TBD |
 | [features/ui-menus.md](features/ui-menus.md) | Головне меню, навігаційна панель | Ростік |
 | [art-style.md](art-style.md) | Візуальний стиль і пост-обробка | Ростік |
+| [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
 | [source/directors-cut.md](source/directors-cut.md) | Сирі нотатки (оригінал, не редагувати) | — |
 
 ## Правила ведення
