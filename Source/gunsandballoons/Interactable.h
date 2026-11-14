@@ -19,6 +19,11 @@ class GUNSANDBALLOONS_API IInteractable
 	GENERATED_BODY()
 
 public:
+	/** Filter the traced bone/component before dispatching an interaction. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
+	bool AcceptsHit(const FHitResult& Hit) const;
+	virtual bool AcceptsHit_Implementation(const FHitResult& Hit) const { return true; }
+
 	/** Called when the player presses LMB while aiming at this actor and CanInteract returned true. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interaction")
 	void Interact(APawn* InstigatorPawn);

@@ -4,6 +4,14 @@
 #include "Components/ActorComponent.h"
 #include "BalloonFlightComponent.generated.h"
 
+USTRUCT(BlueprintType)
+struct FBalloonFlightModifier
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TurnInput = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SpeedMultiplier = 1.f;
+};
+
 /**
  * Moves the balloon: the owner always flies forward along its horizontal forward axis, with
  * speed and turn rate easing in/out instead of changing instantly (heavy-aircraft feel,
@@ -35,6 +43,15 @@ public:
 	/** Ask for a turn, clamped to [-1, 1]; the value is kept until the next call. 0 = fly straight. */
 	UFUNCTION(BlueprintCallable, Category = "Balloon|Flight")
 	void SetTurnInput(float Input);
+
+	UFUNCTION(BlueprintCallable, Category = "Balloon|Flight")
+	void SetFlightModifier(FName Source, float Input, float SpeedMultiplier);
+	UFUNCTION(BlueprintCallable, Category = "Balloon|Flight")
+	void ClearFlightModifier(FName Source);
+	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
+	float GetEffectiveTargetSpeed() const;
+	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
+	float GetEffectiveTurnInput() const;
 
 	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
 	float GetCurrentSpeed() const { return CurrentSpeed; }
@@ -98,6 +115,9 @@ protected:
 	bool bAutoTest = false;
 
 private:
+	UPROPERTY(Transient)
+	TMap<FName, FBalloonFlightModifier> Modifiers;
+	float GetSpeedMultiplier() const;
 	/** Requested forward speed, always inside [MinSpeed, MaxSpeed]. */
 	float TargetSpeed = 0.f;
 

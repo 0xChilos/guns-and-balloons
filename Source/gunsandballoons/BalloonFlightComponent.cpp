@@ -45,8 +45,9 @@ void UBalloonFlightComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (bDebugLog)
 	{
-		UE_LOG(LogTemp, Log, TEXT("BalloonFlight DEBUG: speed=%.1f target=%.1f turnRate=%.1f yaw=%.1f"),
-			CurrentSpeed, TargetSpeed, CurrentTurnRate, GetOwner() ? GetOwner()->GetActorRotation().Yaw : 0.f);
+		UE_LOG(LogTemp, Log, TEXT("BalloonFlight DEBUG: speed=%.1f target=%.1f turnRate=%.1f yaw=%.1f effectiveTurn=%.3f speedMultiplier=%.3f"),
+			CurrentSpeed, TargetSpeed, CurrentTurnRate, GetOwner() ? GetOwner()->GetActorRotation().Yaw : 0.f,
+			GetEffectiveTurnInput(), GetSpeedMultiplier());
 	}
 
 	AActor* Owner = GetOwner();
@@ -99,12 +100,14 @@ void UBalloonFlightComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 
 	// Forward speed eases toward the target with a constant rate (no exponential smoothing).
-	CurrentSpeed = FMath::FInterpConstantTo(CurrentSpeed, TargetSpeed, DeltaTime,
-		TargetSpeed > CurrentSpeed ? Acceleration : Deceleration);
+	const float EffectiveSpeed = GetEffectiveTargetSpeed();
+	const float EffectiveTurn = GetEffectiveTurnInput();
+	CurrentSpeed = FMath::FInterpConstantTo(CurrentSpeed, EffectiveSpeed, DeltaTime,
+		EffectiveSpeed > CurrentSpeed ? Acceleration : Deceleration);
 
 	// Turn rate grows while the magnitude increases in the same direction; once it shrinks,
 	// or while reversing through zero, it falls off with the gentler TurnDeceleration.
-	const float TargetTurnRate = TurnInput * MaxTurnRate;
+	const float TargetTurnRate = EffectiveTurn * MaxTurnRate;
 	const bool bTurningUp = FMath::Abs(TargetTurnRate) > FMath::Abs(CurrentTurnRate) &&
 		CurrentTurnRate * TargetTurnRate >= 0.f;
 	CurrentTurnRate = FMath::FInterpConstantTo(CurrentTurnRate, TargetTurnRate, DeltaTime,
@@ -160,7 +163,7 @@ void UBalloonFlightComponent::TickComponent(float DeltaTime, ELevelTick TickType
 			}
 		}
 
-		if (FMath::Abs(TurnInput) > KINDA_SMALL_NUMBER)
+		if (FMath::Abs(EffectiveTurn) > KINDA_SMALL_NUMBER)
 		{
 			if (!bDebugTurnActive)
 			{
@@ -205,4 +208,35 @@ float UBalloonFlightComponent::GetSpeedometer01() const
 {
 	const float Scale = SpeedometerMaxSpeed > 0.f ? SpeedometerMaxSpeed : MaxSpeed;
 	return FMath::Clamp(CurrentSpeed / FMath::Max(Scale, KINDA_SMALL_NUMBER), 0.f, 1.f);
+}
+
+void UBalloonFlightComponent::SetFlightModifier(FName Source, float Input, float SpeedMultiplier)
+{
+	FBalloonFlightModifier& Modifier = Modifiers.FindOrAdd(Source);
+	Modifier.TurnInput = FMath::IsFinite(Input) ? FMath::Clamp(Input, -1.f, 1.f) : 0.f;
+	Modifier.SpeedMultiplier = FMath::IsFinite(SpeedMultiplier) ? FMath::Max(0.f, SpeedMultiplier) : 1.f;
+}
+
+void UBalloonFlightComponent::ClearFlightModifier(FName Source)
+{
+	Modifiers.Remove(Source);
+}
+
+float UBalloonFlightComponent::GetSpeedMultiplier() const
+{
+	double Result = 1.;
+	for (const auto& Pair : Modifiers) Result *= Pair.Value.SpeedMultiplier;
+	return static_cast<float>(FMath::Min(Result, static_cast<double>(MAX_flt)));
+}
+
+float UBalloonFlightComponent::GetEffectiveTargetSpeed() const
+{
+	return FMath::Clamp(TargetSpeed * GetSpeedMultiplier(), MinSpeed, MaxSpeed);
+}
+
+float UBalloonFlightComponent::GetEffectiveTurnInput() const
+{
+	float Result = TurnInput;
+	for (const auto& Pair : Modifiers) Result += Pair.Value.TurnInput;
+	return FMath::Clamp(Result, -1.f, 1.f);
 }

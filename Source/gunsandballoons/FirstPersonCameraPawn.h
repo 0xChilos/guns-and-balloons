@@ -51,6 +51,7 @@ protected:
 
 	/** GetAimedInteractable, with the debug line optional (it runs every frame for the loading gate). */
 	AActor* TraceAimedTarget(bool bDebugDraw) const;
+	bool TraceAimed(FHitResult& OutHit, bool bDebugDraw) const;
 
 	/** Applies mouse look to the control rotation. */
 	void UpdateLook(APlayerController* PC);

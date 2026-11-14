@@ -270,7 +270,7 @@ AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
 	return TraceAimedTarget(bDebugInteractTrace);
 }
 
-AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
+bool AFirstPersonCameraPawn::TraceAimed(FHitResult& Hit, bool bDebugDraw) const
 {
 	const FVector Start = Camera->GetComponentLocation();
 	// Use the control rotation: the camera component only picks it up during the camera update,
@@ -278,7 +278,6 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 	const FVector End = Start + GetViewRotation().Vector() * InteractRange;
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(FirstPersonInteract), /*bTraceComplex=*/false, this);
-	FHitResult Hit;
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, InteractTraceChannel, Params);
 
 	if (bDebugDraw)
@@ -286,7 +285,14 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 		DrawDebugLine(GetWorld(), Start, bHit ? Hit.ImpactPoint : End, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 1.f);
 	}
 
-	// The hit actor itself, or whoever owns it (e.g. an AInteractSwap owns the meshes it swaps).
+	return bHit;
+}
+
+AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
+{
+	FHitResult Hit;
+	const bool bHit = TraceAimed(Hit, bDebugDraw);
+	// Preserve actor/owner lookup for ammo aiming and the revolver loading gate.
 	for (AActor* Actor = bHit ? Hit.GetActor() : nullptr; Actor; Actor = Actor->GetOwner())
 	{
 		if (Actor->Implements<UInteractable>() || Actor->FindComponentByClass<UAmmoSupplyComponent>())
@@ -299,7 +305,25 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 
 bool AFirstPersonCameraPawn::TryInteract()
 {
-	AActor* Target = GetAimedInteractable();
+	FHitResult Hit;
+	if (!TraceAimed(Hit, bDebugInteractTrace)) return false;
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		TInlineComponentArray<UActorComponent*> Components(HitActor);
+		for (UActorComponent* Component : Components)
+		{
+			if (Component->Implements<UInteractable>() &&
+				IInteractable::Execute_AcceptsHit(Component, Hit) &&
+				IInteractable::Execute_CanInteract(Component, this))
+			{
+				IInteractable::Execute_Interact(Component, this);
+				return true;
+			}
+		}
+	}
+	AActor* Target = Hit.GetActor();
+	while (Target && !Target->Implements<UInteractable>() && !Target->FindComponentByClass<UAmmoSupplyComponent>())
+		Target = Target->GetOwner();
 	if (!Target)
 	{
 		return false;
@@ -307,7 +331,7 @@ bool AFirstPersonCameraPawn::TryInteract()
 
 	bool bHandled = false;
 
-	if (Target->Implements<UInteractable>() && IInteractable::Execute_CanInteract(Target, this))
+	if (Target->Implements<UInteractable>() && IInteractable::Execute_AcceptsHit(Target, Hit) && IInteractable::Execute_CanInteract(Target, this))
 	{
 		IInteractable::Execute_Interact(Target, this);
 		bHandled = true;
