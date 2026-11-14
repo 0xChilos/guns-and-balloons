@@ -24,6 +24,7 @@
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Сокін |
+| [tech/nemesis-airship.md](tech/nemesis-airship.md) | Technical reference for agents: nemesis airship, turrets, rockets, engine health | Вано |
 | [source/directors-cut.md](source/directors-cut.md) | Сирі нотатки (оригінал, не редагувати) | — |
 
 ## Правила ведення

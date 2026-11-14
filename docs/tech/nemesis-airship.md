@@ -1,0 +1,91 @@
+# Nemesis airship — technical reference (C++)
+
+> **For agents.** How the airship, its turrets and rockets work. Design lives in [nemesis-airship](../features/nemesis-airship.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-14
+
+## Files
+| File | Role |
+| --- | --- |
+| `Source/gunsandballoons/NemesisAirship.h/.cpp` | `ANemesisAirship`: trail following, distance bands, turrets, attack director |
+| `Source/gunsandballoons/NemesisRocket.h/.cpp` | `ANemesisRocket`: Bezier flight to an intercept point, direct-hit damage, shot down by any weapon |
+| `Source/gunsandballoons/NemesisPlane.h/.cpp` | `ANemesisPlane` (abstract): fixed altitude, slot holding with inertia, engine/fuselage hit zones, fall/leave |
+| `Source/gunsandballoons/NemesisBomber.h/.cpp` | `ANemesisBomber`: slot ahead of the balloon, drops mines every 5–7 s |
+| `Source/gunsandballoons/NemesisMine.h/.cpp` | `ANemesisMine`: parachute descent, two shootable targets, red glow in radius, flat damage |
+| `Source/gunsandballoons/NemesisCropDuster.h/.cpp` | `ANemesisCropDuster`: fixed side slot, bursts at the basket |
+| `Source/gunsandballoons/NemesisBullet.h/.cpp` | `ANemesisBullet`: straight tracer, no gravity, basket hit test |
+| `Source/gunsandballoons/NemesisTargetSubsystem.h/.cpp` | `UNemesisTargetSubsystem` (world subsystem): the balloon, basket point, velocity, `DamageBalloon`, shared limits (mines, flocks, patrols), sandstorm flag |
+| `Source/gunsandballoons/NemesisTowerGuard.h/.cpp` | `ANemesisTowerGuard`: desert tower, guard aims 2 s then shoots straight at the basket |
+| `Source/gunsandballoons/NemesisBeacon.h/.cpp` | `ANemesisBeacon`: desert beacon, sweeping beam calls a crop duster |
+| `Source/gunsandballoons/NemesisBirdFlock.h/.cpp` | `ANemesisBirdFlock`: field birds crossing the balloon's path (boids) |
+| `Source/gunsandballoons/NemesisPatrol.h/.cpp` | `ANemesisPatrol`: lava patrol group flying a spline route |
+| `Source/gunsandballoons/NemesisFx.h/.cpp` | Enemy effects on the guns' PS1 smoke (`AGunSmoke`): engine smoke, fire, rocket trail, explosions; `FStream` for continuous emitters |
+| `Source/gunsandballoons/NemesisPlaceholder.h` | Collision presets for placeholder cubes (`Shootable`, `Solid`, `None`) |
+| `Source/gunsandballoons/EngineHealthComponent.h/.cpp` | `UEngineHealthComponent`: balloon health (the engine), death, level restart |
+| `Content/Assets/Nemesis/` | `SM_Nemesis_Airship`, `SM_Nemesis_Turret`, `SM_Nemesis_Prop`, `M_Nemesis` + `MI_Nemesis_*`, pixel textures; sources `Nemesis.blend`, `*.fbx`, `Textures/*.png` |
+| `Content/Assets/Enemies/` | Enemy models: `CropDuster.blend`, `Bomber.blend`, `Mine.blend`, `Rocket.blend`; `export_enemies.py` writes one FBX per part into `FBX/`, which the editor auto-imports to `/Game/Assets/Enemies/FBX` |
+| `Scripts/Editor/import_enemy_models.py` | Imports missing enemy FBXs, points every material slot at the shared `/Game/Assets/Nemesis/MI_Nemesis_*`, deletes the importer's duplicate materials |
+| `Scripts/Editor/setup_nemesis_materials.py` | Re-imports the textures (nearest filter, no mips) and rebuilds `M_Nemesis` / `MI_Nemesis_*` |
+
+## Use
+Drop `ANemesisAirship` into a level with a balloon (any actor with `UBalloonFlightComponent`). At BeginPlay it jumps `StartDistance` (80 m, nose ≈ 60 m from the basket: D1) behind the balloon (0 = stays where placed). Nothing else is required. Rockets and planes come from behind: look back to see them.
+
+## ANemesisAirship
+- **Movement.** Every `TrailSampleInterval` (0.5 s) it records the balloon location + `HeightOffset`; it walks that polyline at constant speed = balloon `GetMinSpeed()` (or `SpeedOverride` if > 0, for tests). Yaw eases toward the movement direction.
+- **Distance** = nose (`DistanceReference`, local) to the basket (`BasketOffset` on the balloon). Bands: `< KillDistance` Turrets, `< RocketBandMax` Rockets, `< BomberBandMax` Bombers, else CropDusters. Read with `GetDistanceToBalloon()` / `GetBand()`.
+- **Turrets.** Inside `TurretWarnDistance` each turret swings its +X to the basket, keeping its mount's up axis; `OnTurretWarning(bool)` fires on change (BP hook for horn/sound). Inside `KillDistance`: `OnTurretsFired()` and `UEngineHealthComponent::Kill()` once.
+- **Rockets.** In the Rockets band, one launch every `RocketCooldown` while fewer than `MaxRockets` are alive, from `RocketMuzzle` (front of the launcher under the control car). `OnRocketLaunched(Rocket)` is a BP hook.
+- **Slowdown.** `ApplyRocketSlowdown()` sets flight modifier `NemesisRocketSlowdown` (speed × `1 − SlowdownPercent`) and clears it after `SlowdownDuration`; a new hit restarts the timer. The flight component clamps the result to `MinSpeed`.
+- **Planes.** Bombers band: one `ANemesisBomber` per `BomberCooldown` (max `MaxBombers`). Crop dusters band: one `ANemesisCropDuster` per `CropDusterCooldown`, max `MaxCropDusters`, the free side first. Planes spawn at `HangarMouth` XY at their own altitude (bomber: balloon Z + `HeightAboveBalloon`; duster: basket Z) and keep attacking after the band changes. Mines in the air are capped by `MaxMines` (3; 6 was too many in playtest) (`CanSpawnMine` / `RegisterMine`). No new attacks after the turrets kill the player.
+- **Debug.** `bDebugDraw` draws the trail and distance/band; `bForceBand` + `ForcedBand` force one attack type regardless of distance (turrets still kill by distance). `bDebugAllAttacks` runs rockets, bomber and crop dusters at once (each on its own cooldown/limit); `bDebugInvulnerableBalloon` sets `UEngineHealthComponent::bInvulnerable` (hits logged, no health loss, no turret kill) for demos.
+- **Collision.** All airship meshes are QueryOnly and block only `Visibility`: bullets stop on it, the balloon flight sweep and physics ignore it.
+- **Health fallback.** If the balloon has no `UEngineHealthComponent`, the airship adds one at runtime and logs a warning. Add the component to `BP_Balloon` to tune `MaxHealth`.
+
+## ANemesisRocket
+- `Launch(Airship)`: quadratic Bezier P0 = muzzle, P1 = midpoint + `ArcHeight`, P2 = basket + balloon velocity × flight time (3 iterations on the curve length). Arc-length table of 32 samples → constant `Speed`. After P2 it flies straight along the end tangent.
+- **Hit:** the segment flown this frame passes within `BasketHitRadius` of the basket centre → `ApplyDamage(Balloon, Damage)` + slowdown. Envelope hits do nothing.
+- Hits `WorldStatic` geometry (line trace) → explodes harmlessly (`bStopOnWorldGeometry`). No timer self-destruct; removed after the curve once farther than `DespawnDistance` from the balloon.
+- **Shot down:** the `HitSphere` blocks `Visibility`, so the revolver trace hits it; any damage → explode. `OnExploded(bHitBalloon)` is the BP hook for VFX/SFX.
+- The body is a placeholder engine cylinder + red point light.
+
+## Planes (placeholder cubes)
+- **ANemesisPlane.** `Launch(Airship)` fixes Z at the spawn height. Each tick: desired velocity = balloon velocity + slot error × `SlotGain` (XY, clamped to `MaxSpeed`), reached with `Acceleration` (inertia). Nose turns to the velocity, or the balloon's heading when hovering; it never points more than 60° away from the balloon's heading (planes don't turn around), except while leaving. `Leave()` flies forward and removes after `LeaveTime`.
+- **Hit zones.** All cubes block `Visibility`. Planes count hits, not damage (design 2026-11-14): `OnTakePointDamage` on any of `EngineZones` downs the plane at once (any weapon), it falls with gravity (`FallTime`). Any other part is the fuselage: each hit takes 1/N, N = `RevolverFuselageHits` 4, `ShotgunFuselageHits` 3, `RifleFuselageHits` 2, `OtherFuselageHits` 3; mixed weapons add up. The weapon is the causer pawn's `GetActiveGun()` (gun bullets name the shooter as causer). Pellets of one shotgun shot within `ShotgunPelletWindow` (0.15 s) count as one hit. `GetEngineHealth()` / `GetFuselageHealth()` are 1 → 0. `OnPlaneDowned(bEngine)` BP hook.
+- **Hit zones seen from behind.** Planes ahead of the balloon show their tail. The nose `Engine` is wider and taller than the fuselage so its rim shows around it, and the bomber has two extra wing engines (`EngineL`/`EngineR`, ±3 m) in `EngineZones`, so a plane ahead can be downed with one engine hit (rifle). Verified 2026-11-14: real rifle bullet, bomber 42 m ahead, wing engine → down.
+- **ANemesisBomber.** Flies `HeightAboveBalloon` (12 m) above the balloon. Fixed slot = balloon + forward × `AheadDistance` (40 m; the AI doc's 150 m was too far for prototype speeds), on the balloon's course; once there it never changes position (design 2026-11-14). Inside `SlotTolerance` it drops an `ANemesisMine` every `DropIntervalMin..Max` s (7–10 s; 5–7 s was too frequent and 10–13 s too rare in playtest) from the left wing, the belly or the right wing (`LaneOffset` 5 m, a different point each time), so mines land left of, on and right of the course. The mine's fall speed is timed so it is at basket height when the balloon arrives (height ÷ (distance ÷ balloon speed)). Never leaves: holds its slot until shot down (`LifeTime` 0; a positive value is for tests only).
+- **ANemesisMine.** Falls at the speed the bomber picked, clamped to `MinFallSpeed..MaxFallSpeed` (0.2–1.5 m/s). Removed once the balloon is `PassedDistance` (20 m) past it, or after `LifeTime`. Shot in the mine → explodes, basket within `Radius` (8 m) takes flat `Damage` (30). Shot in the parachute → falls at `CutFallSpeed`, harmless blast after `CutExplodeDelay`. Basket within `TriggerDistance` (4 m) → explodes. Red material + light while the basket is inside `Radius`. Removed after `LifeTime`.
+- **ANemesisCropDuster.** Fixed slot = balloon + forward × 10 m + right × 30 m × side, at basket height + `HeightAboveBasket` (5 m) at launch. The airship gives each new duster the free side; once in its slot it keeps that side and distance until shot down (design 2026-11-14, no side swaps). Fires only in the slot: `OnBurstWarning` 0.5 s before, then 6 bullets 0.12 s apart, cooldown 4 s, aimed straight at the basket with a 3° cone.
+- **Tuning note.** The flight prototype speeds are tiny (`MinSpeed` 0.5 m/s, `MaxSpeed` 3 m/s) while the AI doc assumed ~6 m/s; the bomber distance and mine fall speed above were adjusted to that (playtest feedback 2026-11-14).
+
+## Biome enemies (placeholder cubes; place them in the levels)
+All use `UNemesisTargetSubsystem` for the balloon, not the airship. Line of sight = trace on `WorldStatic` ignoring the balloon and its riders.
+- **ANemesisTowerGuard** (desert). Pivot at the tower's foot, `TowerHeight` 25 m (solid, the balloon collides with it). Basket within `Range` 180 m and in sight (and no sandstorm: `UNemesisTargetSubsystem::SetSandstormActive`) → `Aiming` for `AimTime` 2 s with a glint light → one `ANemesisBullet` straight at the basket (250 m/s, 12, no drop) → `Reloading` 4 s. Losing sight resets the aim. One hit on the invisible `HitBox` (2.6 × 2.6 × 3.2 m around the guard, reaching 0.7 m down over the tower top) kills it; the visible `Guard` cube has no collision; the tower ignores shots. The guard alone (0.8 m at 70 m ≈ 0.6°) was nearly impossible to hit with sway and revolver drop (~0.9 m at 70 m); verified: a revolver shot aimed at the guard from 71 m killed it. Events `OnAimChanged`, `OnShot`, `OnGuardKilled`.
+- **ANemesisBeacon** (desert). Lamp on a 15 m tower sweeps ±`SweepAngle` 60° around the actor's forward at 20°/s; beam 15°, `Range` 200 m, treated as a vertical fan (horizontal angle only). **Once the beam touches the basket it locks on** and follows it at `TrackSpeed` 60°/s (a 15° beam at 20°/s would cross the basket in 0.75 s and never reach `SpotTime` 1 s). After 1 s lit → `ANemesisAirship::RequestCropDuster()` (ignores the airship's cooldown, respects `MaxCropDusters`), then `Cooldown` 15 s back to sweeping. One hit on `Lamp` breaks it. Events `OnLitChanged`, `OnBalloonSpotted(bLaunched)`, `OnLampBroken`.
+- **ANemesisBirdFlock** (field). Trigger actor: balloon within `ActivationDistance` 150 m and no other active flock (`MaxActiveFlocks` 1) → 8–15 birds appear `StartSideDistance` 60 m to one side and fly (boids: separation, cohesion, alignment, goal) to where the balloon will be when they arrive, at `FlightHeight` 1.8 m above the basket centre (a little above the player's head; eye ≈ 1.6 m above the floor, birds ≈ 2.4 m), then on to the other side; 8 m/s. A bird within `BirdHitRadius` 2 m of that strike point deals 3 (max 15 per flock) and is gone. One hit kills a bird (falls); a hit or any player shot whose line passes within `ScareRadius` 10 m of the flock scatters it for 3 s. The flock removes itself when all birds are gone or 250 m away after crossing.
+- **ANemesisPatrol** (lava). Closed `Route` spline (default 300 m loop, edit in the level); spawns `GroupSize` 2 planes of `PlaneClass` (crop duster by default, or bomber) that fly the route at its altitude (`ANemesisPlane::SetRouteTarget`), `Spacing` 25 m apart. A plane within `AggroDistance` 200 m of the basket while the basket is within `DisengageDistance` 400 m of the route → the group attacks by its type's rules (dusters one per side, bombers ±12 m side by side), if fewer than `MaxEngagedPatrols` 2 groups attack. Basket more than 400 m from the route → back to the route. Shot-down planes are not replaced.
+
+Verified 2026-11-14 in PIE (BalloonFlight_Test, actors placed by script, not saved): the guard shot the basket for 12; the beacon locked on and the airship launched a crop duster; one hit killed the guard and broke the lamp; a flock hit the basket 5× (capped at 15), the second flock waited for the first; a shot bird fell and the flock scattered; both patrol groups (dusters and bombers) engaged, and a group whose zone was moved 600 m away went back to its route and stayed there.
+
+## Enemy models (2026-11-14)
+Crop duster, bomber, mine and rocket use real meshes; tower guard, beacon and birds are still cubes until the team's models land. Each part that is a hit zone or moves is its own mesh (`NemesisModel::Use` in `NemesisPlaceholder.h` swaps a cube for it and keeps the cube if the asset is missing):
+- **Crop duster:** `SM_CropDuster_Body` (Fuselage zone, wings included), `SM_CropDuster_Engine` (engine zone), `SM_CropDuster_Prop` (spins, counts as engine), `SM_CropDuster_Gun` = the `Turret` component on the back (turns to the basket, bullets leave from it; hits count as fuselage). No crew: cockpits are sealed, the rear gun is an automatic turret.
+- **Bomber:** `SM_Bomber_Body`, `SM_Bomber_EngineNose` / `EngineL` / `EngineR` (the three engine zones, wing nacelles 1.44 m wide so they show from behind), props `PropNose` + `PropL`/`PropR` (spin, count as engine).
+- **Mine:** `SM_Mine_Body` (slot 0 = iron, swapped to red while the basket is in radius), `SM_Mine_Parachute` (canopy + lines, pivot at the mine centre).
+- **Rocket:** `SM_Rocket_Body` (shootable along its whole length), `SM_Rocket_Flame`.
+Blender +Y = Unreal −Y. Pivots: props at their hubs, gun at its turret ring, everything else at the model origin.
+
+## Effects (2026-11-14)
+All drawn with the teammates' `AGunSmoke` (blocky dithered PS1 puffs with air physics), one smoke actor per effect; `NemesisFx::FStream` emits continuously and spreads puffs along the path since the last frame (unbroken trails at any frame rate); a stopped stream's actor removes itself after its last puffs fade. `AGunSmoke` shows dark tints much lighter than their value, so "black" smoke uses ~0.01.
+- **Engine hit:** the plane falls trailing dense black smoke from the engine (32 puffs/s); after `FallTime` it explodes and is removed.
+- **Fuselage destroyed:** a small blast, then the plane falls on fire (flame puffs 40/s, flickering orange `FireLight`) trailing black smoke; explodes at the end of the fall. (Before, the plane vanished at once.)
+- **Rocket:** ignition puff at the launcher, motor run-up from `LaunchSpeed` 9 m/s to 25 m/s over `BoostTime` 0.7 s (the intercept point accounts for it), roll `SpinSpeed` 540°/s, flickering flame scale and light, pale smoke trail (`TrailRate` 35/s) that hangs in the air, explosion when it hits or is shot down.
+- **Mine:** explosion when it goes off (in place or after the parachute is shot).
+
+## UEngineHealthComponent
+`ApplyEngineDamage`, `Kill`, `GetHealth`, `GetHealth01`, `IsDead`, delegates `OnHealthChanged(Health, Delta)`, `OnDestroyed`. It listens to the owner's `OnTakeAnyDamage`, so any `ApplyDamage` on the balloon lands here. On death: flight tick stops; with `bRestartLevelOnDeath` a red message is shown and the level reloads after `RestartDelay`.
+
+## Not done yet
+Lava pillars, sandstorms and other biome hazards (not enemies), radar registration (`BPC_RadarBlip` from `docs/Unreal_Prompt_3_RadarEnemies.md` does not exist in the project yet), real models/VFX/SFX for rocket, planes, mines and bullets engine damage decals.
+
+## Verification
+2026-11-14, Mac editor, `BalloonFlight_Test` PIE: rockets launched in D1 and hit the basket (engine 100 → 75 → 50); with `SpeedOverride` 1500 the airship closed in and the turrets killed the player, the level reloaded. Forced Bombers (after tuning): mines reached the balloon and exploded in radius for 30 each. Forced CropDusters: the duster took the right side and its bursts hit the basket for 3 each. Shots (2026-11-14, Visibility trace + rifle damage 143 from the basket): crop duster engine 1 shot → falls; crop duster and bomber fuselage 3 shots → destroyed; mine parachute → falls harmlessly; mine body → explodes; rocket → shot down.
+
+Verified 2026-11-14 with the real guns (projectiles from the eye): revolver hits took 1/4 each, rifle killed the bomber with 2 fuselage hits, one shotgun shot counted as one 1/3 hit, mixed revolver + shotgun hits added up, one revolver hit on the engine downed a crop duster. Revolver shots at 30 m missed half the time (sway).
