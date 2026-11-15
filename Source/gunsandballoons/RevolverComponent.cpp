@@ -47,6 +47,17 @@ URevolverComponent::URevolverComponent()
 	ReloadViewRotation = FRotator(15.f, 35.f, -45.f);
 	RecoilKickBack = 4.f;
 	RecoilKickPitch = 12.f;
+	// Aimed: the eye sits just behind and above the hammer, at about (-12, 0, 1.95) in mesh space. The hammer spur
+	// (X -8..-7, +-0.4cm wide, top at Z 1.75, the highest point at the back) stands as a post just under the centre
+	// of the screen with the front blade (X 26, top at Z 1.45) on top of it; the muzzle is tipped up 0.75 deg so
+	// the blade's tip lands exactly on the centre. The grip falls away steeply behind the hammer, far below the
+	// eye. The near plane is pulled in so the hammer and frame right in front of the eye are not sliced.
+	// TBD, tune in game.
+	AimViewOffset = FVector(12.f, 0.f, -1.8f);
+	AimViewRotation = FRotator(0.75f, 0.f, 0.f);
+	AimTime = 0.15f;
+	AimFieldOfView = 80.f;
+	AimNearClipPlane = 1.f;
 
 	// --- Pax handling (design, 2026-11-14) ---
 	Damage = 5.f;

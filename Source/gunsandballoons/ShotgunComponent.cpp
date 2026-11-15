@@ -65,6 +65,17 @@ UShotgunComponent::UShotgunComponent()
 	ReloadViewRotation = FRotator(12.f, 20.f, -30.f);
 	RecoilKickBack = 8.f;
 	RecoilKickPitch = 10.f;
+	// Aimed: the eye sits a little behind and above the top strap between the hammers (the strap runs from 10cm
+	// behind the root to the breech, top at Z 0.8; hammer spurs at Y +-3.7 reach Z 3.2), at about (-14, 0, 4) in
+	// mesh space, looking down onto the action and along the rib, as over a real side-by-side. Level with the
+	// strap, the strap, hammers and the two barrels flatten into one wide band across the screen. The muzzle is
+	// tipped up 1.5 deg so the bead (X 76, Z 1.6) still lands on the centre of the screen. The stock is behind
+	// and well below the eye, out of view; the near plane is pulled in so the action is not sliced. TBD, tune in game.
+	AimViewOffset = FVector(14.f, 0.f, -3.6f);
+	AimViewRotation = FRotator(1.5f, 0.f, 0.f);
+	AimTime = 0.2f;
+	AimFieldOfView = 82.f;
+	AimNearClipPlane = 1.f;
 
 	// --- Homestead 78 handling (design, 2026-11-14) ---
 	// Buckshot, not a bullet: 9 pellets per barrel in a pattern ~2.4m wide at 20m.

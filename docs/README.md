@@ -16,6 +16,7 @@
 | [features/weapons.md](features/weapons.md) | Дієгетична зброя, перезарядка, балістика | Сокін |
 | [features/grappling-hook.md](features/grappling-hook.md) | Граплінг-хук і збір ресурсів | Сокін |
 | [features/fire-extinguisher.md](features/fire-extinguisher.md) | Вогнегасник: запас на лічильнику, піна в стилі PS1 | Сокін |
+| [features/wrench.md](features/wrench.md) | Гайковий ключ: взяти, крутити на ЛКМ (поки лише анімація) | TBD |
 | [features/crosshair.md](features/crosshair.md) | Динамічний приціл в арт-стилі, інерція | Сокін |
 | [features/nemesis-airship.md](features/nemesis-airship.md) | Дирижабль-переслідувач і його атаки | Вано |
 | [features/biomes.md](features/biomes.md) | Рівні-біоми та їхні небезпеки | TBD |
@@ -25,6 +26,7 @@
 | [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Сокін |
 | [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Сокін |
 | [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Сокін |
+| [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses), FBX take split and import | TBD |
 | [tech/crosshair.md](tech/crosshair.md) | Technical reference for agents: crosshair HUD, material, spread and inertia | Сокін |
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |

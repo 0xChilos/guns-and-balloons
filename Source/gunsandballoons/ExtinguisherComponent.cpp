@@ -52,6 +52,8 @@ UExtinguisherComponent::UExtinguisherComponent()
 	ViewRotation = FRotator(0.f, -4.f, 0.f);
 	ReloadViewOffset = ViewOffset;
 	ReloadViewRotation = ViewRotation;
+	// A tool, not a gun: nothing to aim down.
+	bCanAimDownSights = false;
 
 	// No kick; a heavy tank sways slowly in the hand.
 	RecoilKickBack = 0.f;
