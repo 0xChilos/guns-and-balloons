@@ -1,4 +1,5 @@
 #include "MainMenuWidget.h"
+#include "BalloonRunSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ComboBoxString.h"
@@ -95,7 +96,11 @@ void UMainMenuWidget::StartConfiguredLevel()
  auto* Launch = GetGameInstance() ? GetGameInstance()->GetSubsystem<UBalloonLevelLaunchSubsystem>() : nullptr;
  FText Error;
  if (!Launch) Error = FText::FromString(TEXT("Level launch is unavailable."));
- else Launch->StartLevel(LevelStartOptions, NewRunLevel, Error);
+ else if (Launch->StartLevel(LevelStartOptions, NewRunLevel, Error))
+ {
+  // Fresh gold and gear for the run (docs/features/safe-zone.md); the level opens on a later tick.
+  if (UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this)) Run->StartNewRun();
+ }
  LevelStartError->SetText(Error);
 }
 

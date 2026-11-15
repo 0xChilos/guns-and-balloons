@@ -6,6 +6,7 @@
 A hand-held utility for putting out fires in the basket and on the balloon. The supply is limited and shown on the extinguisher itself, so every second of foam counts.
 
 ## How it works
+- **It is bought in the [shop](safe-zone.md)** between levels (10 gold, sold full); a run starts without it, so its place is empty until then. Once owned, the shop refills it (+10 for 1 gold). Its contents carry over between levels. A level played straight from the editor keeps the extinguisher as placed.
 - The extinguisher is gear that sits in its own place, like the [weapons](weapons.md): LMB on it with an empty hand takes it; LMB on its empty place puts it back. In the hand it sits where the weapons do; it is drawn and put away with its own animations (Equip / Unequip).
 - **The supply is shown on a mechanical counter** on the cylinder: three digit drums 000–100 that roll like an odometer. The extinguisher is issued **full (100)**; the supply is kept when you put it away.
 - **LMB held:** the extinguisher works: the lever is pressed (Spray_Start → Spray_Loop while held) and foam shoots from the nozzle. On release the lever returns (Spray_Stop).
@@ -38,5 +39,5 @@ A hand-held utility for putting out fires in the basket and on the balloon. The 
 
 ## Open questions
 - [ ] Putting out other fires (the basket, the envelope); cooling the stove is implemented separately.
-- [ ] Where is the supply refilled: the safe zone, a crate in the basket, a resource from the hook?
+- [x] Where is the supply refilled: in the shop between levels.
 - [ ] Does the jet push the balloon / the player (recoil)?
