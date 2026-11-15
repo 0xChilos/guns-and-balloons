@@ -6,6 +6,7 @@
 #include "FirstPersonCameraPawn.generated.h"
 
 class UCameraComponent;
+class UPlayerInteractionComponent;
 class FHookDebugMenu;
 class UGunComponent;
 class UExtinguisherComponent;
@@ -71,6 +72,10 @@ public:
 	virtual void NotifyControllerChanged() override;
 	virtual void UnPossessed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** Release held controls and tool input on menu entry, unpossession or shutdown. */
+	UFUNCTION(BlueprintCallable, Category="Player|Input")
+	void ReleaseGameplayInput();
 
 	UCameraComponent* GetCamera() const { return Camera; }
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
@@ -247,6 +252,9 @@ protected:
 	/** Draw the interaction trace for 1s on each click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	bool bDebugInteractTrace = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPlayerInteractionComponent> Interaction;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
@@ -446,6 +454,7 @@ protected:
 private:
 	void RaiseHandItem(UGunComponent* Item, UWeaponRackComponent* Rack);
 	friend class FPlayerGrabTest;
+	friend class FPlayerArchitectureTest;
 	friend class FHandItemTest;
 	friend class FStoveInteractionTest;
 

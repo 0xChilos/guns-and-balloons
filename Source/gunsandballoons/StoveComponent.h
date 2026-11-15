@@ -58,6 +58,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stove", meta=(ClampMin="0")) float FlightModifierEpsilon = .001f;
 
 	UFUNCTION(BlueprintCallable, Category="Stove") bool AddFuel(const UStoveFuelType* Fuel);
+	/** Removes heat and the same amount of pending heating; fuel time is preserved. Returns heat removed. */
+	UFUNCTION(BlueprintCallable, Category="Stove") float ApplyCooling(float Degrees);
+	/** Spray can cool the stove body, door or configured firebox, not unrelated basket parts. */
+	UFUNCTION(BlueprintPure, Category="Stove") bool AcceptsCoolingHit(const FHitResult& Hit) const;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stove|Cooling") TArray<FName> CoolingBones = {TEXT("stove"), TEXT("furnace_door")};
 	UFUNCTION(BlueprintPure, Category="Stove") bool CanAddFuel(const UStoveFuelType* Fuel) const;
 	UFUNCTION(BlueprintCallable, Category="Stove") void SetDoorOpen(bool bOpen);
 	UFUNCTION(BlueprintCallable, Category="Stove") void ToggleDoor() { SetDoorOpen(!bDoorOpen); }

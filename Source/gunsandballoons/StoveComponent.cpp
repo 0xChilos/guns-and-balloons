@@ -147,6 +147,30 @@ void UStoveComponent::SetDoorOpen(bool bOpen)
 	OnDoorChanged.Broadcast(bOpen);
 }
 
+bool UStoveComponent::AcceptsCoolingHit(const FHitResult& Hit) const
+{
+	return (IsValid(FireboxShape) && Hit.GetComponent() == FireboxShape)
+		|| (!Hit.BoneName.IsNone() && CoolingBones.Contains(Hit.BoneName));
+}
+
+float UStoveComponent::ApplyCooling(float Degrees)
+{
+	if (!FMath::IsFinite(Degrees) || Degrees <= 0.f) return 0.f;
+	const float PreviousTemperature = Temperature;
+	Temperature = FMath::Max(0.f, Temperature - Degrees);
+	TargetTemperature = FMath::Max(0.f, TargetTemperature - Degrees);
+	if (PreviousTemperature > 0.f && Temperature <= 0.f)
+	{
+		TargetTemperature = 0.f;
+		bIgniting = false;
+		IgnitionDelayLeft = 0.f;
+		OnExtinguished.Broadcast();
+	}
+	// Refresh overheat, VFX listeners and flight immediately, without another damage tick.
+	UpdateOutputs(0.f);
+	return PreviousTemperature - Temperature;
+}
+
 float UStoveComponent::GetTemperature01() const
 {
 	return GaugeMaxTemperature > 0.f ? FMath::Clamp(Temperature / GaugeMaxTemperature, 0.f, 1.f) : 0.f;

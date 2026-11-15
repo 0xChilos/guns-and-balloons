@@ -34,6 +34,8 @@ Units: seconds, degrees, degrees/second; animation translations are centimeters.
 | Member | Kind | Behaviour |
 | --- | --- | --- |
 | `FindStove(Actor)` | BlueprintPure static | Find the actor's stove component |
+| `ApplyCooling(Degrees)` | BlueprintCallable | Finite positive degrees reduce current and pending target heat, clamp to zero, preserve fuel. Returns current heat removed. Publishes overheat/flight changes immediately; extinguishes at zero. |
+| `AcceptsCoolingHit(Hit)` | BlueprintPure | Matches CoolingBones (stove, furnace_door) or FireboxShape; independent of the health damage filter. |
 | `CanAddFuel(Fuel)` / `AddFuel(Fuel)` | BlueprintPure / Callable | Require open door, valid nonnegative finite fuel values and available burn capacity; AddFuel returns success |
 | `SetDoorOpen(bool)` / `ToggleDoor()` | BlueprintCallable | Set logical door state; angle interpolates at DoorSpeed |
 | `IsDoorOpen()` / `GetDoorAngle()` | BlueprintPure | Logical state / animated angle; feeding checks logical state |
@@ -49,6 +51,7 @@ Units: seconds, degrees, degrees/second; animation translations are centimeters.
 | Fuel hand: `SetFuel(Type)` | BlueprintCallable | Load HandMesh and apply HandTransform; no firing behaviour |
 | Health: `ApplyDamage(Amount, Causer)` / `Repair(Amount, Repairer)` | BlueprintCallable | Shared health pool; returns amount applied |
 | Health: `SetHealth`, `GetHealth`, `GetHealth01`, `IsDepleted` | Callable / Pure getters | Clamped health state |
+| Health: `AcceptsPointHit(Component, Bone)` | BlueprintPure | Damage filter: tagged component, else walk from the hit bone to the root; first IgnoredBones/DamageBones match decides; empty DamageBones accepts the rest |
 | Health: `OnHealthChanged`, `OnDepleted`, `OnRestored` | BlueprintAssignable | Health delta, depletion and recovery transitions |
 | VFX: `GetFuelEffect()` / `GetOverheatEffect()` | BlueprintPure | Spawned effect actors for inspection |
 
@@ -69,11 +72,14 @@ TBD entries below are editable prototype values, not final balance.
 | SpeedMultAt90 / SpeedMultOverheat | TBD 1.6 / TBD 2 | x1 at zero, linear to threshold, then overheat multiplier |
 | OverheatDamagePerSecond / MaxHealth | TBD 2 / TBD 100 | Damage per second / shared health maximum |
 | DoorOpenDecayMultiplier | TBD 2 | Open door also leaks heat during decay pause |
-| DoorOpenAngle / DoorSpeed | TBD +100 deg C++ default; BP uses -100 deg / TBD 300 deg/s | Preserve approved BP direction |
+| DoorOpenAngle / DoorSpeed | TBD +100 deg (C++ default and BP, approved direction) / TBD 300 deg/s | Do not flip the sign |
 | Capacity / StartCount | TBD 10 each / TBD wood 4, coal 4, crystal 2 | Three independent supplies |
 | DoorBone / FireboxComponentName / InteractTraceChannel | furnace_door / StoveFirebox / Visibility | Must match collision and pawn trace |
 | GaugeSweepDeg / burn-arrow travel | 240 deg / +22 cm | Rig dimensions |
-| Health.DamageBones / bListenToActorDamage | stove, furnace_door / true | Phase 6 wiring; point hits filtered by bone |
+| Health.DamageBones / bIncludeChildBones / IgnoredBones | basket / true / balloon | Whole basket (all child bones) damages; the envelope branch does not |
+| Health.DamageComponentTag / bListenToActorDamage | BasketDamage / true | Tag on bone-less basket boxes Wall_*, Floor_*, StoveBlock, ConsoleBlock; Envelope_* untagged |
+| Repair | Stove only | A future repair tool must target the stove (same parts as AcceptsCoolingHit), not other basket parts |
+| StoveFirebox size | ~15 x 3 x 14 cm | Accepted as is (smaller than the planned 24 x 5 x 20 cm) |
 | HandMesh / HandTransform / hand rest pose | TBD placeholder art and transforms | Wood prototype scale 0.12, 0.05, 0.05; tune visually |
 | Extra bucket art, placement and click bounds | TBD | Manual Phase 6 uses Cylinder placeholders for wood/crystal |
 | VFX FuelBurst / OverheatSmoke / colors / OverheatOffset | TBD visual tuning | Burst Amount = count; smoke Amount = puffs/s; BP offset (0, -28, 100) cm |
@@ -83,14 +89,16 @@ TBD entries below are editable prototype values, not final balance.
 The stove ticks in `TG_PrePhysics`, adds itself as a flight tick prerequisite, and publishes `SetFlightModifier("Stove", 0, multiplier)` when changed. Other flight modifiers multiply with it; effective target speed remains clamped to flight MinSpeed/MaxSpeed. EndPlay clears the modifier and prerequisite. Use TargetSpeed 100 when checking x2 so MaxSpeed does not mask it.
 
 ## How to use it
-Add Stove and Health to the balloon owner; the stove discovers both Health and Flight in BeginPlay if unassigned. Overheat calls Health.ApplyDamage; other systems use ApplyDamage/Repair directly. OnDepleted is the balloon-destroyed integration event; game-over flow remains external. Configure DamageBones to stove and furnace_door; point damage must count once despite the matching actor any-damage callback.
+Add Stove and Health to the balloon owner; the stove discovers both Health and Flight in BeginPlay if unassigned. Overheat calls Health.ApplyDamage; other systems use ApplyDamage/Repair directly. OnDepleted is the balloon-destroyed integration event; game-over flow remains external. Run `configure_balloon_health.py` after the C++ build: it sets DamageBones = basket (with child bones), IgnoredBones = balloon and tags the basket collision boxes. Point damage counts once despite the matching actor any-damage callback. Repair is allowed only through the stove; Health.Repair stays a generic API, so the caller (repair tool, safe zone) enforces the stove target.
 
 VFX binds OnFuelAdded and OnOverheatChanged: accepted fuel emits an orange burst, overheat emits dark rising smoke, cooling stops emission while existing puffs fade. Source motion follows flight speed. EndPlay unbinds and destroys effects; dedicated servers skip VFX.
 
 ## Setup in `BP_Balloon`
+**Fuel buckets are not placed yet.** The fuel DataAssets `DA_Fuel_Wood`, `DA_Fuel_Coal` and `DA_Fuel_Crystal` are prepared with the design values, but `BP_Balloon` has only the legacy `WoodFuelSupply` (wood, on the modeled bucket); `FuelBucket_Coal`, `FuelBucket_Wood` and `FuelBucket_Crystal` are absent (checked in the editor 2026-11-15), so only wood can be picked up in game.
+
 Follow the [Phase 6 wiring and PIE checklist](stove-phase6-checklist.md), whose migration and acceptance remain pending. It reuses the modeled bucket for coal and adds wood/crystal placeholders. The historical script still creates WoodFuelSupply on the modeled bucket: **do not rerun its Blueprint setup after manual migration**, or it will recreate the old supply. Fuel assets can be created separately with configure_fuel_assets().
 
-Before wiring, check BP_Balloon and its owner chain for AmmoSupplyComponent: pawn LMB dispatch rejects that chain. Keep ammo in separate crates. Use one query-only StoveFirebox behind the door, Visibility Block, and a fitted query-only furnace_door physics body. BeginPlay resolves FireboxComponentName if FireboxShape references a BP template. Account for imported bone scale when fitting boxes; check placed-instance overrides.
+Before wiring, check BP_Balloon and its owner chain for AmmoSupplyComponent: pawn LMB dispatch rejects that chain. Keep ammo in separate crates. Use one query-only StoveFirebox behind the door, Visibility Block (current size accepted). The existing collision for furnace_door is kept; no extra door body needs to be fitted. BeginPlay resolves FireboxComponentName if FireboxShape references a BP template. Account for imported bone scale when fitting boxes; check placed-instance overrides.
 
 ABP_Balloon caches StoveRef and reads StoveDoorAngle, StoveTemp01 and StoveBurn01 during animation update. Preserve wing controls; append bone controls before Component To Local: furnace_door additive component-space yaw, gauge_needle additive parent-space GetGaugeRotation(), burn_arrow additive component-space Z = GetBurnTime01() * 22 cm. Keep alpha 1. The script preserves manually fitted firebox placement via the StoveFitted tag; clearing it requests a refit. It refits the door body and refuses ambiguous pose chains or saving failed Blueprint compiles.
 
@@ -102,7 +110,8 @@ Earlier records on this page reported a successful Development Editor build, Hea
 Coverage exists in `GunsAndBalloons.Stove.Heat`, `.Overheat`, `.Interaction`, `.VFX`, `GunsAndBalloons.Health` and `GunsAndBalloons.Player.HandItems`. Full three-bucket, health, visual/prop-placement and lever-regression acceptance remains the unchecked Phase 6 record.
 
 ## Known issues and pitfalls
-- `BP_Balloon` now includes `Health` with actor damage enabled and point-hit bones `stove` / `furnace_door`. Verified on the placed `BalloonFlight_Test` actor in PIE: stove resolves this pool, and two crystals heat to 100 degrees and reduce health. MaxHealth remains the TBD prototype 100.
+- Until `configure_balloon_health.py` runs on the new build, `BP_Balloon` Health filters on the exact bone `basket` only: hits on its child bones (stove, door, bucket) and on the bone-less wall/floor boxes deal no damage.
+- `BP_Balloon` now includes `Health` with actor damage enabled and point-hit bone `basket`. Verified on the placed `BalloonFlight_Test` actor in PIE: stove resolves this pool, and two crystals heat to 100 degrees and reduce health. MaxHealth remains the TBD prototype 100.
 - Phase 6 manual component migration and all its PIE acceptance items are pending; final bucket models and hand presentation need visual tuning.
 - Do not follow the older plan's closed-mouth auto-open instruction; door clicks alone toggle it.
 - Open-door leakage continues during decay pause after heating ends; closing the door preserves the intended pause.

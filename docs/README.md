@@ -23,6 +23,7 @@
 | [features/safe-zone.md](features/safe-zone.md) | Безпечна зона між рівнями: ремонт, магазин, апгрейди | TBD |
 | [features/ui-menus.md](features/ui-menus.md) | Головне меню, навігаційна панель | Ростік |
 | [art-style.md](art-style.md) | Візуальний стиль і пост-обробка | Ростік |
+| [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, єдиний Pawn та маршрутизація взаємодій | Сокін |
 | [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Сокін |
 | [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Сокін |
 | [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Сокін |

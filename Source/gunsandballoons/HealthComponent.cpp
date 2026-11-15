@@ -1,5 +1,6 @@
 #include "HealthComponent.h"
 #include "GameFramework/Actor.h"
+#include "Components/SkinnedMeshComponent.h"
 
 UHealthComponent::UHealthComponent()
 {
@@ -68,7 +69,20 @@ void UHealthComponent::HandlePointDamage(AActor* DamagedActor, float Damage, ACo
 	FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser)
 {
 	++PendingPointDamageEvents;
-	if (DamageBones.IsEmpty() || DamageBones.Contains(BoneName)) ApplyDamage(Damage, DamageCauser);
+	if (AcceptsPointHit(HitComponent, BoneName)) ApplyDamage(Damage, DamageCauser);
+}
+
+bool UHealthComponent::AcceptsPointHit(const UPrimitiveComponent* HitComponent, FName BoneName) const
+{
+	if (HitComponent && !DamageComponentTag.IsNone() && HitComponent->ComponentHasTag(DamageComponentTag)) return true;
+	const auto* Skinned = bIncludeChildBones ? Cast<USkinnedMeshComponent>(HitComponent) : nullptr;
+	// Walk from the hit bone towards the root; the first listed bone (damage or ignored) decides.
+	for (FName Bone = BoneName; !Bone.IsNone(); Bone = Skinned ? Skinned->GetParentBone(Bone) : NAME_None)
+	{
+		if (IgnoredBones.Contains(Bone)) return false;
+		if (DamageBones.Contains(Bone)) return true;
+	}
+	return DamageBones.IsEmpty();
 }
 
 void UHealthComponent::HandleAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,

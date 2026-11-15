@@ -5,6 +5,8 @@
 #include "Engine/World.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/Actor.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include <limits>
@@ -78,6 +80,41 @@ bool FHealthTest::RunTest(const FString& Parameters)
 	Point.HitInfo.BoneName = TEXT("basket");
 	Owner->TakeDamage(10.f, Point, nullptr, nullptr);
 	TestEqual(TEXT("Empty filter accepts any bone once"), Health->GetHealth(), 45.f);
+
+	// Whole-basket filter on the real balloon rig: children count, the envelope branch does not.
+	if (auto* Rig = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Assets/Balloon/SK_Balloon.SK_Balloon")))
+	{
+		auto* Mesh = NewObject<USkeletalMeshComponent>(Owner);
+		Mesh->SetSkeletalMeshAsset(Rig);
+		Health->DamageBones = {TEXT("basket")};
+		Health->IgnoredBones = {TEXT("balloon")};
+		TestTrue(TEXT("Listed bone"), Health->AcceptsPointHit(Mesh, TEXT("basket")));
+		TestTrue(TEXT("Child bone of basket"), Health->AcceptsPointHit(Mesh, TEXT("stove")));
+		TestTrue(TEXT("Grandchild bone of basket"), Health->AcceptsPointHit(Mesh, TEXT("furnace_door")));
+		TestFalse(TEXT("Ignored envelope bone"), Health->AcceptsPointHit(Mesh, TEXT("balloon")));
+		TestFalse(TEXT("Bone-less hit rejected without tag"), Health->AcceptsPointHit(Mesh, NAME_None));
+		Health->bIncludeChildBones = false;
+		TestFalse(TEXT("Exact-name mode rejects child"), Health->AcceptsPointHit(Mesh, TEXT("stove")));
+		Health->bIncludeChildBones = true;
+		Health->DamageComponentTag = TEXT("BasketDamage");
+		TestFalse(TEXT("Untagged component without bone"), Health->AcceptsPointHit(Mesh, NAME_None));
+		Mesh->ComponentTags.Add(TEXT("BasketDamage"));
+		TestTrue(TEXT("Tagged component counts without bone"), Health->AcceptsPointHit(Mesh, NAME_None));
+		Mesh->ComponentTags.Reset();
+		Point.HitInfo.Component = Mesh;
+		Point.HitInfo.BoneName = TEXT("stove");
+		Owner->TakeDamage(10.f, Point, nullptr, nullptr);
+		TestEqual(TEXT("Child-bone point hit damages once"), Health->GetHealth(), 35.f);
+		Point.HitInfo.BoneName = TEXT("balloon");
+		Owner->TakeDamage(10.f, Point, nullptr, nullptr);
+		TestEqual(TEXT("Envelope hit ignored, AnyDamage skipped"), Health->GetHealth(), 35.f);
+		Point.HitInfo.Component = nullptr;
+		Health->DamageBones.Empty();
+		Health->IgnoredBones.Empty();
+		Health->DamageComponentTag = NAME_None;
+		Health->SetHealth(45.f);
+	}
+	else AddError(TEXT("SK_Balloon not found"));
 	Health->EndPlay(EEndPlayReason::RemovedFromWorld);
 	Owner->TakeDamage(5.f, FDamageEvent(), nullptr, nullptr);
 	TestEqual(TEXT("EndPlay unbinds damage"), Health->GetHealth(), 45.f);

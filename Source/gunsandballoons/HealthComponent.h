@@ -23,9 +23,22 @@ public:
 	float MaxHealth = 100.f; // TBD: prototype value
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	bool bListenToActorDamage = true;
-	/** Empty accepts all point hits; otherwise only these bones accept point damage. */
+	/** Empty accepts all point hits (except IgnoredBones); otherwise only these bones accept point damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
 	TArray<FName> DamageBones;
+	/** A listed bone also covers its child bones on the hit skinned mesh; the closest listed ancestor decides. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
+	bool bIncludeChildBones = true;
+	/** Bones that never take point damage (with their children when bIncludeChildBones), e.g. the envelope under the basket. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
+	TArray<FName> IgnoredBones;
+	/** Point hits on owner components carrying this tag count regardless of bone (e.g. bone-less basket collision boxes). None disables. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health")
+	FName DamageComponentTag;
+
+	/** Whether a point hit on this component/bone passes the damage filter. */
+	UFUNCTION(BlueprintPure, Category="Health")
+	bool AcceptsPointHit(const UPrimitiveComponent* HitComponent, FName BoneName) const;
 
 	UFUNCTION(BlueprintCallable, Category="Health")
 	float ApplyDamage(float Amount, AActor* DamageCauser = nullptr);
