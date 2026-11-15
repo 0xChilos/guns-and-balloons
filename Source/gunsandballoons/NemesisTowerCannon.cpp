@@ -17,12 +17,12 @@ namespace
 	constexpr float CannonBarrelLength = 300.f;
 	constexpr float CannonPlatformHeight = 40.f;
 	/** The team's turret meshes face −Y; the actor faces +X. */
-	const FRotator ModelToActor(0.f, 90.f, 0.f);
+	const FRotator TurretModelToActor(0.f, 90.f, 0.f);
 
-	FVector SocketInMesh(const UStaticMeshComponent* C, FName Socket)
+	FVector TurretSocketInMesh(const UStaticMeshComponent* C, FName Socket)
 	{
 		const UStaticMeshSocket* S = C && C->GetStaticMesh() ? C->GetStaticMesh()->FindSocket(Socket) : nullptr;
-		return S ? ModelToActor.RotateVector(S->RelativeLocation) : FVector::ZeroVector;
+		return S ? TurretModelToActor.RotateVector(S->RelativeLocation) : FVector::ZeroVector;
 	}
 }
 
@@ -115,7 +115,7 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 		NemesisModel::Use(FuelTank, EngineMesh.Object);
 		for (UStaticMeshComponent* C : { Tower.Get(), Carriage.Get(), Barrel.Get(), FuelTank.Get() })
 		{
-			C->SetRelativeRotation(ModelToActor);
+			C->SetRelativeRotation(TurretModelToActor);
 		}
 		NemesisCollision::Solid(Carriage);
 		NemesisCollision::Solid(Barrel);
@@ -131,19 +131,19 @@ void ANemesisTowerCannon::OnConstruction(const FTransform& Transform)
 	if (bModel)
 	{
 		// Everything hangs off the model's sockets: head on the deck, guns on the head, boiler on the deck.
-		const FVector HeadAt = SocketInMesh(Tower, TEXT("head"));
+		const FVector HeadAt = TurretSocketInMesh(Tower, TEXT("head"));
 		DeckHeight = HeadAt.Z;
 		CannonYaw->SetRelativeLocation(HeadAt);
-		CannonPitch->SetRelativeLocation(SocketInMesh(Carriage, TEXT("guns")));
-		const FVector Muzzle = SocketInMesh(Barrel, TEXT("muzzle_1"));
+		CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
+		const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
 		MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
-		const FVector EngineAt = SocketInMesh(Tower, TEXT("engine"));
+		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine"));
 		FuelTank->SetRelativeLocation(EngineAt);
 		// Hit box around the boiler, a bit bigger than it.
 		const FBox Box = FuelTank->GetStaticMesh()->GetBoundingBox();
 		TankHitBox->SetBoxExtent(Box.GetExtent().ComponentMax(FVector(1.f)) * FVector(1.1f, 1.1f, 1.05f));
-		TankHitBox->SetRelativeLocation(EngineAt + ModelToActor.RotateVector(Box.GetCenter()));
-		TankHitBox->SetRelativeRotation(ModelToActor);
+		TankHitBox->SetRelativeLocation(EngineAt + TurretModelToActor.RotateVector(Box.GetCenter()));
+		TankHitBox->SetRelativeRotation(TurretModelToActor);
 		return;
 	}
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));

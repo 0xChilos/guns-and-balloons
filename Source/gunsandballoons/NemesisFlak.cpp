@@ -20,14 +20,14 @@ namespace
 	constexpr float BarrelLength = 240.f;
 	constexpr float EnvelopeZ = 420.f; // envelope centre above the gondola
 	/** The model faces −Y; the actor faces +X. */
-	const FRotator ModelToActor(0.f, 90.f, 0.f);
+	const FRotator FlakModelToActor(0.f, 90.f, 0.f);
 	/** Model: the launcher bone is this high above the mesh origin; it sits at the actor's origin
 	 *  (the player's altitude). */
-	constexpr float ModelLauncherZ = 200.f;
+	constexpr float FlakModelLauncherZ = 200.f;
 	const FName LauncherBone(TEXT("launcher"));
 	const FName LauncherPitchBone(TEXT("launcher_pitch"));
 
-	void MakeSolid(UPrimitiveComponent* C)
+	void FlakMakeSolid(UPrimitiveComponent* C)
 	{
 		NemesisCollision::Solid(C);
 		C->SetHiddenInGame(true);
@@ -127,7 +127,7 @@ ANemesisFlak::ANemesisFlak()
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> BalloonMesh(TEXT("/Game/Assets/Map_edge/SK_RocketBalloon.SK_RocketBalloon"));
 	Body = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Body"));
 	Body->SetupAttachment(Root);
-	Body->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -ModelLauncherZ), ModelToActor);
+	Body->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -FlakModelLauncherZ), FlakModelToActor);
 	EnvelopeCollision = CreateDefaultSubobject<USphereComponent>(TEXT("EnvelopeCollision"));
 	EnvelopeCollision->SetupAttachment(Body);
 	EnvelopeCollision->InitSphereRadius(360.f);
@@ -144,7 +144,7 @@ ANemesisFlak::ANemesisFlak()
 	{
 		bModel = true;
 		Body->SetSkinnedAssetAndUpdate(BalloonMesh.Object);
-		for (UPrimitiveComponent* C : { (UPrimitiveComponent*)EnvelopeCollision, (UPrimitiveComponent*)SkirtCollision, (UPrimitiveComponent*)DeckCollision }) MakeSolid(C);
+		for (UPrimitiveComponent* C : { (UPrimitiveComponent*)EnvelopeCollision, (UPrimitiveComponent*)SkirtCollision, (UPrimitiveComponent*)DeckCollision }) FlakMakeSolid(C);
 		// Hide the placeholder parts.
 		TArray<UStaticMeshComponent*> Cubes = { Gondola, Envelope, TurretBody, Barrel, Lamp };
 		for (UStaticMeshComponent* R : Ropes) Cubes.Add(R);

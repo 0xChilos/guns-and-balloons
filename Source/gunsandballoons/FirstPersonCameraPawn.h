@@ -34,16 +34,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandStat
  *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
  *   while idle, kicks when fired and turns its loading port toward the eye while reloading.
  *   Where each gun sits and how hard it kicks is set on the gun component (UGunComponent).
-<<<<<<< HEAD
- * - Three guns and three tools, one of each: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
- *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
- *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held) and wrench
- *   (SK_Wrench, UWrenchComponent; turns while LMB is held).
-=======
- * - Three guns, two tools and a fuel item: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
- *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
- *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held), and fuel (UFuelHandComponent; carried from buckets to the stove).
->>>>>>> 17da491 (feat: added stove, fuel)
+ * - Three guns, three tools and a fuel item: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
+ *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent),
+ *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held), wrench
+ *   (SK_Wrench, UWrenchComponent; turns while LMB is held) and fuel (UFuelHandComponent; carried from
+ *   buckets to the stove).
  * - The hand starts empty and holds one item at a time. Each item lies on its own place in the world
  *   (UWeaponRackComponent: the basket's hooks, an AHandItemPickup): LMB on it takes the item, LMB on its
  *   empty place puts it back, LMB on another item swaps. There are no weapon keys. An item being put
@@ -88,12 +83,9 @@ public:
 	UHookComponent* GetHook() const { return Hook; }
 	USkeletalMeshComponent* GetExtinguisherMesh() const { return ExtinguisherMesh; }
 	UExtinguisherComponent* GetExtinguisher() const { return Extinguisher; }
-<<<<<<< HEAD
 	USkeletalMeshComponent* GetWrenchMesh() const { return WrenchMesh; }
 	UWrenchComponent* GetWrench() const { return Wrench; }
-=======
 	UFuelHandComponent* GetFuelHand() const { return FuelHand; }
->>>>>>> 17da491 (feat: added stove, fuel)
 
 	/** The item in hand (the one still being put away during a swap); with an empty hand, the one held last. */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -218,15 +210,11 @@ protected:
 	/** Lowers the item being swapped out, and once it is out of view puts it on its rack and brings out the next one. */
 	void UpdateWeaponSwap(float DeltaSeconds);
 
-<<<<<<< HEAD
-	/** The items in StartingGunIndex order: revolver, rifle, shotgun, hook, extinguisher, wrench. */
-=======
-	/** Inventory order: revolver, rifle, shotgun, hook, extinguisher, fuel (never a starting item). */
->>>>>>> 17da491 (feat: added stove, fuel)
-	TArray<UGunComponent*, TInlineAllocator<6>> GetGuns() const;
+	/** Inventory order: revolver, rifle, shotgun, hook, extinguisher, wrench, fuel (fuel is never a starting item). */
+	TArray<UGunComponent*, TInlineAllocator<7>> GetGuns() const;
 
 	/** Each gun's mesh, in the same order as GetGuns. */
-	TArray<USkeletalMeshComponent*, TInlineAllocator<6>> GetGunMeshes() const;
+	TArray<USkeletalMeshComponent*, TInlineAllocator<7>> GetGunMeshes() const;
 
 	/** H: open/close the hook debug menu; while open, its arrow keys. */
 	void UpdateHookDebugMenu(APlayerController* PC);
@@ -321,7 +309,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UExtinguisherComponent> Extinguisher;
 
-<<<<<<< HEAD
 	/** The wrench, attached to the camera like WeaponMesh. Hidden until taken in hand. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WrenchMesh;
@@ -330,17 +317,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UWrenchComponent> Wrench;
 
-	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher, 5 = wrench. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "5"))
-=======
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<USkeletalMeshComponent> FuelHandMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<UFuelHandComponent> FuelHand;
 
-	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "4"))
->>>>>>> 17da491 (feat: added stove, fuel)
+
+	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher, 5 = wrench. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "5"))
 	int32 StartingGunIndex = 0;
 
 	/** Seconds to lower an item out of view when swapping. Raising the next one takes RaiseTime. */
