@@ -152,7 +152,7 @@ bool BalloonPlacementPlanning::Resolve(const UBalloonLevelConfig& C, const TArra
 
 bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P,
  const TArray<FResolvedRow>& Input, TArray<FString>& D, const FGroundSampler& Ground,
- const TArray<TArray<FVector>>& FieldBorders)
+ const TArray<TArray<FVector>>& FieldBorders, const TArray<FVector>& ReservedRoute)
 {
  P.Placements.Reset();
  if(P.SampleDistances.Num()<2 || P.SplineSamples.Num()!=P.SampleDistances.Num()) { D.Add(TEXT("Placement: missing M2 geometry")); return false; }
@@ -397,6 +397,39 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
       }
     }
     if(!Spaced) {if(Line) return Fail(RI,I,TEXT("line spacing conflicts with end-to-end mesh length"));continue;}
+    // Keep the preflight route available, including its start/finish reservations.
+    // Use transformed collision bounds at terrain height, rather than mesh origins:
+    // low flight and narrow corridors must not turn valid geometry into a wall.
+    if (R.Collision && Res.LocalCollisionBounds.IsValid && !ReservedRoute.IsEmpty())
+    {
+     FSurface ProposedSurface; ProposedSurface.Z=C.PlacementGroundZMeters*100.;
+     if (Ground && !Ring && !Ground(V,ProposedSurface)) continue;
+     if (!FMath::IsFinite(ProposedSurface.Z) || ProposedSurface.Normal.ContainsNaN() ||
+         ProposedSurface.Normal.Z<=0. || ProposedSurface.Normal.IsNearlyZero()) continue;
+     FVector Location=V; Location.Z=ProposedSurface.Z;
+     FQuat ProposedRotation=FRotator(0.,Yaw,0.).Quaternion();
+     if (R.AlignToSlope && !Street)
+     {
+      FVector Forward=FRotator(0.,Yaw,0.).Vector();
+      Forward.Z=-(ProposedSurface.Normal.X*Forward.X+ProposedSurface.Normal.Y*Forward.Y)/ProposedSurface.Normal.Z;
+      ProposedRotation=FRotationMatrix::MakeFromZX(ProposedSurface.Normal,Forward).ToQuat();
+     }
+     const FBox Bounds=Res.LocalCollisionBounds.TransformBy(FTransform(ProposedRotation,Location,FVector(Scale)))
+      .ExpandBy(FVector(P.BalloonRadiusCm,P.BalloonRadiusCm,P.BalloonHalfHeightCm));
+     bool BlocksRoute=Bounds.IsInsideOrOn(ReservedRoute[0]);
+     for (int32 RouteIndex=1; !BlocksRoute && RouteIndex<ReservedRoute.Num(); ++RouteIndex)
+     {
+      if (++Work>500000) return Fail(RI,I,TEXT("route reservation work limit exceeded"));
+      const FVector& Begin=ReservedRoute[RouteIndex-1];
+      const FVector& End=ReservedRoute[RouteIndex];
+      BlocksRoute=FMath::LineBoxIntersection(Bounds,Begin,End,End-Begin);
+     }
+     if (BlocksRoute)
+     {
+      if (Line) return Fail(RI,I,TEXT("field border intersects reserved flight route"));
+      continue;
+     }
+    }
     Found=true; break;
    }
    if(!Found) return Fail(RI,I,TEXT("256 attempts exhausted: spacing/cluster/eligible bounds"));

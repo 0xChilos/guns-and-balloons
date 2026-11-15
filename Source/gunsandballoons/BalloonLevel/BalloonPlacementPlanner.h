@@ -18,5 +18,5 @@ namespace BalloonPlacementPlanning
  /** Pure transactional dispatcher. Empty sampler uses configured flat ground. All units in descriptors cm. */
  GUNSANDBALLOONS_API bool Build(const UBalloonLevelConfig& Config, FBalloonLevelPlan& Plan,
   const TArray<FResolvedRow>& Rows, TArray<FString>& Diagnostics, const FGroundSampler& Ground = FGroundSampler(),
-  const TArray<TArray<FVector>>& FieldBorders = {});
+  const TArray<TArray<FVector>>& FieldBorders = {}, const TArray<FVector>& ReservedRoute = {});
 }

@@ -11,8 +11,11 @@
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "BalloonTerrainBuilder.h"
 #include "ProceduralMeshComponent.h"
@@ -38,6 +41,14 @@ ABalloonLevelGenerator::ABalloonLevelGenerator()
  CompletionZone->SetGenerateOverlapEvents(false);
  CompletionZone->SetBoxExtent(FVector::ZeroVector);
  CompletionZone->ShapeColor = FColor::Green;
+ FinishAirship = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FinishAirship"));
+ FinishAirship->SetupAttachment(CompletionZone);
+ FinishAirship->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+ FinishAirship->SetGenerateOverlapEvents(false);
+ FinishAirship->SetCanEverAffectNavigation(false);
+ FinishAirship->SetVisibility(false);
+ static ConstructorHelpers::FObjectFinder<UStaticMesh> FinishMesh(TEXT("/Game/Assets/Nemesis/SM_Nemesis_Airship.SM_Nemesis_Airship"));
+ if (FinishMesh.Succeeded()) FinishAirship->SetStaticMesh(FinishMesh.Object);
 	Spline->ClearSplinePoints();
  const auto* Defaults = GetDefault<ABalloonEnvironmentPresetController>();
  Day = Defaults->Day; Night = Defaults->Night; BiomeFog = Defaults->BiomeFog;
@@ -80,7 +91,17 @@ void ABalloonLevelGenerator::Tick(float DeltaSeconds)
  Super::Tick(DeltaSeconds);
  if (!GetWorld()->IsGameWorld() || Status != EBalloonLevelGenerationStatus::Ready || LevelCompleted || !IsValid(RoutePawn)) return;
  const FVector Local = CompletionZone->GetComponentTransform().InverseTransformPosition(RoutePawn->GetActorLocation());
- if (FBox(-CompletionZone->GetUnscaledBoxExtent(), CompletionZone->GetUnscaledBoxExtent()).IsInsideOrOn(Local)) CompleteLevel();
+ if (FBox(-CompletionZone->GetUnscaledBoxExtent(), CompletionZone->GetUnscaledBoxExtent()).IsInsideOrOn(Local))
+ {
+  const FString Message=FString::Printf(TEXT("CompleteLevel area entered: balloon=%s position=%s generator=%s biome=%s seed=%d"),
+   *GetNameSafe(RoutePawn.Get()), *RoutePawn->GetActorLocation().ToString(), *GetName(), *Plan.BiomeId.ToString(), Plan.Seed);
+  UE_LOG(LogTemp, Display, TEXT("%s"), *Message);
+  Diagnostics.Add(Message);
+#if !UE_BUILD_SHIPPING
+  if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Balloon entered CompleteLevel area"));
+#endif
+  CompleteLevel();
+ }
 }
 
 void ABalloonLevelGenerator::CompleteLevel()
@@ -162,6 +183,7 @@ void ABalloonLevelGenerator::BeginPlay()
 
 void ABalloonLevelGenerator::ClearGeneratedLevel()
 {
+ FinishAirship->SetVisibility(false);
  LevelCompleted = false;
  CompletionZone->SetBoxExtent(FVector::ZeroVector);
  Realizer->Clear();
@@ -179,6 +201,37 @@ bool ABalloonLevelGenerator::RegenerateLevel() { return GenerateLevel(); }
 
 void ABalloonLevelGenerator::GenerateLevelInEditor() { GenerateLevel(); }
 void ABalloonLevelGenerator::RegenerateLevelInEditor() { RegenerateLevel(); }
+
+void ABalloonLevelGenerator::CheckSeedInEditor() { CheckSeed(); }
+
+bool ABalloonLevelGenerator::CheckSeed()
+{
+ const auto PreviousPlan = Plan;
+ const auto PreviousProgress = Progress;
+ auto* PreviousConfig = ActiveConfig.Get();
+ const auto PreviousStatus = Status;
+ const bool PreviousRetryable = SeedRetryable;
+ TArray<TPair<TWeakObjectPtr<AActor>, bool>> Collision;
+ for (auto& Ref : Realizer->Actors)
+  if (Ref.IsValid()) { Collision.Emplace(Ref, Ref->GetActorEnableCollision()); Ref->SetActorEnableCollision(false); }
+ ON_SCOPE_EXIT
+ {
+  for (auto& Entry : Collision) if (Entry.Key.IsValid()) Entry.Key->SetActorEnableCollision(Entry.Value);
+  Plan = PreviousPlan; Progress = PreviousProgress; ActiveConfig = PreviousConfig;
+  Status = PreviousStatus; SeedRetryable = PreviousRetryable;
+  Spline->ClearSplinePoints(false);
+  for (const auto& Point : Plan.SplineSamples)
+  {
+   const int32 Index = Spline->GetNumberOfSplinePoints();
+   Spline->AddSplinePoint(Point, ESplineCoordinateSpace::World, false);
+   Spline->SetSplinePointType(Index, ESplinePointType::Linear, false);
+  }
+  Spline->UpdateSpline();
+ };
+ LastSeedCheckPassed = BuildAndRealizeLevel(false, true);
+ Diagnostics.Add(LastSeedCheckPassed ? TEXT("Seed check passed; no level committed") : TEXT("Seed check failed; no level committed"));
+ return LastSeedCheckPassed;
+}
 
 bool ABalloonLevelGenerator::GenerateLevel()
 {
@@ -206,7 +259,15 @@ bool ABalloonLevelGenerator::GenerateLevel()
   CompletionZone->SetWorldLocationAndRotation(Plan.Finish.GetLocation(), Plan.Finish.GetRotation());
   CompletionZone->SetWorldScale3D(FVector::OneVector);
   CompletionZone->SetBoxExtent(FVector(FMath::Max(1.f, CompletionZoneHalfDepthMeters) * 100.f,
-   GetWidthAtDistanceCm(Plan.LengthCm) * .5f, FMath::Max(1000., Plan.BalloonHalfHeightCm)));
+   GetWidthAtDistanceCm(Plan.LengthCm) * 1.25f * .5f, FMath::Max(1000., Plan.BalloonHalfHeightCm)));
+  // Place the whole mesh beyond the far face of the completion zone, accounting for its pivot.
+  FTransform MeshShape = FinishAirship->GetRelativeTransform();
+  MeshShape.SetTranslation(FVector::ZeroVector);
+  const double MeshMinX = FinishAirship->GetStaticMesh()
+   ? FinishAirship->GetStaticMesh()->GetBoundingBox().TransformBy(MeshShape).Min.X : 0.;
+  FinishAirship->SetRelativeLocation(FVector(CompletionZone->GetUnscaledBoxExtent().X - MeshMinX +
+   FMath::Max(0.f, FinishAirshipGapMeters) * 100., 0., 0.));
+  FinishAirship->SetVisibility(true);
   EventManager->ResetEventTimeline();
   BorderProxies.Reset();
   for (const auto& Actor : Realizer->Actors)
@@ -218,7 +279,6 @@ bool ABalloonLevelGenerator::GenerateLevel()
   for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
   {
    if (It->Generator != this) continue;
-   if (UseStartOptions) It->BiomeFog.FindOrAdd(ActiveConfig->BiomeId).Density = StartOptions.FogDensity;
    if (!It->ApplyEnvironment(ActiveConfig->BiomeId, ActiveConfig->Preset))
    {
     Diagnostics.Add(TEXT("Environment application failed; inspect the bound environment controller diagnostics"));
@@ -239,7 +299,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
  return false;
 }
 
-bool ABalloonLevelGenerator::BuildAndRealizeLevel(bool RetrySeed)
+bool ABalloonLevelGenerator::BuildAndRealizeLevel(bool RetrySeed, bool ValidateOnly)
 {
  SeedRetryable = false;
  Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); if (!RetrySeed) ActiveConfig=nullptr; Spline->ClearSplinePoints();
@@ -301,19 +361,11 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel(bool RetrySeed)
   ActiveConfig->FlightHeightMeters = StartOptions.FlightHeight;
   ActiveConfig->BaseWidthMeters = ActiveConfig->MinWidthMeters = StartOptions.LevelWidth;
   ActiveConfig->WidthProfile.GetRichCurve()->Reset();
-  ActiveConfig->EnemyDensity = StartOptions.EnemyDensity;
-  ActiveConfig->ObstacleDensity = StartOptions.ObstacleDensity;
-  ActiveConfig->ItemDensity = StartOptions.ItemDensity;
-  ActiveConfig->EnemiesEnabled = SpawnEnemies && StartOptions.EnemyDensity > 0.f;
-  ActiveConfig->ObstaclesEnabled = StartOptions.ObstacleDensity > 0.f;
   if (ChangedBiome || !ActiveConfig->BiomeAssetTable)
    ActiveConfig->BiomeAssetTable = LoadObject<UDataTable>(nullptr, *FString::Printf(TEXT("/Game/BalloonLevel/Rules/DT_BalloonAssets_%s.DT_BalloonAssets_%s"), *StartOptions.Biome.ToString(), *StartOptions.Biome.ToString()));
   if (!ActiveConfig->SharedAssetTable)
    ActiveConfig->SharedAssetTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/BalloonLevel/Rules/DT_BalloonAssets_Shared.DT_BalloonAssets_Shared"));
   if (ChangedBiome) ActiveConfig->TerrainMaterial.Reset();
-  if (ActiveConfig->BorderExactCount >= 0) ActiveConfig->BorderExactCount = FMath::Min(10000, FMath::RoundToInt(ActiveConfig->BorderExactCount * StartOptions.EnemyDensity));
-  else ActiveConfig->BorderDensityPerKm *= StartOptions.EnemyDensity;
-  if (StartOptions.EnemyDensity == 0.f) ActiveConfig->BorderActorClass.Reset();
  }
  if (RandomizeSeed) ActiveConfig->Seed = FMath::Rand();
  }
@@ -428,12 +480,14 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel(bool RetrySeed)
     return true;
    };
   }
-  if(!BalloonPlacementPlanning::Build(*ActiveConfig,Candidate,Rows,Diagnostics,TerrainSampler))continue;
+  if(!BalloonPlacementPlanning::Build(*ActiveConfig,Candidate,Rows,Diagnostics,TerrainSampler,{},Geometry.Points))continue;
   const auto Result=BalloonHorizontalRoute::Validate(Candidate,Envelope,Settings,Sweep);
   Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d placement attempt=%d visited=%d: %s"),Candidate.Seed,Attempt+1,Result.CellsVisited,Result.Reachable?TEXT("fixed-Z route proved"):*Result.FailureReason));
   if(Result.Reachable) {Candidate.RoutePoints=Result.Points;Reachable=true;break;}
  }
  if(!Reachable) {SeedRetryable=true;Status=EBalloonLevelGenerationStatus::Unreachable;return false;}
+ // Both checks and generation must pass the same complete planning proof.
+ if (ValidateOnly) return true;
  Plan = MoveTemp(Candidate);
 	for (const FVector& Point : Plan.SplineSamples)
 	{

@@ -20,12 +20,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalloonLevelStartOptionsTest, "GunsAndBalloons
 bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
 {
  FBalloonLevelStartOptions Options; TArray<FString> Errors;
- for (float Invalid : {-1.f, 1.1f, std::numeric_limits<float>::quiet_NaN()})
- {
-  Options.ItemDensity=Invalid;
-  TestFalse(TEXT("invalid item density rejected"),Options.Validate(Errors));
- }
- Options.ItemDensity=.5f;
  auto* Instance = NewObject<UGameInstance>();
  auto* Launch = NewObject<UBalloonLevelLaunchSubsystem>(Instance);
  FText LaunchError;
@@ -35,14 +29,14 @@ bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
  TestTrue(TEXT("queue valid setup"), Launch->QueueLevel(Options));
  FBalloonLevelStartOptions Received;
  TestTrue(TEXT("consume launch"), Launch->Consume(Received)); TestFalse(TEXT("launch only once"), Launch->Consume(Received));
- TestEqual(TEXT("item density survives launch handoff"),Received.ItemDensity,.5f);
+ TestEqual(TEXT("height survives launch handoff"),Received.FlightHeight,Options.FlightHeight);
  Options.LevelWidth = std::numeric_limits<float>::quiet_NaN();
  TestFalse(TEXT("start validates settings independently of menu"), Launch->StartLevel(Options, TSoftObjectPtr<UWorld>(), LaunchError));
  TestFalse(TEXT("reject NaN"), Launch->QueueLevel(Options));
  Options.LevelWidth = 180.f; Options.Biome = TEXT("Unknown"); TestFalse(TEXT("reject unknown biome"), Options.Validate(Errors));
  Options.Biome = TEXT("Field"); Options.Cycle = EBalloonLightingPreset::Night;
- Options.FlightHeight = 120.f; Options.EnemyDensity = .5f; Options.ObstacleDensity = .5f;
- Options.FogDensity = .075f; Options.DistanceToNemesis = 350.f;
+ Options.FlightHeight = 120.f;
+ Options.DistanceToNemesis = 350.f;
  auto* W = UWorld::CreateWorld(EWorldType::Game, false);
  auto* Balloon = W->SpawnActor<AActor>(); auto* Hull = NewObject<UBoxComponent>(Balloon);
  Balloon->SetRootComponent(Hull); Balloon->AddInstanceComponent(Hull); Hull->SetBoxExtent(FVector(100.,100.,400.));
@@ -55,16 +49,18 @@ bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
  C->MaxHeadingDegrees = 0.f; C->TerrainMode = EBalloonTerrainMode::Flat; C->TerrainMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
  auto* Empty = NewObject<UDataTable>(); Empty->RowStruct = FBalloonLevelAssetRow::StaticStruct();
  C->SharedAssetTable = C->BiomeAssetTable = Empty; G->RandomBiomeConfigs.Add(C);
+ C->EnemiesEnabled=true; C->EnemyDensity=.5f; C->ObstacleDensity=.75f; C->ItemDensity=.5f;
  if (!TestTrue(TEXT("generate from options without selected config"), G->GenerateLevel())) { W->DestroyWorld(false); return false; }
  TestEqual(TEXT("biome"), G->GetPlan().BiomeId, Options.Biome);
  TestTrue(TEXT("fixed night wins over legacy override"), G->ActiveConfig->Preset == EBalloonLightingPreset::Night);
  TestEqual(TEXT("balloon height in cm"), Balloon->GetActorLocation().Z, 12000.);
  TestEqual(TEXT("width in cm"), G->GetWidthAtDistanceCm(0.f), 18000.f);
- TestEqual(TEXT("fog density"), G->Fog->GetComponent()->FogDensity, .075f);
+ TestEqual(TEXT("authored enemy density retained"), G->ActiveConfig->EnemyDensity, C->EnemyDensity);
+ TestEqual(TEXT("authored obstacle density retained"), G->ActiveConfig->ObstacleDensity, C->ObstacleDensity);
  TestEqual(TEXT("source width unchanged"), C->BaseWidthMeters, 600.f);
  TestEqual(TEXT("source height unchanged"), C->FlightHeightMeters, 100.f);
  TestEqual(TEXT("item density applied to active config"), G->ActiveConfig->ItemDensity, .5f);
- TestEqual(TEXT("source item density unchanged"), C->ItemDensity, 1.f);
+ TestEqual(TEXT("source item density unchanged"), C->ItemDensity, .5f);
  int32 Birds = 0; ANemesisAirship* Airship = nullptr;
  for (const auto& Ref : G->Realizer->Actors)
  {
@@ -75,10 +71,29 @@ bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
  TestNotNull(TEXT("single nemesis retained at positive density"), Airship);
  if (Airship) TestTrue(TEXT("nemesis distance"), FMath::IsNearlyEqual(FVector::Dist2D(Airship->GetActorLocation(), G->GetStartTransform().GetLocation()), 35000., .1));
  const auto Previous = G->Realizer->Actors;
- G->StartOptions.EnemyDensity = -1.f; TestFalse(TEXT("invalid start rejected"), G->RegenerateLevel());
+ G->StartOptions.LevelWidth = -1.f; TestFalse(TEXT("invalid start rejected"), G->RegenerateLevel());
  TestTrue(TEXT("failure preserves realized actors"), Previous == G->Realizer->Actors);
- G->StartOptions.EnemyDensity = 0.f; TestTrue(TEXT("zero enemies"), G->RegenerateLevel());
+ G->StartOptions.LevelWidth = Options.LevelWidth; G->SpawnEnemies=false; TestTrue(TEXT("zero enemies"), G->RegenerateLevel());
  for (const auto& Ref : G->Realizer->Actors) if (Ref.IsValid()) TestFalse(TEXT("no generated enemies at zero"), Ref->ActorHasTag(TEXT("BalloonLevel.Enemy")));
+ // Regression: low, narrow Start Options must still populate a colliding forest.
+ auto* Forest = LoadObject<UBalloonLevelConfig>(nullptr,
+  TEXT("/Game/Blueprints/Tests/Environment/DA_Environment_Forest_Day.DA_Environment_Forest_Day"));
+ if (TestNotNull(TEXT("authored forest config exists"), Forest))
+ {
+  G->LevelConfig=Forest;
+  G->StartOptions.Biome=TEXT("Forest"); G->StartOptions.FlightHeight=35.f;
+  G->StartOptions.LevelWidth=100.f;
+  G->SpawnEnemies=false;
+  for (int32 Seed : {30068,12345,42})
+  {
+   auto* Snapshot=DuplicateObject<UBalloonLevelConfig>(Forest,G);
+   Snapshot->Seed=Seed; G->LevelConfig=Snapshot;
+   const bool Built=G->GenerateLevel();
+   TestTrue(FString::Printf(TEXT("low narrow forest seed %d generates"),Seed),Built);
+   if (!Built) for (const auto& Message:G->GetDiagnostics()) AddInfo(Message);
+   if (Built) TestTrue(TEXT("forest contains scenery and obstacles"),G->GetPlan().Placements.Num()>0);
+  }
+ }
  // Test placement budgets separately from the generated enemy actors.
  BalloonPlacementPlanning::FResolvedRow Row;
  Row.Entry.RowName = TEXT("DensityTest"); Row.Entry.Row.Category = TEXT("Obstacle"); Row.Entry.Row.Rule = TEXT("scatter");

@@ -99,10 +99,6 @@ The only entry point. Root component is the progression `Spline`; owns the `Real
 | `Biome`, `Cycle` | `BiomeId`, `Preset`. A biome change loads `/Game/BalloonLevel/Rules/DT_BalloonAssets_<Biome>` and clears `TerrainMaterial`. A missing shared table loads `DT_BalloonAssets_Shared`. |
 | `FlightHeight` | `FlightHeightMeters`. |
 | `LevelWidth` | Constant corridor: `BaseWidthMeters = MinWidthMeters = LevelWidth`; width curve cleared. |
-| `EnemyDensity` | Scales functional enemy counts, placement budgets and border budget (`BorderExactCount × d` or `BorderDensityPerKm × d`). `0` disables enemies, clears `BorderActorClass`. |
-| `ObstacleDensity` | Scales obstacle placement budgets; `0` disables obstacles. |
-| `ItemDensity` | Fraction of loot spots filled. |
-| `FogDensity` | Written into `BiomeFog[Biome].Density` of each bound environment controller before it applies. |
 | `DistanceToNemesis` | Airship spawns this far behind the route start. |
 
 ## Start options
@@ -114,8 +110,6 @@ The only entry point. Root component is the progression `Spline`; owns the `Real
 | `Cycle` | `Day` | `Day`, `Night` (fixed for the whole level) |
 | `FlightHeight` (m) | 100 | finite |
 | `LevelWidth` (m) | 600 | finite, ≥ 1 |
-| `EnemyDensity`, `ObstacleDensity`, `FogDensity` | 1, 1, 0.03 | finite, [0, 10] |
-| `ItemDensity` | 1 | finite, [0, 1] |
 | `DistanceToNemesis` (m) | 250 | finite, ≥ 0 |
 
 `Validate(Errors)` is C++ only. The generator calls it again at generation time.

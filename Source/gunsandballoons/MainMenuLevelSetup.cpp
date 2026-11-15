@@ -67,11 +67,7 @@ void UMainMenuWidget::BuildLevelStartPage()
  };
  AddNumber(TEXT("FLIGHT HEIGHT (m)"), LevelStartOptions.FlightHeight, 0.f, 1000.f, 10.f);
  AddNumber(TEXT("LEVEL WIDTH (m)"), LevelStartOptions.LevelWidth, 1.f, 2000.f, 10.f);
- AddNumber(TEXT("ENEMY DENSITY (x)"), LevelStartOptions.EnemyDensity, 0.f, 10.f, .25f);
- AddNumber(TEXT("OBSTACLE DENSITY (x)"), LevelStartOptions.ObstacleDensity, 0.f, 10.f, .25f);
- AddNumber(TEXT("FOG DENSITY"), LevelStartOptions.FogDensity, 0.f, 10.f, .005f);
  AddNumber(TEXT("DISTANCE TO NEMESIS (m)"), LevelStartOptions.DistanceToNemesis, 0.f, 5000.f, 25.f);
- AddNumber(TEXT("ITEM DENSITY (%)"), LevelStartOptions.ItemDensity * 100.f, 0.f, 100.f, 10.f);
  LevelStartError = MakeText(FText::GetEmpty(), Font, SelectedColor);
  LevelStartError->SetAutoWrapText(true); Page->AddChildToVerticalBox(LevelStartError);
  const float PreviousHeight = RowHeight; const auto PreviousFont = ItemFont;
@@ -91,13 +87,11 @@ void UMainMenuWidget::ShowLevelStartPage()
 
 void UMainMenuWidget::StartConfiguredLevel()
 {
- if (!BiomeChoice || !CycleChoice || LevelNumbers.Num() != 7) return;
+ if (!BiomeChoice || !CycleChoice || LevelNumbers.Num() != 3) return;
  LevelStartOptions.Biome = FName(*BiomeChoice->GetSelectedOption());
  LevelStartOptions.Cycle = CycleChoice->GetSelectedOption() == TEXT("Night") ? EBalloonLightingPreset::Night : EBalloonLightingPreset::Day;
  LevelStartOptions.FlightHeight = LevelNumbers[0]->GetValue(); LevelStartOptions.LevelWidth = LevelNumbers[1]->GetValue();
- LevelStartOptions.EnemyDensity = LevelNumbers[2]->GetValue(); LevelStartOptions.ObstacleDensity = LevelNumbers[3]->GetValue();
- LevelStartOptions.FogDensity = LevelNumbers[4]->GetValue(); LevelStartOptions.DistanceToNemesis = LevelNumbers[5]->GetValue();
- LevelStartOptions.ItemDensity = LevelNumbers[6]->GetValue() / 100.f;
+ LevelStartOptions.DistanceToNemesis = LevelNumbers[2]->GetValue();
  auto* Launch = GetGameInstance() ? GetGameInstance()->GetSubsystem<UBalloonLevelLaunchSubsystem>() : nullptr;
  FText Error;
  if (!Launch) Error = FText::FromString(TEXT("Level launch is unavailable."));

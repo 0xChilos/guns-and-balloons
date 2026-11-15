@@ -1,6 +1,6 @@
 # UI, menus and the navigation panel
 
-> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE) · **Owner:** Rostik · **Updated:** 2026-11-15
+> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE) · **Owner:** Rostik · **Updated:** 2026-11-16
 
 ## Why
 As little non-diegetic interface as possible. During play, information comes from the gauges in the basket.
@@ -23,7 +23,7 @@ Level launch is a reusable Blueprint/C++ `StartLevel` method on the game-instanc
 - **Mouse only:** hovering an item selects it, LMB confirms. No keyboard navigation. The cursor is drawn inside the menu so it is filtered too.
 - **Options:** three switches, each flipped by a click and saved for the player at once: **Music** ON/OFF, **SFX** ON/OFF, **Tutorial** YES/NO (all on by default). SFX already mutes the menu click; there is no music or tutorial yet, and when they are added they must honour these switches.
 - **Returning to the menu** (Quit to Menu, end of run) reloads the `MainMenu` level; the run's state is lost unless it was saved.
-- **Level setup:** New Run opens nine mouse-operated controls: Biome (Forest/Field/City/Desert), Cycle (fixed Day/Night), Flight Height (m), Level Width (m), Enemy Density (multiplier), Obstacle Density (multiplier), Fog Density (absolute exponential fog density), Distance to Nemesis (m behind the route start), Item Density (percentage of authored loot spots filled). Start Level opens `MainLevel` with these values; Back returns without starting. The same setup is available under the Level Generator's **Start Options** (enable **Use Start Options**). A menu launch takes precedence over editor settings and is consumed once. Numeric defaults and UI ranges are prototype tuning: height 100 m (0–1000), width 600 m (1–2000), enemy/obstacle density 1 (0–10), fog .03 (0–10), nemesis distance 250 m (0–5000). Item density defaults to 100% (range 0-100%); 0% disables generated loot, 50% fills roughly half the spots, and 100% fills every spot. Occupancy is repeatable for a given seed. Zero density disables its generated category; positive enemy density retains one nemesis. Existing spawn switches still apply. Authored actors and scenery density are unchanged.
+- **Level setup:** New Run opens five mouse-operated controls: Biome (Forest/Field/City/Desert), Cycle (fixed Day/Night), Flight Height (m), Level Width (m), and Distance to Nemesis (m behind the route start). Start Level opens `MainLevel` with these values; Back returns without starting. The same setup is available under the Level Generator's **Start Options** (enable **Use Start Options**). A menu launch takes precedence over editor settings and is consumed once. Numeric defaults and UI ranges are prototype tuning: height 100 m (0-1000), width 600 m (1-2000), nemesis distance 250 m (0-5000). Enemy, obstacle, item and fog densities use authored config/environment settings and are not launch controls. Existing spawn switches still apply.
 
 | Parameter | Value | Note |
 | --- | --- | --- |

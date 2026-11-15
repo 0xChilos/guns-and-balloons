@@ -24,8 +24,6 @@ bool UBalloonLevelLaunchSubsystem::StartLevel(const FBalloonLevelStartOptions& I
 bool FBalloonLevelStartOptions::Validate(TArray<FString>& Errors) const
 {
  const int32 Before = Errors.Num();
- if (!FMath::IsFinite(ItemDensity) || ItemDensity < 0.f || ItemDensity > 1.f)
-  Errors.Add(TEXT("Start options: item density must be finite and in [0,1]"));
  if (Biome != TEXT("Forest") && Biome != TEXT("Field") && Biome != TEXT("City") && Biome != TEXT("Desert"))
   Errors.Add(TEXT("Start options: choose Forest, Field, City or Desert"));
  if (Cycle != EBalloonLightingPreset::Day && Cycle != EBalloonLightingPreset::Night)
@@ -33,9 +31,6 @@ bool FBalloonLevelStartOptions::Validate(TArray<FString>& Errors) const
  if (!FMath::IsFinite(FlightHeight) || !FMath::IsFinite(LevelWidth) || LevelWidth < 1.f ||
      !FMath::IsFinite(DistanceToNemesis) || DistanceToNemesis < 0.f)
   Errors.Add(TEXT("Start options: finite flight height, width >= 1m and nemesis distance >= 0m required"));
- for (float Value : {EnemyDensity, ObstacleDensity, FogDensity})
-  if (!FMath::IsFinite(Value) || Value < 0.f || Value > 10.f)
-  { Errors.Add(TEXT("Start options: densities must be finite and in [0,10]")); break; }
  return Errors.Num() == Before;
 }
 

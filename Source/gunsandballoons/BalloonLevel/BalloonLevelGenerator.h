@@ -25,6 +25,7 @@ enum class EBalloonBiomeSelection : uint8
 class UBalloonLevelRealizer;
 class USplineComponent;
 class UBoxComponent;
+class UStaticMeshComponent;
 class ABalloonBorderThreat;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBalloonBorderChanged);
 
@@ -39,6 +40,10 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Start Options", meta=(EditCondition="UseStartOptions")) FBalloonLevelStartOptions StartOptions;
  /** Finish volume; collision-free so it cannot obstruct route validation or balloon movement. */
  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UBoxComponent> CompletionZone;
+ /** Collision-free airship visible from generation, beyond the completion zone along the finish heading. */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UStaticMeshComponent> FinishAirship;
+ /** Extra clearance beyond the zone's far face; zero places the mesh bounds directly after it. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="0", Units="m")) float FinishAirshipGapMeters = 0.f;
  /** Prototype half-depth in meters; TBD tuning. Width/height cover the route and balloon envelope. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="1", Units="m")) float CompletionZoneHalfDepthMeters = 10.f;
  UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="Balloon Level|Completion") bool LevelCompleted = false;
@@ -111,6 +116,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<USplineComponent> Spline;
  /** Player balloon instance. Successful generation places it at the route start and flight height, with its attached riders. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<AActor> RoutePawn;
+ /** Check the configured seed without committing a level. Disable random selection for exact replay. */
+ UFUNCTION(BlueprintCallable, Category="Balloon Level") bool CheckSeed();
+ UFUNCTION(CallInEditor, Category="Balloon Level", meta=(DisplayName="Check Seed")) void CheckSeedInEditor();
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") bool LastSeedCheckPassed = false;
 	/** Ready requires fixed-Z route proof and successful world realization. */
 	UFUNCTION(BlueprintCallable, Category="Balloon Level") bool GenerateLevel();
 	/** Details buttons must have no parameters or return value. */
@@ -143,7 +152,7 @@ private:
  bool ConfigureEnvironment();
  void ClearOwnedEnvironment();
  UPROPERTY(Transient) TArray<TObjectPtr<AActor>> OwnedEnvironmentActors;
- bool BuildAndRealizeLevel(bool RetrySeed = false);
+ bool BuildAndRealizeLevel(bool RetrySeed = false, bool ValidateOnly = false);
  bool StartingLevel = false;
  bool SeedRetryable = false;
  UPROPERTY(Transient) TMap<int32, TObjectPtr<ABalloonBorderThreat>> BorderProxies;

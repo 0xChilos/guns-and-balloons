@@ -114,6 +114,11 @@ bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
  auto* Generator=W->SpawnActor<ABalloonLevelGenerator>();Generator->LevelConfig=C;Generator->RoutePawn=Pawn;
  Generator->SpawnEnemies=false; // This fixture verifies terrain/route transactions in isolation.
  Pawn->SetActorLocationAndRotation(FVector(-5000., -5000., 0.), FRotator(0., 90., 0.));
+ const auto BeforeCheck = Pawn->GetActorTransform();
+ TestTrue(TEXT("seed check accepts valid plan"), Generator->CheckSeed());
+ TestEqual(TEXT("seed check creates no realized actors"), Generator->Realizer->Actors.Num(), 0);
+ TestTrue(TEXT("seed check leaves pawn in place"), Pawn->GetActorTransform().Equals(BeforeCheck));
+ TestTrue(TEXT("seed check preserves initial status"), Generator->GetGenerationStatus()==EBalloonLevelGenerationStatus::NotStarted);
  TestTrue(TEXT("generator Ready requires proof"),Generator->GenerateLevel());
  TestTrue(TEXT("generation places balloon at route start and flight height"), Pawn->GetActorLocation().Equals(Generator->GetStartTransform().GetLocation(), 0.01));
  TestTrue(TEXT("generation aligns balloon to initial route heading"), Pawn->GetActorQuat().Equals(Generator->GetStartTransform().GetRotation(), 0.001));
@@ -130,6 +135,10 @@ bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
  const auto PreviousRoute=Generator->GetPlan().RoutePoints;
  const auto* PreviousConfig=Generator->ActiveConfig.Get();
  const FTransform PreviousBalloonTransform = Pawn->GetActorTransform();
+ TestFalse(TEXT("seed check rejects blocked world"), Generator->CheckSeed());
+ TestTrue(TEXT("seed check preserves existing proof"), Generator->GetPlan().RoutePoints==PreviousRoute);
+ TestTrue(TEXT("seed check preserves existing config"), Generator->ActiveConfig.Get()==PreviousConfig);
+ TestTrue(TEXT("seed check restores terrain collision"), PreviousTerrain.IsValid() && PreviousTerrain->GetActorEnableCollision());
  TestFalse(TEXT("world wall rejects regeneration"),Generator->GenerateLevel());
  TestTrue(TEXT("failed regeneration retains previous level"),Generator->GetGenerationStatus()==EBalloonLevelGenerationStatus::Ready);
  TestTrue(TEXT("failed regeneration retains exact previous proof"),Generator->GetPlan().RoutePoints==PreviousRoute);

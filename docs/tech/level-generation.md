@@ -1,6 +1,6 @@
 # Level generation: technical reference (C++)
 
-> **For agents.** How the procedural balloon level generator works and how other systems connect to it. Every type and function is in the [API reference](BalloonLevel/API.md). Design lives in [biomes](../features/biomes.md); the original specification is [docs/temp/…Implementation_Plan.v1.md](../temp/Balloon_Level_Generation_LLM_Implementation_Plan.v1.md). Defects and validation: [BalloonLevel/STATUS.md](BalloonLevel/STATUS.md). If code and design disagree, the design wins. **Updated:** 2026-11-15
+> **For agents.** How the procedural balloon level generator works and how other systems connect to it. Every type and function is in the [API reference](BalloonLevel/API.md). Design lives in [biomes](../features/biomes.md); the original specification is [docs/temp/…Implementation_Plan.v1.md](../temp/Balloon_Level_Generation_LLM_Implementation_Plan.v1.md). Defects and validation: [BalloonLevel/STATUS.md](BalloonLevel/STATUS.md). If code and design disagree, the design wins. **Updated:** 2026-11-16
 
 ## Core rules
 - **Plan → validate → realize.** Planners are pure C++ functions over a plain `FBalloonLevelPlan`. A route is proven before the plan is committed, and only then are world objects created. Realization is transactional: a failed generation keeps the previous level.
@@ -48,7 +48,7 @@ While old content is being replaced, its collision is disabled so it cannot bloc
 - **Player and riders.** Actors attached to the balloon are ignored by route sweeps and move with it when the balloon is placed.
 - **World collision.** Sweeps treat every query-enabled object type as a blocker, including authored geometry and authored border proxies. Generated content is excluded only while it is being replaced.
 - **Progress and events.** The event manager tick calls `Generator->UpdateProgress(RoutePawn location)` each frame, then advances game time. Implement gameplay (enemy spawns, wind, fog hazards) in `OnLevelEventTriggered` receivers keyed by `EventId`. Receivers must validate their own colliding spawns: an event is not spawn authorization.
-- **Completion.** The generator tick tests the pawn's origin against the finish box and calls `CompleteLevel()` once. Bind `OnLevelCompleted` for the safe-zone transition (no travel is implemented here).
+- **Completion.** `FinishAirship` displays `SM_Nemesis_Airship` beyond the finish box along its heading, independently of enemies. Both components have no collision. The finish box width is 1.25 times the corridor width at the endpoint. Successful generation shows and repositions the mesh so its transformed minimum local X bound is beyond the box's far face, plus `FinishAirshipGapMeters` (default 0 m). Completion does not change visibility. Clear hides it; failed generation retains its previous placement and visibility. The generator tick tests the pawn's origin against the finish box and calls `CompleteLevel()` once. Bind `OnLevelCompleted` for the safe-zone transition (no travel is implemented here).
 - **Nemesis airship and biome enemies.** Spawned by `SpawnLevelEnemies` after the level is Ready; they are not part of the route proof. See [nemesis-airship.md](nemesis-airship.md).
 - **Main menu.** The menu only collects settings and calls `StartLevel`. See [main-menu.md](main-menu.md) and [menus](../features/ui-menus.md).
 - **Editor.** Plans are transient: not saved in the map and not copied into PIE. Generate again after loading, or use **Every Level Start**.
@@ -67,3 +67,9 @@ While old content is being replaced, its collision is disabled so it cannot bloc
 
 ## Verification
 `powershell -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevel.ps1` builds the full project and runs all 16 `GunsAndBalloons.BalloonLevel.*` tests (close the editor first; Live Coding blocks the build). Real-content checks run in the editor: `Scripts/Editor/test_level_generation_pie.py` and `test_biome_asset_catalogs.py` (see [Scripts/Editor/README_LevelGeneration.md](../../Scripts/Editor/README_LevelGeneration.md)).
+
+- `Check Seed` (Details button) / `CheckSeed()` (Blueprint) runs the same geometry, terrain and placement route checks as generation, without committing scenery, enemies, environment or balloon movement. Temporary collision terrain is destroyed after checking. Read `LastSeedCheckPassed` and `GetDiagnostics()` for the result; existing level state is preserved. Disable `RandomizeSeed` and choose Selected Config to check a repeatable seed; random modes sample a fresh candidate on each call. Generation always validates again against the current world before realization.
+
+- Entering the completion area prints `CompleteLevel area entered` to the Output Log and generator diagnostics, including balloon position, generator, biome and seed. Non-shipping builds also show a green on-screen message for five seconds. The existing completion guard prevents repeated messages until successful regeneration.
+
+- Start Options expose only biome, cycle, flight height, level width and distance to nemesis. Enemy/obstacle/item densities, category enablement and border budgets remain those of the selected config; fog density remains authored on the environment controller.

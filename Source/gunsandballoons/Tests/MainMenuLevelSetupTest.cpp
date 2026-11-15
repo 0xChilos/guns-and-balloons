@@ -27,15 +27,15 @@ bool FMainMenuLevelSetupTest::RunTest(const FString& Parameters)
   {
    Combo->SetSelectedOption(ComboCount == 0 ? TEXT("Desert") : TEXT("Night")); ++ComboCount;
   }
-  if (auto* Number = Cast<USpinBox>(Widget)) { Number->SetValue(NumberCount == 0 ? 150.f : NumberCount == 6 ? 50.f : Number->GetValue()); ++NumberCount; }
+  if (auto* Number = Cast<USpinBox>(Widget)) { Number->SetValue(NumberCount == 0 ? 150.f : NumberCount == 2 ? 350.f : Number->GetValue()); ++NumberCount; }
  }
- TestEqual(TEXT("biome and cycle controls"), ComboCount, 2); TestEqual(TEXT("seven numeric controls"), NumberCount, 7);
+ TestEqual(TEXT("biome and cycle controls"), ComboCount, 2); TestEqual(TEXT("three numeric controls"), NumberCount, 3);
  // This fixture has no running world, so the launch method reports an error after field collection.
  Menu->NewRunLevel.Reset(); Menu->StartConfiguredLevel();
  TestEqual(TEXT("reads chosen biome"), Menu->LevelStartOptions.Biome, FName(TEXT("Desert")));
  TestTrue(TEXT("reads fixed night"), Menu->LevelStartOptions.Cycle == EBalloonLightingPreset::Night);
  TestEqual(TEXT("reads numeric height"), Menu->LevelStartOptions.FlightHeight, 150.f);
- TestEqual(TEXT("reads item density percentage"), Menu->LevelStartOptions.ItemDensity, .5f);
+ TestEqual(TEXT("reads nemesis distance"), Menu->LevelStartOptions.DistanceToNemesis, 350.f);
  Menu->ShowItemList(); TestEqual(TEXT("back restores list"), Pages->GetActiveWidgetIndex(), 0);
  Menu->ActivateItem(1); TestEqual(TEXT("reopen setup"), Pages->GetActiveWidgetIndex(), 3);
  Menu->ReleaseSlateResources(true);
