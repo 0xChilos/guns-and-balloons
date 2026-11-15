@@ -1,4 +1,6 @@
 #include "BalloonLevelGenerator.h"
+#include "BalloonEnvironmentPresetController.h"
+#include "EngineUtils.h"
 #include "BalloonLevelRealizer.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "BalloonAssetCatalog.h"
@@ -55,7 +57,23 @@ bool ABalloonLevelGenerator::GenerateLevel()
  auto* OldConfig = ActiveConfig.Get();
  TArray<TPair<TWeakObjectPtr<AActor>, bool>> Collision;
  for(auto& Ref : Realizer->Actors) if(Ref.IsValid()) { Collision.Emplace(Ref,Ref->GetActorEnableCollision()); Ref->SetActorEnableCollision(false); }
- if(BuildAndRealizeLevel()) { EventManager->ResetEventTimeline(); BorderProxies.Reset(); return true; }
+ if(BuildAndRealizeLevel())
+ {
+  EventManager->ResetEventTimeline();
+  BorderProxies.Reset();
+  // All entry points share this path: Details, Blueprint, BeginPlay and regeneration.
+  // Use the successful snapshot, including the config chosen by Random mode.
+  for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
+  {
+   if (It->Generator != this) continue;
+   if (!It->ApplyEnvironment(ActiveConfig->BiomeId, ActiveConfig->Preset))
+   {
+    Diagnostics.Add(TEXT("Environment application failed; inspect the bound environment controller diagnostics"));
+    Diagnostics.Append(It->GetDiagnostics());
+   }
+  }
+  return true;
+ }
  for(auto& Entry : Collision) if(Entry.Key.IsValid()) Entry.Key->SetActorEnableCollision(Entry.Value);
  if(HadLevel)
  {

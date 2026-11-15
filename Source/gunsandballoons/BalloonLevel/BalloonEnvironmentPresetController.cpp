@@ -172,15 +172,27 @@ bool ABalloonEnvironmentPresetController::ApplyEnvironment(FName BiomeId, EBallo
 bool ABalloonEnvironmentPresetController::ApplyFromGenerator()
 {
 	if (!Generator) return ApplyEnvironment(FallbackBiomeId, FallbackPreset);
+	// Authoring preview follows the selected config, even if the last generated
+	// plan is stale or no route has been generated yet. Random selection needs
+	// a successful generation before its chosen config is known.
+	if (GetWorld() && !GetWorld()->IsGameWorld() && Generator->BiomeSelection == EBalloonBiomeSelection::Selected)
+	{
+		if (IsValid(Generator->LevelConfig))
+			return ApplyEnvironment(Generator->LevelConfig->BiomeId, Generator->LevelConfig->Preset);
+		Diagnostics = {TEXT("BLG-075 Assign the generator's Level Config before previewing the environment")};
+		return false;
+	}
 	if (Generator->GetGenerationStatus() != EBalloonLevelGenerationStatus::Ready) return false;
-	return ApplyEnvironment(Generator->GetPlan().BiomeId, Generator->GetPlan().LightingPreset);
+	if (!IsValid(Generator->ActiveConfig)) return false;
+	return ApplyEnvironment(Generator->ActiveConfig->BiomeId, Generator->ActiveConfig->Preset);
 }
 
 void ABalloonEnvironmentPresetController::PreviewEnvironment()
 {
 	if (GetWorld() && GetWorld()->IsGameWorld()) return;
 	Applied = false;
-	if (!ApplyFromGenerator() && Generator && Generator->GetGenerationStatus() != EBalloonLevelGenerationStatus::Ready)
+	if (!ApplyFromGenerator() && Generator && Generator->BiomeSelection == EBalloonBiomeSelection::Random &&
+		Generator->GetGenerationStatus() != EBalloonLevelGenerationStatus::Ready)
 		Diagnostics = {TEXT("Generate the level first: Generator is not Ready")};
 }
 
