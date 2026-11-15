@@ -4,7 +4,7 @@
 
 ## Summary
 - **Done (M0–M6):** implemented and tested as a **plan → validate** pipeline.
-- **In progress, not compiled (M7):** Day/Night, ground and fog. Commit `db7861f` is named "added fixed Day/Night, ground and fog", but it only contains the M6 events. The M7 code is uncommitted and stopped before build; see the M7 row below.
+- **M7 integrated:** controller saved in the generation test map; eight biome/preset editor property checks passed. PIE and visual acceptance remain manual; see Scripts/Editor/README_LevelGeneration.md.
 - **M8 build and automation verified:** final full-project suffixed DLL built; all nine BalloonLevel tests passed (one with synthetic-world destruction warnings). See the final M8 entry in [TEST_REPORT.md](TEST_REPORT.md). Visual checks were deferred by the user.
 
 `GenerateLevel` now realizes validated placements as scenery HISM components and gameplay Actors. Failed regeneration retains the previous Ready plan/config and realized content. Border descriptors still require explicit proxy integration. Earlier M7 and review findings below are historical unless superseded by the final M8 report.
@@ -20,7 +20,7 @@
 | M5 Fixed-Z route proof, retries | Done | A* over (progress, lateral) + 3D box sweeps; up to 12 placement retries |
 | M6 Timed/progress/custom events, border transactions | Done | Instant Set/Add/Scale radius; no lighting actions |
 | Generation modes (uncommitted) | Done | `Manual`/`OnLevelStart`, `Selected`/`Random` biome, `RandomizeSeed`, Details buttons |
-| M7 Fixed Day/Night, ground, biome fog | **In progress — code written, not compiled or tested** | **Done:** environment audit (`LevelGeneration_Test` has DirectionalLight, SkyLight, SkyAtmosphere and a `Ground` cube StaticMeshActor, no fog, no landscape; `BalloonFlight_Test` has one fog; all four `MI_*_Ground` are MaterialInstanceConstants). Uncommitted `BalloonEnvironmentPresetController.h/.cpp`: `ABalloonEnvironmentPresetController` reads biome + preset from the generator plan (or fallback values). It validates first, then applies once per play session: `MI_<Biome>_Ground` on the assigned ground meshes, spec §10.3 fog on the single fog actor (spawns a transient one if none), and Day/Night sun rotation/intensity/color + sky intensity. Changes during play are rejected (BLG-064); "Preview Environment" editor button; diagnostics BLG-070…074. Day/Night light values are TBD prototypes. **Not done:** build, M7 automation test, placing the controller in the test map, PIE check of 4 biomes × Day/Night, landscape ground, docs (API/tech page). |
+| M7 Fixed Day/Night, ground, biome fog | **Integrated; editor checks passed; manual acceptance pending** | `LevelGeneration_Environment` binds generator, expanded Ground, persistent fog, existing Movable sun/sky. Generator uses Every Level Start. All eight combinations passed material, fog color/density, sun rotation/intensity and sky intensity assertions using the existing compiled module. No visual tests, per user request. PIE test stopped before play on a script enum error. Fresh build attempt blocked by open-editor hot-reload DLL lock. Lighting remains TBD prototype tuning; landscape support remains outside this ground-plane integration. See `Scripts/Editor/README_LevelGeneration.md`. |
 | M8 Realization (HISM/actors), culling, cleanup, editor preview | **Build/automation verified; visual checks pending** | Final full-project build succeeded using DLL suffix 8815; 9/9 tests passed. Verified HISM/Actor realization, cull properties, cleanup, rollback and previous-level retention. No rendered culling or authored flock integration check. |
 | M9 QA, sample maps, handoff | Partial | API/HANDOFF/TEST_REPORT exist; no biome × preset PIE matrix |
 
@@ -45,7 +45,7 @@
 | Six placement rules | ✅ descriptors; ⚠ `line` usability (F2) |
 | One HISM per mesh, NoCollision; colliding actors; flock exception | ❌ M8 |
 | Cull distances applied | ❌ M8 (values are only annotated on descriptors) |
-| `MI_<Level>_Ground` + biome fog | ❌ M7 |
+| `MI_<Level>_Ground` + biome fog | âŒ M7 |
 | Fixed Day/Night | ⚠ preset stored in plan/snapshot, never applied |
 | Events via Blueprint, no Day/Night action | ✅ |
 | Regeneration never duplicates or destroys unrelated content | ✅ trivially (nothing is spawned) |

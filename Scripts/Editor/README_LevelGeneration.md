@@ -1,5 +1,63 @@
 # Level generation preview
 
+## M7 environment integration (2026-11-15)
+
+`LevelGeneration_Test` now contains `LevelGeneration_Environment`, bound to
+`LevelGeneration_Preview`, `Ground`, the existing DirectionalLight/SkyLight,
+and a persistent `LevelGeneration_Fog`. Both lights are Movable. The ground
+plane covers the selected config's route envelope. The generator uses
+**Every Level Start**, so each PIE session selects and applies its environment.
+Post process settings are preserved. Lighting presets remain prototypes requiring tuning.
+
+The environment gets **BiomeId** and **Preset** from the generator's config.
+After editing/selecting a config, click **Preview Environment** on
+`LevelGeneration_Environment` to apply it without generating a route, or click
+**Generate Level** / **Regenerate Level** on the generator to update both.
+Environment application is part of the shared `GenerateLevel` success path,
+including Blueprint calls, regeneration and Every Level Start. No separate
+environment action is needed. Failed generation preserves the previous environment;
+environment application errors appear in generator diagnostics.
+In Random mode generate first so the selected config is known. During play the
+successful generation's config snapshot is used once; editing a source asset
+does not change lighting in an active session. Fallback values apply only when
+the environment has no generator assigned.
+
+Reapply/verify the setup with `py G:/UE/gunsandballoons/Scripts/Editor/setup_level_environment.py`.
+The script checks all four ground materials, fog density/color, sun rotation,
+sun intensity and sky intensity for Day and Night, then saves the selected
+config's preview. Results: `Saved/M7-environment-checks.json`.
+It sets Every Level Start and resizes/recenters the ground for the selected config.
+
+Manual acceptance checks (visual testing deferred at the user's request):
+
+1. Select `LevelGeneration_Preview` and use **Selected Config**. Set **Level
+   Config** to one of the eight saved assets under
+   `/Game/Blueprints/Tests/Environment`: `DA_Environment_<Biome>_<Day|Night>`.
+   Forest Day is assigned by default. All eight are also listed in Random Biome
+   Configs for convenient reference, but keep Selected Config for ordered testing.
+2. Start a fresh PIE session for each of the eight combinations. Confirm the
+   generator is Ready and the environment controller reports the expected
+   applied biome/preset. Stop PIE between combinations: runtime preset changes
+   are intentionally rejected with BLG-064.
+3. Check that ground uses `MI_<Biome>_Ground`, has no gaps beneath the route,
+   and remains readable through the balloon's existing post process.
+4. Check fog: Forest blue-green (density .03), Field warm pale (.015),
+   City brown smog (.05), Desert sand (.02). Check horizons and obstacle visibility.
+5. Check fixed Day/Night sun direction, color and brightness; sky illumination
+   should match the preset and remain stable during flight, with no cycle.
+   Evaluate Night visibility and automatic exposure through the player camera.
+
+These eight environment fixtures inherit geometry from `DA_LevelGenerationPreview`
+and disable scenery, obstacles and enemies to isolate M7 ground/fog/lighting.
+They do not provide full biome scenery or hazard catalogs. Recreate missing
+fixtures with `py G:/UE/gunsandballoons/Scripts/Editor/create_environment_test_configs.py`.
+The script saves the assets, assigns Forest Day, and selects the generator.
+
+Editor property checks passed for all eight combinations. The attempted PIE
+matrix stopped before play due to a test-script enum error; no PIE acceptance
+or visual result is claimed. A fresh build attempt hit the open editor's
+hot-reload DLL lock; verification used the existing compiled controller.
+
 Open `/Game/Scenes/LevelGeneration_Test`. Both test maps use instances of the
 shared `/Game/Assets/Balloon/BP_Balloon`. Edit that Blueprint's components and
 compile/save it to update both levels. Keep gameplay tuning in the Blueprint;

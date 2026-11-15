@@ -71,7 +71,7 @@ public:
 	/** Validates everything, then applies. During play only the first successful call applies;
 	 *  repeating the same biome/preset is a no-op, anything else is rejected (BLG-064). */
 	UFUNCTION(BlueprintCallable, Category="Balloon Environment") bool ApplyEnvironment(FName BiomeId, EBalloonLightingPreset Preset);
-	/** Applies the generator plan (Ready required) or the fallback values. */
+	/** Editor: selected LevelConfig directly (Random requires Ready). Play: immutable ActiveConfig once Ready. */
 	UFUNCTION(BlueprintCallable, Category="Balloon Environment") bool ApplyFromGenerator();
 	/** Editor authoring preview; reapplies freely outside play. */
 	UFUNCTION(CallInEditor, Category="Balloon Environment", meta=(DisplayName="Preview Environment")) void PreviewEnvironment();
