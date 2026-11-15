@@ -23,6 +23,7 @@
 | [features/safe-zone.md](features/safe-zone.md) | Безпечна зона між рівнями: ремонт, магазин, апгрейди | TBD |
 | [features/ui-menus.md](features/ui-menus.md) | Головне меню, навігаційна панель | Ростік |
 | [art-style.md](art-style.md) | Візуальний стиль і пост-обробка | Ростік |
+| [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, єдиний Pawn та маршрутизація взаємодій | Сокін |
 | [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Сокін |
 | [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Сокін |
 | [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Сокін |
@@ -31,6 +32,7 @@
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Сокін |
+| [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Ростік |
 | [source/directors-cut.md](source/directors-cut.md) | Сирі нотатки (оригінал, не редагувати) | — |
 
 ## Правила ведення

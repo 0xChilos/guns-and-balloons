@@ -1,4 +1,6 @@
 #include "ExtinguisherComponent.h"
+#include "StoveComponent.h"
+#include "Engine/World.h"
 
 #include "Animation/AnimSequenceBase.h"
 #include "Camera/CameraComponent.h"
@@ -140,6 +142,17 @@ void UExtinguisherComponent::PullTrigger()
 void UExtinguisherComponent::SetTriggerHeld(bool bHeld)
 {
 	bTriggerHeld = bHeld;
+}
+
+bool UExtinguisherComponent::ShouldUseInsteadOfInteract(const FHitResult& Hit) const
+{
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		TInlineComponentArray<UStoveComponent*> Stoves(HitActor);
+		for (const UStoveComponent* Stove : Stoves)
+			if (Stove->AcceptsCoolingHit(Hit)) return true;
+	}
+	return false;
 }
 
 void UExtinguisherComponent::SetEquipped(bool bInEquipped)
@@ -288,7 +301,9 @@ void UExtinguisherComponent::UpdateFlow(float DeltaTime)
 {
 	if (IsSpraying())
 	{
-		EmitFoam(DeltaTime);
+		// The final partly filled frame only sprays for the contents actually remaining.
+		const float SprayTime = UsePerSecond > 0.f ? FMath::Min(DeltaTime, Amount / UsePerSecond) : DeltaTime;
+		EmitFoam(SprayTime);
 		Amount = FMath::Max(0.f, Amount - UsePerSecond * DeltaTime);
 		if (Amount <= 0.f)
 		{
@@ -313,8 +328,7 @@ void UExtinguisherComponent::UpdateFlow(float DeltaTime)
 
 void UExtinguisherComponent::EmitFoam(float DeltaTime)
 {
-	AGunSmoke* Foam = GetSmoke();
-	if (!Foam || !Mesh || DeltaTime <= KINDA_SMALL_NUMBER)
+	if (!Mesh || DeltaTime <= KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
@@ -325,6 +339,9 @@ void UExtinguisherComponent::EmitFoam(float DeltaTime)
 	const FVector Back = FirstPersonToWorld(Mesh->GetSocketLocation(NozzleBone));
 	const FVector Fallback = Camera ? Camera->GetForwardVector() : GetOwner()->GetActorForwardVector();
 	const FVector Direction = (Tip - Back).GetSafeNormal(UE_KINDA_SMALL_NUMBER, Fallback);
+	ApplySprayCooling(Tip, Direction, DeltaTime);
+	AGunSmoke* Foam = GetSmoke();
+	if (!Foam) return;
 
 	// The nozzle's own motion (the view turning, the balloon flying) carries over to the foam.
 	const FVector From = bHasLastTip ? LastTipLocation : Tip;
@@ -349,6 +366,29 @@ void UExtinguisherComponent::EmitFoam(float DeltaTime)
 		for (int32 k = 0; k < Count; ++k)
 		{
 			Foam->Emit(Puffs, 1, FMath::Lerp(From, Tip, float(k + 1) / Count), Direction, SourceVelocity);
+		}
+	}
+}
+
+void UExtinguisherComponent::ApplySprayCooling(const FVector& Tip, const FVector& Direction, float DeltaTime)
+{
+	if (!IsSpraying() || !GetWorld() || !FMath::IsFinite(DeltaTime) || DeltaTime <= 0.f
+		|| !FMath::IsFinite(StoveCoolingPerSecond) || StoveCoolingPerSecond <= 0.f
+		|| !FMath::IsFinite(StoveCoolingRange) || StoveCoolingRange <= 0.f) return;
+	FHitResult Hit;
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(ExtinguisherCooling), false, GetOwner());
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Tip, Tip + Direction.GetSafeNormal() * StoveCoolingRange,
+		CoolingTraceChannel, Query)) return;
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		TInlineComponentArray<UStoveComponent*> Stoves(HitActor);
+		for (UStoveComponent* Stove : Stoves)
+		{
+			if (Stove->AcceptsCoolingHit(Hit))
+			{
+				Stove->ApplyCooling(StoveCoolingPerSecond * DeltaTime);
+				break;
+			}
 		}
 	}
 }

@@ -52,6 +52,7 @@ public:
 
 	/** The click: with nothing left, a dry sputter (Empty clip, OnDryFire). Spraying itself follows SetTriggerHeld. */
 	virtual void PullTrigger() override;
+	virtual bool ShouldUseInsteadOfInteract(const FHitResult& Hit) const override;
 
 	/** LMB held: spray while there is something left. */
 	virtual void SetTriggerHeld(bool bHeld) override;
@@ -83,6 +84,17 @@ public:
 	/** Foam is coming out right now. */
 	UFUNCTION(BlueprintPure, Category = "Extinguisher")
 	bool IsSpraying() const;
+
+	/** TBD: prototype cooling rate and reach; tune in Blueprint. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Extinguisher|Cooling", meta=(ClampMin="0"))
+	float StoveCoolingPerSecond = 20.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Extinguisher|Cooling", meta=(ClampMin="0", Units="cm"))
+	float StoveCoolingRange = 400.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Extinguisher|Cooling")
+	TEnumAsByte<ECollisionChannel> CoolingTraceChannel = ECC_Visibility;
+
+	/** Uses the first blocking hit along the nozzle; visual puff counts do not affect cooling. */
+	void ApplySprayCooling(const FVector& Tip, const FVector& Direction, float DeltaTime);
 
 	/** The value the counter shows (rolls toward the whole number the amount is at). */
 	UFUNCTION(BlueprintPure, Category = "Extinguisher")

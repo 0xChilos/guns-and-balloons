@@ -12,6 +12,10 @@ public class gunsandballoons : ModuleRules
 
 		// Slate: the hook debug menu (FHookDebugMenu).
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AnimGraph", "BlueprintGraph", "AnimGraphRuntime" });
+		}
 		
 		// Uncomment if you are using online features
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
