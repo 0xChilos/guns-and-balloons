@@ -187,7 +187,7 @@ Scope: code review of all BalloonLevel sources against spec v1.1 plus re-verific
 - **Full project, first successful run:** `UnrealEditor-Cmd.exe gunsandballoons.uproject -unattended -nop4 -nosplash -NullRHI -NoSound -ExecCmds="Automation RunTests GunsAndBalloons.BalloonLevel" -TestExit="Automation Test Queue Empty"` against `UnrealEditor-gunsandballoons.dll` built 11:56:03 (contains the editor-button test). Exit 0; succeeded=8, failed=0, notRun=0, inProcess=0: M1, M2, M3, M4, M5, M6.Events, M6.RuntimeSafety, GenerationModes. The former FirstPersonCameraPawn.h UHT blocker is gone since e061a95.
 - Not re-run: PIE smoke test (last pass 11:15 Europe/Kyiv, before the generation-modes change). No profiling, no visual QA, no biome DataTables exist.
 
-## M8 ? stopped at user request, 2026-11-15
+## M8 — earlier interrupted verification, 2026-11-15
 
 Implemented realizer, generator transaction/preview/debug integration, automation test and verification script. M8 is not accepted as fully verified.
 
@@ -199,3 +199,20 @@ Implemented realizer, generator transaction/preview/debug integration, automatio
 - Earlier whitespace check passed before the final source/docs edits. No final rerun after the stop request.
 
 Commands attempted: Scripts/Verify-BalloonLevelM8.ps1 (clean and -Incremental, process-local execution-policy Bypass); UE Build.bat gunsandballoonsEditor Win64 Development with -WaitMutex -NoHotReloadFromIDE -NoUBA, retry -MaxParallelActions=2. Unreal toolchain access required approved external cache access. No uasset changes or commit.
+
+## M8 — final source verification, 2026-11-15
+
+Full-project final source build and automation PASSED. This supersedes the interrupted M8 verification above. Fixed stale ActiveConfig after a failed initial/random selection; updated the M5 regression to require retention of the exact previous route and config after failed regeneration. Expanded M8 coverage for partial realization rollback and successful replacement destroying old obstacle Actors.
+
+```powershell
+& 'G:/UE/UE_5.9/Engine/Build/BatchFiles/Build.bat' gunsandballoonsEditor Win64 Development 'G:/UE/gunsandballoons/gunsandballoons.uproject' -WaitMutex -NoHotReloadFromIDE -NoUBA -nocache -MaxParallelActions=2 '-ModuleWithSuffix=gunsandballoons,8815' -Log=G:/UE/gunsandballoons/Saved/Logs/M8-FinalProjectBuild-Suffix.log
+& 'G:/UE/UE_5.9/Engine/Binaries/Win64/UnrealEditor-Cmd.exe' 'G:/UE/gunsandballoons/gunsandballoons.uproject' /Engine/Maps/Entry -unattended -NoSound -nop4 -nosplash -NullRHI '-ExecCmds=Automation RunTests GunsAndBalloons.BalloonLevel' '-TestExit=Automation Test Queue Empty' '-ReportExportPath=G:/UE/gunsandballoons/Saved/M8FinalProjectTestReport' '-abslog=G:/UE/gunsandballoons/Saved/Logs/M8-FinalProjectAutomation.log'
+```
+
+The initial sandboxed build could not access the external UBA cache. With approved toolchain access all source compiled, but linking the ordinary DLL failed with LNK1104 because the existing editor held it open. The suffixed full-project build succeeded (40.05s executor), preserving the open editor. Binaries/Win64/UnrealEditor.modules selected UnrealEditor-gunsandballoons-8815.dll for the new automation process. Automation exited 0 at 18:09:38 Europe/Kyiv (16:09:38 UTC). JSON report: succeeded=8, succeededWithWarnings=1, failed=0, notRun=0, inProcess=0 (nine successes total). M8 emits four LogSpawn warnings because its synthetic UWorld has no engine world context during Actor destruction; assertions pass, including invalidation of replaced Actors. M1–M5, M6.Events, M6.RuntimeSafety, GenerationModes and M8.Realization all passed. No source changes followed this build/test run; git diff --check passed.
+
+Verified with real UE objects: one HISM per mesh, two inserted scenery instances, NoCollision, cull ends 15000/30000/80000/0 cm, conflicting cull rollback, separate owned colliding mesh Actors with no distance cull, rollback after staging both HISM and Actor, retention of exact old Actors, successful replacement destroying old Actors, repeated cleanup preserving authored content, and owner deletion unregistering generated components. Generator regression verifies successful regeneration without duplicate spline points and failed world-route validation retaining Ready, the exact previous proof and ActiveConfig. GenerationModes verifies stale config clearing when there is no previous Ready level.
+
+Measured workload: AMD Ryzen 7 5800X3D, seed 12345, 10000 instances, one HISM, 13.278 ms realization under NullRHI. Includes actual component allocation/insertion and synchronous loading; not a GPU, frame-rate or rendered-culling measurement.
+
+Visual checks were explicitly deferred by the user. Remaining manual checks: authored biome scenery placement/materials; obstacle collision during flight; visible culling at 150/300/800 m and no distance cull for mountains/obstacles; repeated regeneration without duplicates; cleanup/owner deletion leaving authored content intact; forcing regeneration failure while confirming the previous visible level remains intact. Authored BP_BirdFlock integration and the four-biome × Day/Night PIE matrix remain unverified. No assets/maps changed; no commit.
