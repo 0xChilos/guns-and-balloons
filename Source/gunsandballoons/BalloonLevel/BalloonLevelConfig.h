@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Curves/CurveFloat.h"
 #include "BalloonLevelTypes.h"
 #include "BalloonLevelConfig.generated.h"
 
@@ -24,6 +25,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Biome") FString CatalogVersion = TEXT("1");
 	/** Captured in plan; M1 does not apply environment presets. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Lighting") EBalloonLightingPreset Preset = EBalloonLightingPreset::Day;
+	/** M2 prototype values: tune with the actual balloon envelope in M5. Zero heading produces straight geometry. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") float MaxHeadingDegrees = 25.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry", meta=(Units="m")) float MinimumTurningRadiusMeters = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry", meta=(Units="m")) float GeometrySampleMeters = 10.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry", meta=(Units="m")) float MinWidthMeters = 40.f;
+	/** Normalized distance -> width multiplier; empty curve means 1. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") FRuntimeFloatCurve WidthProfile;
 	bool Validate(TArray<FString>& Errors) const;
 };
 

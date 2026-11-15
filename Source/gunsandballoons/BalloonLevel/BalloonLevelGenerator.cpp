@@ -14,6 +14,7 @@ void ABalloonLevelGenerator::ClearGeneratedLevel()
 {
 	Spline->ClearSplinePoints();
 	Plan = FBalloonLevelPlan();
+	Progress = FBalloonLevelProgress();
 	Diagnostics.Reset();
 	Status = EBalloonLevelGenerationStatus::NotStarted;
 }
@@ -31,7 +32,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
 		return false;
 	}
 	FBalloonLevelPlan Candidate;
-	if (!BalloonLevelPlanning::BuildStraightPlan(*LevelConfig, Candidate, Diagnostics))
+	if (!BalloonSplinePlanning::Build(*LevelConfig, Candidate, Diagnostics))
 	{
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
@@ -51,7 +52,17 @@ bool ABalloonLevelGenerator::GenerateLevel()
 	}
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
-	Diagnostics.Add(TEXT("M1 Ready: straight geometry/catalog only; horizontal reachability is NOT validated and no gameplay content is realized."));
+	Diagnostics.Add(TEXT("M2 Ready: curved XY geometry/width/progress only; horizontal reachability is NOT validated and no gameplay content is realized."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
+}
+
+float ABalloonLevelGenerator::GetNormalizedProgress(const FVector& WorldPosition) const
+{
+ int32 Edge=INDEX_NONE;
+ return Plan.LengthCm>0. ? BalloonSplinePlanning::NearestDistance(Plan,WorldPosition,Edge,true)/Plan.LengthCm : 0.f;
+}
+void ABalloonLevelGenerator::UpdateProgress(const FVector& WorldPosition, bool Teleported)
+{
+ Progress.Update(Plan,WorldPosition,Teleported);
 }

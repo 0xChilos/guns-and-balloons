@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "Curves/RichCurve.h"
 #include "BalloonLevelTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -61,6 +62,14 @@ struct FBalloonLevelPlan
 	FString CatalogVersion;
 	EBalloonLightingPreset LightingPreset = EBalloonLightingPreset::Day;
 	TArray<FVector> SplineSamples;
+	TArray<double> SampleDistances;
+	TArray<double> SampleWidths;
+	FTransform Start;
+	FTransform Finish;
+	double LengthCm = 0.;
+	FRichCurve WidthCurve;
+	double BaseWidthCm = 0.;
+	double MinWidthCm = 0.;
 	TArray<FBalloonLevelSegment> Segments;
 	TArray<FBalloonCatalogEntry> Catalog;
 };

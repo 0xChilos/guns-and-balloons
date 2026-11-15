@@ -10,6 +10,17 @@ bool UBalloonLevelConfig::Validate(TArray<FString>& Errors) const
 	if (StartTransform.ContainsNaN()) Errors.Add(TEXT("StartTransform must be finite"));
 	if (BiomeId.IsNone()) Errors.Add(TEXT("BiomeId must be nonempty"));
 	if (Preset != EBalloonLightingPreset::Day && Preset != EBalloonLightingPreset::Night) Errors.Add(TEXT("Preset must be Day or Night"));
+	if (!FMath::IsFinite(MaxHeadingDegrees) || MaxHeadingDegrees < 0.f || MaxHeadingDegrees > 45.f) Errors.Add(TEXT("MaxHeadingDegrees must be in [0,45]"));
+	if (!FMath::IsFinite(MinimumTurningRadiusMeters) || MinimumTurningRadiusMeters <= 0.f) Errors.Add(TEXT("MinimumTurningRadiusMeters must be positive"));
+	if (!FMath::IsFinite(GeometrySampleMeters) || GeometrySampleMeters <= 0.f) Errors.Add(TEXT("GeometrySampleMeters must be positive"));
+	if (!FMath::IsFinite(MinWidthMeters) || MinWidthMeters <= 0.f) Errors.Add(TEXT("MinWidthMeters must be positive"));
+	if (GeometrySampleMeters > 0.f && FMath::CeilToDouble(double(LengthMeters) / GeometrySampleMeters) > 100000.) Errors.Add(TEXT("Geometry sample limit exceeded (100000)"));
+	for (const FRichCurveKey& Key : WidthProfile.GetRichCurveConst()->GetConstRefOfKeys())
+	{
+		if (!FMath::IsFinite(Key.Time) || !FMath::IsFinite(Key.Value) || !FMath::IsFinite(Key.ArriveTangent) || !FMath::IsFinite(Key.LeaveTangent) ||
+			!FMath::IsFinite(Key.ArriveTangentWeight) || !FMath::IsFinite(Key.LeaveTangentWeight))
+		{ Errors.Add(TEXT("WidthProfile keys and tangents must be finite")); break; }
+	}
 	// Explicit allocation guard rather than truncating an authored level.
 	if (Errors.Num() == Before && FMath::CeilToDouble(double(LengthMeters) / SegmentTargetMeters) > 100000.)
 		Errors.Add(TEXT("Segment count exceeds M1 planning limit (100000); increase SegmentTargetMeters"));

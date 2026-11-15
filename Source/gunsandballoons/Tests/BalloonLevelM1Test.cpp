@@ -104,12 +104,13 @@ bool FBalloonLevelM1Test::RunTest(const FString& Parameters)
 	if (TestNotNull(TEXT("Editor world"), World))
 	{
 		auto* Generator = World->SpawnActor<ABalloonLevelGenerator>();
+		Config->MaxHeadingDegrees = 0.f;
 		Generator->LevelConfig = Config;
 		TestTrue(TEXT("Generator builds"), Generator->GenerateLevel());
 		TestTrue(TEXT("Ready only"), Generator->GetGenerationStatus() == EBalloonLevelGenerationStatus::Ready);
 		TestEqual(TEXT("Spline exact metric length"), Generator->Spline->GetSplineLength(), 150000.f);
 		TestTrue(TEXT("Regenerate"), Generator->RegenerateLevel());
-		TestEqual(TEXT("No duplicate spline points"), Generator->Spline->GetNumberOfSplinePoints(), 7);
+		TestEqual(TEXT("No duplicate spline points"), Generator->Spline->GetNumberOfSplinePoints(), Generator->GetPlan().SplineSamples.Num());
 		Config->LengthMeters = 0.f;
 		TestFalse(TEXT("Invalid regeneration fails"), Generator->GenerateLevel());
 		TestEqual(TEXT("Stale plan removed"), Generator->GetPlan().Segments.Num(), 0);
