@@ -18,6 +18,7 @@ Variety between runs: each biome forces a different route and different prioriti
 - Generation: `Manual (Button)` from a button, or `Every Level Start` automatically on every BeginPlay. The plan is temporary and isn't saved in the map.
 - Biome: `Selected Config`, or `Random` from the `RandomBiomeConfigs` list with their asset tables. `RandomizeSeed` gives a new seed on every generation; otherwise the config's seed is used. The source DataAsset isn't changed.
 - A level = a flight through one biome. After it comes the [safe zone](safe-zone.md).
+- Every generated level has a completion zone at the route finish. When the player balloon's origin enters it, `CompleteLevel()` fires once and emits `OnLevelCompleted`. Successful regeneration resets completion; failure retains it. The zone spans the corridor width; half-depth defaults to 10 m and half-height to at least 10 m (prototype values requiring tuning). The transition to the safe zone is TBD.
 - A level is a **corridor** from start to finish. Rocket balloons (`BP_RocketBalloon`) patrol both edges of the corridor: flying over the edge = getting shot at.
 - Each biome has its own obstacles and hazards.
 - Generation merges the shared asset catalog with the selected biome catalog; biome rows replace shared rows with matching names. The preview configs enable scenery and static-mesh obstacles, using shared rocks plus the biome's location meshes. Density and spacing are prototype tuning in `Content/BalloonLevel/Rules/BalloonAssets_*.json`. Animated/functional hazard actor integration remains incomplete.

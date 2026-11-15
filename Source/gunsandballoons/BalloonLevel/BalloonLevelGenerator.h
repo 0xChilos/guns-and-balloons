@@ -23,6 +23,7 @@ enum class EBalloonBiomeSelection : uint8
 
 class UBalloonLevelRealizer;
 class USplineComponent;
+class UBoxComponent;
 class ABalloonBorderThreat;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBalloonBorderChanged);
 
@@ -32,6 +33,15 @@ class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
 	GENERATED_BODY()
 public:
 	ABalloonLevelGenerator();
+ /** Finish volume; collision-free so it cannot obstruct route validation or balloon movement. */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UBoxComponent> CompletionZone;
+ /** Prototype half-depth in meters; TBD tuning. Width/height cover the route and balloon envelope. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="1", Units="m")) float CompletionZoneHalfDepthMeters = 10.f;
+ UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="Balloon Level|Completion") bool LevelCompleted = false;
+ UPROPERTY(BlueprintAssignable, Category="Balloon Level|Completion") FBalloonBorderChanged OnLevelCompleted;
+ /** Idempotent completion hook. Bind OnLevelCompleted for the safe-zone transition. */
+ UFUNCTION(BlueprintCallable, Category="Balloon Level|Completion") void CompleteLevel();
+ virtual void Tick(float DeltaSeconds) override;
  /** Disable before generation to omit functional enemies (including catalog enemies). Border proxies remain independent. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies") bool SpawnEnemies = true;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(EditCondition="SpawnEnemies")) bool SpawnSharedEnemies = true;
