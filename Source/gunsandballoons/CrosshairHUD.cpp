@@ -154,8 +154,8 @@ void ACrosshairHUD::UpdateDynamics(const AFirstPersonCameraPawn& Pawn, float Del
 	// The dot always marks the centre.
 	DotOpacity = 1.f;
 
-	// --- Interact brackets: empty hand over something to interact with, or dragging a lever.
-	const bool bInteract = Pawn.IsHandEmpty() && (Pawn.IsGrabbing() || Pawn.GetAimedInteractable());
+	// --- Interact brackets: over something a click would use (see IsAimingAtUsable), or dragging a lever.
+	const bool bInteract = (Pawn.IsHandEmpty() && Pawn.IsGrabbing()) || Pawn.IsAimingAtUsable();
 	const float MorphTarget = bInteract ? 1.f : 0.f;
 	if (MorphTarget != InteractMorph)
 	{
