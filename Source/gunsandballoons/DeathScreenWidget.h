@@ -12,8 +12,9 @@ class UTexture2D;
  * The death screen (docs/features/ui-menus.md), shown by ADeathScreen when the engine is destroyed
  * (UEngineHealthComponent). It has the menus' font, rows, hover, sounds and pixel cursor, and shows
  * three things: the title ENGINE DESTROYED, what destroyed it (UEngineHealthComponent::GetDeathCause,
- * via ABalloonPlayerController), and one row, TRY AGAIN, that restarts the level. The row only takes a
- * click after InputDelay, so panicked clicking from the fight can't press it by accident.
+ * via ABalloonPlayerController), and two rows: RETURN TO CHECKPOINT (for now the start of the current level,
+ * there is no checkpoint system yet) and MAIN MENU. The rows only take a click after InputDelay, so panicked
+ * clicking from the fight can't press one by accident.
  *
  * Look (picked by the team from three, 2026-11-15): a silent-film title card, a double line border
  * around a dark field, over a sepia, grainy frame of the frozen game. ADeathScreen's
@@ -35,7 +36,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Death|Look")
 	FLinearColor CauseColor = FLinearColor(0.70f, 0.66f, 0.52f, 1.f);
 
-	/** Seconds before TRY AGAIN takes a click. */
+	/** Seconds before the rows take a click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Death", meta = (ClampMin = "0.0"))
 	float InputDelay = 1.f;
 

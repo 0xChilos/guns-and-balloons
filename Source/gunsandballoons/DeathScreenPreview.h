@@ -8,7 +8,7 @@
  * Test helper for /Game/Scenes/DeathScreen_Test (docs/features/ui-menus.md): Delay seconds after the
  * level starts it plays the death sequence and shows the death screen with Cause, through
  * ABalloonPlayerController::ShowDeath, so the screen can be seen and tuned without dying.
- * TRY AGAIN restarts the level, which shows it again.
+ * RETURN TO CHECKPOINT restarts the level, which shows it again.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ADeathScreenPreview : public AActor
