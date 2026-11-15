@@ -31,6 +31,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ammo")
 	int32 GetRounds() const { return Rounds; }
 
+	/** Sets the rounds left; -1 = unlimited (the run's ammo, UBalloonRunSubsystem). */
+	UFUNCTION(BlueprintCallable, Category = "Ammo")
+	void SetRounds(int32 NewRounds) { Rounds = FMath::Max(-1, NewRounds); }
+
 	/**
 	 * Give one round to the pawn's equipped gun. Returns false, taking nothing, if the supply is empty
 	 * or the gun cannot take another round (every chamber live or already queued).

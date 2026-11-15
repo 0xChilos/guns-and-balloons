@@ -4,11 +4,13 @@
 #include "Blueprint/UserWidget.h"
 #include "Fonts/SlateFontInfo.h"
 #include "MainMenuWidget.h"
+#include "ResourceType.h"
 #include "LevelShopWidget.generated.h"
 
 class UAudioComponent;
 class UButton;
 class UCanvasPanel;
+class UGunComponent;
 class UImage;
 class UTextBlock;
 class UTexture2D;
@@ -20,10 +22,14 @@ UENUM(BlueprintType)
 enum class ELevelShopItemKind : uint8
 {
 	/** The fire extinguisher: bought full (100/100) for Price; once owned, RefillUnits for RefillPrice. */
-	Extinguisher
+	Extinguisher,
+	/** Fuel or ammo in the basket (Resource): Units for Price per click, up to UBalloonRunSubsystem::GetSupplyMax. */
+	Supply,
+	/** A hand item bought once (GearClass): Price, then "Owned". */
+	Gear
 };
 
-/** One row of the shop. Prices are TBD placeholders, tune them here (or in a Blueprint child of the widget). */
+/** One row of the shop. Tune prices here (or in a Blueprint child of the widget). */
 USTRUCT(BlueprintType)
 struct FLevelShopItem
 {
@@ -35,20 +41,32 @@ struct FLevelShopItem
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
 	FText Name;
 
-	/** Optional. Empty = a built-in pixel icon for Kind. Shown 16x16 pixels of the filter's frame. */
+	/** Rendered from the item's model (/Game/UI/Shop/Icons). Empty = a built-in pixel icon (extinguisher only). Shown 16x16 pixels of the filter's frame. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop")
 	TSoftObjectPtr<UTexture2D> Icon;
 
-	/** Gold to buy it (it comes full). */
+	/** Gold per click: buying the extinguisher (it comes full), Units of a supply, or the gear. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "0"))
 	int32 Price = 10;
 
-	/** Gold for one refill once owned. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "0"))
+	/** Supply: which one (Wood, Coal, Crystal, Ammo). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (EditCondition = "Kind == ELevelShopItemKind::Supply", EditConditionHides))
+	EResourceType Resource = EResourceType::None;
+
+	/** Supply: how much one click buys. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "1", EditCondition = "Kind == ELevelShopItemKind::Supply", EditConditionHides))
+	int32 Units = 1;
+
+	/** Gear: the player's hand item it buys (one of UBalloonRunSubsystem::SoldGear). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (EditCondition = "Kind == ELevelShopItemKind::Gear", EditConditionHides))
+	TSubclassOf<UGunComponent> GearClass;
+
+	/** Extinguisher: gold for one refill once owned. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "0", EditCondition = "Kind == ELevelShopItemKind::Extinguisher", EditConditionHides))
 	int32 RefillPrice = 1;
 
-	/** Contents one refill adds (up to full). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "1.0"))
+	/** Extinguisher: contents one refill adds (up to full). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop", meta = (ClampMin = "1.0", EditCondition = "Kind == ELevelShopItemKind::Extinguisher", EditConditionHides))
 	float RefillUnits = 10.f;
 };
 
@@ -69,15 +87,17 @@ public:
 };
 
 /**
- * The shop between levels (docs/features/safe-zone.md), opened by UBalloonRunSubsystem::CompleteLevel and drawn on
- * ALevelShopScreen's panel in front of the camera, so the game's filter applies to it. Built in code with the main
+ * The shop between levels (docs/features/safe-zone.md), in its own level (/Game/Scenes/Shop) opened by
+ * UBalloonRunSubsystem::CompleteLevel, drawn on ALevelShopScreen's panel in front of the camera, so the game's
+ * filter applies to it. Its own background covers the whole view at full opacity. Built in code with the main
  * menu's look (UMainMenuWidget): no box, a soft dark haze from the left edge, muted parchment text that warms to the
  * stove colour on hover with a lamp marker, a self-drawing underline and a slide to the right, a pixel cursor, the
  * clock tick/tock sounds and a fade-in.
  *
- * Layout, top to bottom on the left: title, the player's gold, one row per item (icon, name, what a click does,
- * price), and "Continue the travel" at the bottom, which opens the next level. A row the player can't use (gold
- * short, already full) is dimmed; a price the player can't afford is shown in ShortColor.
+ * Layout: the player's gold in the top left corner; under it the title and one row per item (icon, name, how much
+ * the player has, e.g. 3/6, and the price on the right); "Continue the travel" at the bottom, which opens the next
+ * level. A click anywhere on a row buys it. A row the player can't use (gold short, already full) is dimmed; a price
+ * the player can't afford is shown in ShortColor; gear already owned is greyed out with OwnedLabel across its icon.
  *
  * Widget pixels at DrawHeight 1080: 4 of them are one pixel of the filter's frame. Values are first-pass, TBD.
  */
@@ -128,6 +148,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
 	FText PriceFormat;
 
+	/** How much the player has: "{0}/{1}". */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
+	FText CountFormat;
+
+	/** Across the icon of gear already owned. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
+	FText OwnedLabel;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Text")
 	FText ContinueLabel;
 
@@ -141,6 +169,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
 	FSlateFontInfo DetailFont;
+
+	/** Item names and prices. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
+	FSlateFontInfo RowFont;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
+	FSlateFontInfo OwnedFont;
+
+	/** Multiplies the icon of gear already owned. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
+	FLinearColor OwnedIconTint = FLinearColor(0.16f, 0.16f, 0.15f, 0.9f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
 	FLinearColor TextColor = FLinearColor(0.50f, 0.50f, 0.40f, 1.f);
@@ -164,9 +203,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
 	FLinearColor HazeColor = FLinearColor(0.002f, 0.006f, 0.006f, 0.72f);
 
-	/** Laid over the whole (paused) scene so the shop reads over a bright level. */
+	/** The shop's own background, over the whole view at full opacity. Empty = a built-in painted backdrop (dark teal, a warm glow on the right, vignette). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
-	FLinearColor BackdropColor = FLinearColor(0.002f, 0.006f, 0.006f, 0.35f);
+	TSoftObjectPtr<UTexture2D> BackgroundTexture;
+
+	/** Multiplies the background. Alpha is forced to 1: the background is always fully opaque. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
+	FLinearColor BackgroundTint = FLinearColor::White;
 
 	/** The dark square behind each icon. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Look")
@@ -184,15 +227,23 @@ public:
 
 	// --- Layout (widget pixels; 4 of them are one pixel of the filter's 270-row frame) --------
 
-	/** Top-left corner of the title. */
+	/** Top-left corner of the gold counter. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout")
-	FVector2D ColumnPosition = FVector2D(136.f, 112.f);
+	FVector2D GoldPosition = FVector2D(64.f, 40.f);
+
+	/** Top-left corner of the title (the item list follows). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout")
+	FVector2D ColumnPosition = FVector2D(136.f, 128.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "100.0"))
-	float ColumnWidth = 1040.f;
+	float ColumnWidth = 1200.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "16.0"))
-	float ItemRowHeight = 112.f;
+	float ItemRowHeight = 80.f;
+
+	/** Room for the counter ("100/100") after the name. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "0.0"))
+	float CountWidth = 220.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "16.0"))
 	float ContinueRowHeight = 80.f;
@@ -203,7 +254,7 @@ public:
 
 	/** Gap between "Continue the travel" and the bottom edge. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "0.0"))
-	float BottomMargin = 112.f;
+	float BottomMargin = 40.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Shop|Layout", meta = (ClampMin = "0.0"))
 	float SelectedSlide = 20.f;
@@ -245,10 +296,13 @@ private:
 	/** What a click on an item row would do right now. */
 	struct FOffer
 	{
-		FText Detail;
+		/** How much the player has ("3/6"); empty for gear. */
+		FText Count;
 		int32 Price = 0;
 		bool bAvailable = false;
 		bool bAffordable = false;
+		/** Gear bought already. */
+		bool bOwned = false;
 	};
 
 	struct FRow
@@ -258,9 +312,11 @@ private:
 		TObjectPtr<UImage> Marker;
 		TObjectPtr<UTextBlock> Text;
 		TObjectPtr<UImage> Underline;
-		/** Item rows only: what a click does, and the price. */
-		TObjectPtr<UTextBlock> Detail;
+		/** Item rows only: the icon, how much the player has, the price and the "Owned" label. */
+		TObjectPtr<UImage> Icon;
+		TObjectPtr<UTextBlock> Count;
 		TObjectPtr<UTextBlock> Price;
+		TObjectPtr<UTextBlock> Owned;
 		float Emphasis = 0.f;
 	};
 
@@ -287,6 +343,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> HazeTexture;
 
+	/** The built-in backdrop, used when BackgroundTexture is empty. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture2D> PaintedBackground;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> CursorTexture;
 
@@ -299,6 +359,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCanvasPanel> Root;
+
+	/** Everything over the background; it fades in, the background does not (it is always fully opaque). */
+	UPROPERTY(Transient)
+	TObjectPtr<UCanvasPanel> Content;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GoldText;
