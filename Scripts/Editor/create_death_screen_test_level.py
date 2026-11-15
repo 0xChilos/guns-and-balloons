@@ -1,6 +1,6 @@
 """Create /Game/Scenes/DeathScreen_Test: a copy of Enemies_Test (balloon, player, hand items, desert ground,
 the enemy waves as a backdrop) with an ADeathScreenPreview that shows the death screen a few seconds
-after Play (docs/features/ui-menus.md). TRY AGAIN restarts the level, which shows it again.
+after Play (docs/features/ui-menus.md). RETURN TO CHECKPOINT restarts the level, which shows it again.
 Run in the editor: py "<this file>". Re-running rebuilds it.
 """
 import unreal

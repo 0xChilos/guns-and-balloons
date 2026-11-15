@@ -118,6 +118,10 @@ void ABalloonPlayerController::ResumeGame()
 	}));
 
 	SetPause(false);
+	if (AFirstPersonCameraPawn* PlayerPawn = Cast<AFirstPersonCameraPawn>(GetPawn()))
+	{
+		PlayerPawn->SetFirstPersonHiddenForMenu(false);
+	}
 	if (MyHUD)
 	{
 		MyHUD->bShowHUD = true;
@@ -134,6 +138,11 @@ void ABalloonPlayerController::ResumeGame()
 void ABalloonPlayerController::EnterPanelMenuMode()
 {
 	UseMenuInput();
+	// The panel sits a few cm in front of the camera: a gun raised to the eye is nearer and would cover it.
+	if (AFirstPersonCameraPawn* PlayerPawn = Cast<AFirstPersonCameraPawn>(GetPawn()))
+	{
+		PlayerPawn->SetFirstPersonHiddenForMenu(true);
+	}
 	// The menu is a panel in the scene, not Slate on the viewport: input stays with this controller,
 	// which forwards LMB to the panel's pointer. The menu draws its own cursor, so the system one is hidden.
 	FInputModeGameAndUI Mode;

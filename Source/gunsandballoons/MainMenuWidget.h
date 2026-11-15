@@ -31,7 +31,7 @@ enum class EMainMenuAction : uint8
 	Resume,
 	/** Pause menu: open MainMenuLevel; the run is lost. */
 	QuitToMenu,
-	/** Death screen: restart the current level. */
+	/** Death screen: RETURN TO CHECKPOINT. During a run, the run's last checkpoint (UBalloonRunSubsystem::FailLevel); otherwise restart the current level. */
 	Retry
 };
 
