@@ -32,7 +32,7 @@
 
 namespace
 {
-	FSlateFontInfo MakeFont(int32 Size, int32 LetterSpacing)
+	FSlateFontInfo ShopFont(int32 Size, int32 LetterSpacing)
 	{
 		FSlateFontInfo Font = FCoreStyle::GetDefaultFontStyle("Bold", Size);
 		Font.LetterSpacing = LetterSpacing;
@@ -79,14 +79,14 @@ namespace
 	}
 
 	/** A plain box of one colour (a brush with no image draws a solid quad). */
-	FSlateBrush SolidBrush(const FVector2D& Size)
+	FSlateBrush ShopSolidBrush(const FVector2D& Size)
 	{
 		FSlateBrush Brush;
 		Brush.ImageSize = Size;
 		return Brush;
 	}
 
-	FSlateBrush TextureBrush(UTexture2D* Texture, const FVector2D& Size)
+	FSlateBrush ShopTextureBrush(UTexture2D* Texture, const FVector2D& Size)
 	{
 		FSlateBrush Brush;
 		Brush.SetResourceObject(Texture);
@@ -126,7 +126,7 @@ namespace
 	}
 
 	/** The arrow cursor, as in the main menu: 'O' outline, 'X' fill. Hotspot = top-left pixel. */
-	const TCHAR* const CursorRows[] = {
+	const TCHAR* const ShopCursorRows[] = {
 		TEXT("O......"),
 		TEXT("OO....."),
 		TEXT("OXO...."),
@@ -234,11 +234,11 @@ ULevelShopWidget::ULevelShopWidget(const FObjectInitializer& ObjectInitializer)
 	OwnedLabel = LOCTEXT("Owned", "OWNED");
 	ContinueLabel = LOCTEXT("Continue", "CONTINUE THE TRAVEL");
 
-	TitleFont = MakeFont(60, 80);
-	ItemFont = MakeFont(44, 60);
-	DetailFont = MakeFont(30, 40);
-	RowFont = MakeFont(36, 40);
-	OwnedFont = MakeFont(20, 0);
+	TitleFont = ShopFont(60, 80);
+	ItemFont = ShopFont(44, 60);
+	DetailFont = ShopFont(30, 40);
+	RowFont = ShopFont(36, 40);
+	OwnedFont = ShopFont(20, 0);
 
 	const TSoftObjectPtr<USoundBase> ClockLoop(FSoftObjectPath(TEXT(
 		"/Game/Audio/Main_Menu_Button_Click/daviddumaisaudio-steampunk-loopable-clock-12-188049."
@@ -327,7 +327,7 @@ void ULevelShopWidget::MakeTextures()
 
 	const FColor Fill = CursorColor.ToFColor(true);
 	const FColor Outline = CursorOutlineColor.ToFColor(true);
-	CursorTexture = MakePixelArt(CursorRows, [Fill, Outline](TCHAR C)
+	CursorTexture = MakePixelArt(ShopCursorRows, [Fill, Outline](TCHAR C)
 	{
 		return C == 'O' ? Outline : C == 'X' ? Fill : FColor(0, 0, 0, 0);
 	});
@@ -368,7 +368,7 @@ void ULevelShopWidget::BuildTree()
 	// The shop's own background over the whole view, fully opaque; it doesn't fade.
 	UTexture2D* BackTexture = BackgroundTexture.LoadSynchronous();
 	UImage* Background = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Background"));
-	Background->SetBrush(TextureBrush(BackTexture ? BackTexture : PaintedBackground.Get(), FVector2D(1920.f, 1080.f)));
+	Background->SetBrush(ShopTextureBrush(BackTexture ? BackTexture : PaintedBackground.Get(), FVector2D(1920.f, 1080.f)));
 	Background->SetColorAndOpacity(FLinearColor(BackgroundTint.R, BackgroundTint.G, BackgroundTint.B, 1.f));
 	Background->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UCanvasPanelSlot* BackgroundSlot = Root->AddChildToCanvas(Background);
@@ -383,7 +383,7 @@ void ULevelShopWidget::BuildTree()
 
 	// The main menu's haze from the left edge, behind the list.
 	UImage* Haze = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Haze"));
-	Haze->SetBrush(TextureBrush(HazeTexture, FVector2D(HazeWidth, 4.f)));
+	Haze->SetBrush(ShopTextureBrush(HazeTexture, FVector2D(HazeWidth, 4.f)));
 	Haze->SetColorAndOpacity(HazeColor);
 	Haze->SetVisibility(ESlateVisibility::HitTestInvisible);
 	UCanvasPanelSlot* HazeSlot = Content->AddChildToCanvas(Haze);
@@ -393,7 +393,7 @@ void ULevelShopWidget::BuildTree()
 	// The gold counter, in the top left corner.
 	UHorizontalBox* GoldLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Gold"));
 	UImage* Coin = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-	Coin->SetBrush(TextureBrush(CoinTexture, FVector2D(32.f)));
+	Coin->SetBrush(ShopTextureBrush(CoinTexture, FVector2D(32.f)));
 	Coin->SetColorAndOpacity(IconTint);
 	UHorizontalBoxSlot* CoinSlot = GoldLine->AddChildToHorizontalBox(Coin);
 	CoinSlot->SetVerticalAlignment(VAlign_Center);
@@ -436,7 +436,7 @@ void ULevelShopWidget::BuildTree()
 	ContinueSlot->SetPosition(FVector2D(ColumnPosition.X, -BottomMargin));
 
 	ArrowCursor = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Cursor"));
-	ArrowCursor->SetBrush(TextureBrush(CursorTexture, FVector2D(CursorTexture ? CursorTexture->GetSizeX() : 7, CursorTexture ? CursorTexture->GetSizeY() : 10) * CursorPixelSize));
+	ArrowCursor->SetBrush(ShopTextureBrush(CursorTexture, FVector2D(CursorTexture ? CursorTexture->GetSizeX() : 7, CursorTexture ? CursorTexture->GetSizeY() : 10) * CursorPixelSize));
 	ArrowCursor->SetVisibility(ESlateVisibility::Collapsed);
 	Root->AddChildToCanvas(ArrowCursor)->SetAutoSize(true);
 
@@ -474,7 +474,7 @@ ULevelShopWidget::FRow ULevelShopWidget::MakeRow(const FText& Label, int32 Index
 	USizeBox* MarkerColumn = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 	MarkerColumn->SetWidthOverride(MarkerSize + 28.f);
 	Row.Marker = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-	Row.Marker->SetBrush(SolidBrush(FVector2D(MarkerSize)));
+	Row.Marker->SetBrush(ShopSolidBrush(FVector2D(MarkerSize)));
 	Row.Marker->SetColorAndOpacity(FLinearColor::Transparent);
 	if (USizeBoxSlot* MarkerSlot = Cast<USizeBoxSlot>(MarkerColumn->SetContent(Row.Marker)))
 	{
@@ -488,12 +488,12 @@ ULevelShopWidget::FRow ULevelShopWidget::MakeRow(const FText& Label, int32 Index
 	{
 		// Icon on a dark square; gear already owned gets OwnedLabel across it.
 		UBorder* IconBack = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		IconBack->SetBrush(SolidBrush(FVector2D(4.f)));
+		IconBack->SetBrush(ShopSolidBrush(FVector2D(4.f)));
 		IconBack->SetBrushColor(IconBackColor);
 		IconBack->SetPadding(FMargin(8.f));
 		UOverlay* IconStack = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		Row.Icon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Row.Icon->SetBrush(TextureBrush(GetIcon(Items[Index]), FVector2D(IconSize)));
+		Row.Icon->SetBrush(ShopTextureBrush(GetIcon(Items[Index]), FVector2D(IconSize)));
 		Row.Icon->SetColorAndOpacity(IconTint);
 		IconStack->AddChildToOverlay(Row.Icon);
 		Row.Owned = MakeText(OwnedLabel, OwnedFont, TextColor);
@@ -513,7 +513,7 @@ ULevelShopWidget::FRow ULevelShopWidget::MakeRow(const FText& Label, int32 Index
 	Row.Text = MakeText(Label, bItem ? RowFont : ItemFont, TextColor);
 	Word->AddChildToVerticalBox(Row.Text);
 	Row.Underline = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-	Row.Underline->SetBrush(SolidBrush(FVector2D(0.f, UnderlineThickness)));
+	Row.Underline->SetBrush(ShopSolidBrush(FVector2D(0.f, UnderlineThickness)));
 	Row.Underline->SetColorAndOpacity(FLinearColor::Transparent);
 	UVerticalBoxSlot* UnderlineSlot = Word->AddChildToVerticalBox(Row.Underline);
 	UnderlineSlot->SetHorizontalAlignment(HAlign_Left);

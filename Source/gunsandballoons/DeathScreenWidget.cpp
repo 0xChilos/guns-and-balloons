@@ -42,7 +42,7 @@ namespace
 UDeathScreenWidget::UDeathScreenWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// There is no checkpoint system yet: the checkpoint is the start of the current level (EMainMenuAction::Retry).
+	// During a run, the run's last checkpoint (UBalloonRunSubsystem::FailLevel); otherwise the start of the current level (EMainMenuAction::Retry).
 	FMainMenuItem Checkpoint;
 	Checkpoint.Label = LOCTEXT("Checkpoint", "RETURN TO CHECKPOINT");
 	Checkpoint.Action = EMainMenuAction::Retry;
