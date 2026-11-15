@@ -10,9 +10,10 @@ class UStaticMeshComponent;
  * Field-biome bird flock (AI ворогів, 7.3). Place it along the route: when the balloon comes within
  * ActivationDistance (and no other flock is active), 8–15 birds appear to one side and cross the
  * balloon's path with boids flocking, timed to meet it. Each bird that reaches the basket deals
- * DamagePerBird (at most MaxDamage per flock) and is gone. Shooting a bird kills it; a shot that
- * passes near the flock scatters it for ScareTime. When the birds are past or dead the flock
- * removes itself. Placeholder cubes.
+ * DamagePerBird (at most MaxDamage per flock) and is gone. Shooting a bird kills it; a hit or a
+ * shot that passes near the flock scares it for good: the birds scatter away from the shot and the
+ * balloon, climb, and never strike (team decision 2026-11-15). When the birds are past, scared off
+ * or dead the flock removes itself. Placeholder cubes.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisBirdFlock : public AActor
@@ -83,8 +84,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Birds", meta = (ClampMin = "0"))
 	float ScareRadius = 1000.f;
 
-	UPROPERTY(EditAnywhere, Category = "Birds", meta = (ClampMin = "0"))
-	float ScareTime = 3.f;
 
 	/** Flock removed once its birds are this far from the balloon after crossing, cm. */
 	UPROPERTY(EditAnywhere, Category = "Birds", meta = (ClampMin = "0"))
@@ -122,7 +121,8 @@ private:
 	TArray<FBird> Birds;
 	FVector Goal = FVector::ZeroVector;
 	FVector ScareFrom = FVector::ZeroVector;
-	float ScareLeft = 0.f;
+	/** Scared off for good: fleeing, no more strikes. */
+	bool bScared = false;
 	float DamageDealt = 0.f;
 	bool bActive = false;
 	bool bCrossed = false;

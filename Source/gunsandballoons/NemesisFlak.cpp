@@ -4,7 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInterface.h"
-#include "NemesisBullet.h"
+#include "NemesisHomingMissile.h"
 #include "NemesisPlaceholder.h"
 #include "NemesisSearchlight.h"
 #include "NemesisTargetSubsystem.h"
@@ -19,7 +19,7 @@ namespace
 ANemesisFlak::ANemesisFlak()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	BulletClass = ANemesisBullet::StaticClass();
+	MissileClass = ANemesisHomingMissile::StaticClass();
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Iron(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Iron.MI_Nemesis_Iron"));
@@ -146,9 +146,7 @@ void ANemesisFlak::SetEngaged(bool bNow)
 {
 	if (bNow == bEngaged) return;
 	bEngaged = bNow;
-	EngagedTime = 0.f;
-	ShotsLeftInBurst = 0;
-	NextShotIn = WarmUp;
+	NextLaunchIn = WarmUp;
 	NemesisSearchlight::SetLockedState(Light, BeamCone, bEngaged);
 	UE_LOG(LogTemp, Log, TEXT("%s: %s"), *GetName(), bEngaged ? TEXT("engaging the balloon") : TEXT("searching"));
 	OnEngagedChanged(bEngaged);
@@ -187,51 +185,40 @@ void ANemesisFlak::Tick(float DeltaSeconds)
 		return;
 	}
 
-	// Engaged: aim at where the basket will be when the bullet arrives (straight bullets, no drop).
+	// Engaged: the launcher and the light track the basket.
 	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
-	const FVector Muzzle = TurretPitch->GetComponentLocation();
+	const FVector Launcher = TurretPitch->GetComponentLocation();
 	const FVector Basket = T->GetBasketLocation();
-	const FVector Vel = T->GetBalloon()->GetVelocity();
-	FVector Aim = Basket;
-	for (int32 i = 0; i < 2; ++i)
-	{
-		Aim = Basket + Vel * (FVector::Dist(Muzzle, Aim) / BulletSpeed);
-	}
-
-	const FRotator Want = GetActorTransform().InverseTransformVector(Aim - Muzzle).Rotation();
+	const FRotator Want = GetActorTransform().InverseTransformVector(Basket - Launcher).Rotation();
 	const FRotator Now = FMath::RInterpConstantTo(FRotator(Pitch, Yaw, 0.f), Want, DeltaSeconds, TrackSpeed);
 	Pitch = FMath::Clamp(Now.Pitch, -60.f, 60.f);
 	Yaw = FRotator::NormalizeAxis(Now.Yaw);
 	TurretYaw->SetRelativeRotation(FRotator(0.f, Yaw, 0.f));
 	TurretPitch->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
 
-	EngagedTime += DeltaSeconds;
-	NextShotIn -= DeltaSeconds;
-	if (NextShotIn > 0.f) return;
-
-	const FVector AimDir = (Aim - Muzzle).GetSafeNormal();
+	// One missile in the air at a time; the cooldown runs once it is gone.
+	if (ActiveMissile.IsValid()) return;
+	NextLaunchIn -= DeltaSeconds;
+	if (NextLaunchIn > 0.f) return;
+	const FVector AimDir = (Basket - Launcher).GetSafeNormal();
 	const float ErrorDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector::DotProduct(TurretPitch->GetForwardVector(), AimDir), -1.f, 1.f)));
-	if (ShotsLeftInBurst <= 0)
-	{
-		if (ErrorDeg > FireTolerance) return; // still turning: start the burst once on target
-		ShotsLeftInBurst = BurstShots;
-	}
-	FireShot(Aim);
-	--ShotsLeftInBurst;
-	NextShotIn = ShotsLeftInBurst > 0 ? ShotInterval : BurstCooldown;
+	if (ErrorDeg > FireTolerance) return; // still turning
+	LaunchMissile();
+	NextLaunchIn = MissileCooldown;
 }
 
-void ANemesisFlak::FireShot(const FVector& AimPoint)
+void ANemesisFlak::LaunchMissile()
 {
-	if (!BulletClass) return;
+	if (!MissileClass) return;
 	const FVector Muzzle = TurretPitch->GetComponentLocation() + TurretPitch->GetForwardVector() * BarrelLength;
-	const FVector Dir = FMath::VRandCone((AimPoint - Muzzle).GetSafeNormal(), FMath::DegreesToRadians(Spread));
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (ANemesisBullet* Bullet = GetWorld()->SpawnActor<ANemesisBullet>(BulletClass, Muzzle, Dir.Rotation(), Params))
+	if (ANemesisHomingMissile* Missile = GetWorld()->SpawnActor<ANemesisHomingMissile>(MissileClass, Muzzle, TurretPitch->GetComponentRotation(), Params))
 	{
-		Bullet->Fire(Dir, BulletSpeed, Damage);
+		Missile->Launch(this);
+		ActiveMissile = Missile;
+		UE_LOG(LogTemp, Log, TEXT("%s: missile launched"), *GetName());
 	}
 	OnShot();
 }

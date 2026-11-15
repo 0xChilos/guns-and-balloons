@@ -73,6 +73,7 @@ void ANemesisBeacon::SetLocked(bool bLocked)
 	if (bLocked == bLit) return;
 	bLit = bLocked;
 	LitTime = 0.f;
+	bCalledThisLock = false;
 	if (!bBroken) NemesisSearchlight::SetLockedState(Beam, BeamCone, bLit);
 	UE_LOG(LogTemp, Log, TEXT("%s: %s"), *GetName(), bLit ? TEXT("locked on the balloon") : TEXT("lock lost"));
 	OnLitChanged(bLit);
@@ -87,7 +88,7 @@ bool ANemesisBeacon::IsBasketInBeam() const
 	const FVector From = Lamp->GetComponentLocation();
 	const FVector Basket = T->GetBasketLocation();
 	const FVector To = Basket - From;
-	if (To.SizeSquared() > FMath::Square(Range)) return false;
+	if (To.SizeSquared() > FMath::Square(FMath::Min(Range, TrackRange))) return false; // never spot what it couldn't track
 
 	// Vertical fan: compare only the horizontal angle.
 	const FVector BeamDir = FVector(LampPivot->GetForwardVector().X, LampPivot->GetForwardVector().Y, 0.f).GetSafeNormal();
@@ -112,33 +113,50 @@ void ANemesisBeacon::Tick(float DeltaSeconds)
 	CooldownLeft = FMath::Max(0.f, CooldownLeft - DeltaSeconds);
 	if (bLit && T && T->GetBalloon())
 	{
-		// Locked for good: the red beam follows the basket in yaw and pitch, no sweep limits.
-		const FVector To = GetActorTransform().InverseTransformVector(T->GetBasketLocation() - LampPivot->GetComponentLocation());
-		const FRotator Now = FMath::RInterpConstantTo(FRotator(BeamPitch, SweepYaw, 0.f), To.Rotation(), DeltaSeconds, TrackSpeed);
-		BeamPitch = Now.Pitch;
-		SweepYaw = FRotator::NormalizeAxis(Now.Yaw);
-		LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
-
-		LitTime += DeltaSeconds;
-		const bool bInRange = FVector::DistSquared(T->GetBasketLocation(), Lamp->GetComponentLocation()) <= FMath::Square(Range);
-		if (bInRange && LitTime >= SpotTime && CooldownLeft <= 0.f)
+		// Too far from the beacon: let go and search again.
+		if (FVector::DistSquared(T->GetBasketLocation(), Lamp->GetComponentLocation()) > FMath::Square(TrackRange))
 		{
-			CooldownLeft = Cooldown;
-			ANemesisAirship* Airship = T->GetAirship();
-			const bool bLaunched = Airship && Airship->RequestCropDuster();
-			UE_LOG(LogTemp, Log, TEXT("%s: balloon spotted, crop duster %s"), *GetName(),
-				bLaunched ? TEXT("launched") : (Airship ? TEXT("not launched (limit)") : TEXT("not launched (no airship)")));
-			OnBalloonSpotted(bLaunched);
+			SetLocked(false);
 		}
-		return;
+		else
+		{
+			// Locked: the red beam follows the basket in yaw and pitch, no sweep limits.
+			const FVector To = GetActorTransform().InverseTransformVector(T->GetBasketLocation() - LampPivot->GetComponentLocation());
+			const FRotator Now = FMath::RInterpConstantTo(FRotator(BeamPitch, SweepYaw, 0.f), To.Rotation(), DeltaSeconds, TrackSpeed);
+			BeamPitch = Now.Pitch;
+			SweepYaw = FRotator::NormalizeAxis(Now.Yaw);
+			LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
+
+			LitTime += DeltaSeconds;
+			if (!bCalledThisLock && LitTime >= SpotTime && CooldownLeft <= 0.f)
+			{
+				bCalledThisLock = true;
+				CooldownLeft = Cooldown;
+				ANemesisAirship* Airship = T->GetAirship();
+				const int32 Launched = Airship ? Airship->RequestCropDusters(PlanesPerCall, 1) : 0;
+				UE_LOG(LogTemp, Log, TEXT("%s: balloon spotted, %d crop duster(s) launched%s"), *GetName(), Launched,
+					Airship ? TEXT("") : TEXT(" (no airship in the level)"));
+				OnBalloonSpotted(Launched > 0);
+			}
+			return;
+		}
 	}
 
 	// Searching: ping-pong sweep around the actor's forward, beam tilted up by SearchPitch.
-	SweepYaw += SweepDir * SweepSpeed * DeltaSeconds;
-	if (FMath::Abs(SweepYaw) >= SweepAngle)
+	if (FMath::Abs(SweepYaw) > SweepAngle)
 	{
-		SweepYaw = FMath::Clamp(SweepYaw, -SweepAngle, SweepAngle);
-		SweepDir = -SweepDir;
+		// Just lost the balloon outside the sweep: swing back into it smoothly.
+		SweepYaw = FMath::FInterpConstantTo(SweepYaw, FMath::Clamp(SweepYaw, -SweepAngle, SweepAngle), DeltaSeconds, TrackSpeed);
+		SweepDir = SweepYaw > 0.f ? -1.f : 1.f;
+	}
+	else
+	{
+		SweepYaw += SweepDir * SweepSpeed * DeltaSeconds;
+		if (FMath::Abs(SweepYaw) >= SweepAngle)
+		{
+			SweepYaw = FMath::Clamp(SweepYaw, -SweepAngle, SweepAngle);
+			SweepDir = -SweepDir;
+		}
 	}
 	BeamPitch = FMath::FInterpConstantTo(BeamPitch, SearchPitch, DeltaSeconds, TrackSpeed);
 	LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));

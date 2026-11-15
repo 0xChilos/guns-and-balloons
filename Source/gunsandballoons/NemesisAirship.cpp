@@ -371,6 +371,21 @@ bool ANemesisAirship::IsCropDusterSideTaken(int32 Side, const ANemesisCropDuster
 	return false;
 }
 
+int32 ANemesisAirship::RequestCropDusters(int32 Count, int32 MinCount)
+{
+	if (bKilled || !CropDusterClass) return 0;
+	ActiveCropDusters.RemoveAll([](const TWeakObjectPtr<ANemesisCropDuster>& D) { return !D.IsValid(); });
+	int32 Launched = 0;
+	for (int32 i = 0; i < Count; ++i)
+	{
+		if (i >= MinCount && ActiveCropDusters.Num() >= MaxCropDusters) break;
+		const int32 Before = ActiveCropDusters.Num();
+		LaunchCropDuster();
+		if (ActiveCropDusters.Num() > Before) ++Launched;
+	}
+	return Launched;
+}
+
 bool ANemesisAirship::RequestCropDuster()
 {
 	if (bKilled || !CropDusterClass) return false;

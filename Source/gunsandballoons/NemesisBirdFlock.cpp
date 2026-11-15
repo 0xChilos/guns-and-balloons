@@ -99,7 +99,6 @@ void ANemesisBirdFlock::TickBirds(float DeltaSeconds)
 	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
 	// Strike point: just above the player's head (ropes, lower envelope).
 	const FVector Basket = T->GetBasketLocation() + FVector(0.f, 0.f, FlightHeight);
-	ScareLeft = FMath::Max(0.f, ScareLeft - DeltaSeconds);
 
 	FVector Center = FVector::ZeroVector, AvgVel = FVector::ZeroVector;
 	int32 Alive = 0;
@@ -132,13 +131,20 @@ void ANemesisBirdFlock::TickBirds(float DeltaSeconds)
 	// Phase: head for the crossing point, then on to the goal on the other side.
 	if (!bCrossed && FVector::DotProduct(Center - GetActorLocation(), Goal - GetActorLocation()) > 0.f) bCrossed = true;
 	const FVector Target = bCrossed ? Goal : GetActorLocation();
-	if (bCrossed && FVector::Dist(Center, Basket) > DespawnDistance)
+	if ((bCrossed || bScared) && FVector::Dist(Center, Basket) > DespawnDistance)
 	{
 		Destroy();
 		return;
 	}
 
-	const float SepRadius = ScareLeft > 0.f ? SeparationRadius * 4.f : SeparationRadius;
+	const float SepRadius = bScared ? SeparationRadius * 4.f : SeparationRadius;
+	// Scared: away from the shot and from the balloon, sideways and up, for good.
+	FVector FleeDir = FVector::ZeroVector;
+	if (bScared)
+	{
+		FleeDir = (Center - ScareFrom).GetSafeNormal2D() + (Center - Basket).GetSafeNormal2D();
+		FleeDir = FleeDir.GetSafeNormal2D() + FVector(0.f, 0.f, 0.6f);
+	}
 	for (FBird& B : Birds)
 	{
 		if (!B.bAlive) continue;
@@ -154,17 +160,16 @@ void ANemesisBirdFlock::TickBirds(float DeltaSeconds)
 		}
 		FVector Steer = Separation * SeparationWeight
 			+ (Center - P).GetSafeNormal() * CohesionWeight
-			+ AvgVel.GetSafeNormal() * AlignmentWeight
-			+ (Target - P).GetSafeNormal() * GoalWeight;
-		if (ScareLeft > 0.f) Steer += (P - ScareFrom).GetSafeNormal() * 3.f + FVector(0.f, 0.f, 1.f); // flee and climb
+			+ AvgVel.GetSafeNormal() * AlignmentWeight;
+		Steer += bScared ? FleeDir * 3.f : (Target - P).GetSafeNormal() * GoalWeight;
 
 		const FVector Desired = Steer.GetSafeNormal() * BirdSpeed;
 		B.Velocity = FMath::VInterpTo(B.Velocity, Desired, DeltaSeconds, TurnRate);
 		const FVector NewP = P + B.Velocity * DeltaSeconds;
 		B.Mesh->SetWorldLocationAndRotation(NewP, B.Velocity.Rotation());
 
-		// Bird strike on the basket.
-		if (FVector::DistSquared(NewP, Basket) <= FMath::Square(BirdHitRadius))
+		// Bird strike on the basket (a scared flock never strikes).
+		if (!bScared && FVector::DistSquared(NewP, Basket) <= FMath::Square(BirdHitRadius))
 		{
 			if (DamageDealt + DamagePerBird <= MaxDamage + KINDA_SMALL_NUMBER)
 			{
@@ -182,13 +187,11 @@ void ANemesisBirdFlock::TickBirds(float DeltaSeconds)
 
 void ANemesisBirdFlock::Scatter(const FVector& From)
 {
+	if (bScared) return;
+	bScared = true;
 	ScareFrom = From;
-	if (ScareLeft <= 0.f)
-	{
-		UE_LOG(LogTemp, Log, TEXT("%s: scattered"), *GetName());
-		OnScattered();
-	}
-	ScareLeft = ScareTime;
+	UE_LOG(LogTemp, Log, TEXT("%s: scared off, fleeing for good"), *GetName());
+	OnScattered();
 }
 
 void ANemesisBirdFlock::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,

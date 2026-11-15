@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "NemesisFlak.generated.h"
 
-class ANemesisBullet;
+class ANemesisHomingMissile;
 class USpotLightComponent;
 class UStaticMeshComponent;
 
@@ -14,7 +14,9 @@ class UStaticMeshComponent;
  * altitude (basket height + AltitudeOffset, ClimbSpeed, a slight bob). Guards a radius around itself.
  * Outside EngageRadius its searchlight shines YELLOW and slowly circles the sky.
  * When the basket comes within EngageRadius (and in line of sight) the light turns RED, the turret
- * and the light track the basket and, after WarmUp, fire bursts of bullets (aimed with lead).
+ * and the light track the basket and, after WarmUp, it launches a homing missile (one in the air at
+ * a time; the next one MissileCooldown after the last is gone). The missile chases the basket while
+ * it stays in the radius and blows up harmlessly the moment it leaves (team decision 2026-11-15).
  * Leaving the radius (+ ReleaseMargin) or breaking line of sight returns it to searching.
  * Indestructible (decided 2026-11-15).
  */
@@ -128,43 +130,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
 	float TrackSpeed = 90.f;
 
-	/** Seconds from engaging to the first burst. TBD */
+	/** Seconds from engaging to the first missile. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
 	float WarmUp = 1.f;
 
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "1"))
-	int32 BurstShots = 5;
-
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0.01"))
-	float ShotInterval = 0.12f;
-
-	/** Pause between bursts, s. TBD */
+	/** Next missile this long after the previous one is gone, s. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float BurstCooldown = 2.5f;
+	float MissileCooldown = 4.f;
 
-	/** cm/s (300 m/s). */
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "1"))
-	float BulletSpeed = 30000.f;
-
-	/** Balloon damage per bullet that crosses the basket. TBD */
+	/** Launches only when the launcher is within this many degrees of the basket. */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float Damage = 5.f; // 4 full bursts (20 bullets) destroy a 100 HP engine. TBD
+	float FireTolerance = 10.f;
 
-	/** Random cone half-angle per shot, degrees. TBD */
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float Spread = 2.5f;
-
-	/** Fires only when the barrel is within this many degrees of the aim point. */
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float FireTolerance = 6.f;
-
+	/** Damage, speed and turn rate are on the missile class. */
 	UPROPERTY(EditAnywhere, Category = "Flak")
-	TSubclassOf<ANemesisBullet> BulletClass;
+	TSubclassOf<ANemesisHomingMissile> MissileClass;
 
 private:
 	bool CanSeeBasket() const;
 	void SetEngaged(bool bNow);
-	void FireShot(const FVector& AimPoint);
+	void LaunchMissile();
 	void UpdateAltitude(float DeltaSeconds);
 
 	float HoverZ = 0.f;
@@ -172,8 +157,7 @@ private:
 	bool bAltitudeSnapped = false;
 	float Yaw = 0.f;
 	float Pitch = 0.f;
-	float EngagedTime = 0.f;
-	float NextShotIn = 0.f;
-	int32 ShotsLeftInBurst = 0;
+	float NextLaunchIn = 0.f;
+	TWeakObjectPtr<ANemesisHomingMissile> ActiveMissile;
 	bool bEngaged = false;
 };

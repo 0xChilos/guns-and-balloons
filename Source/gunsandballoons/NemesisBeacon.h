@@ -8,14 +8,15 @@ class USpotLightComponent;
 class UStaticMeshComponent;
 
 /**
- * Desert beacon (AI ворогів, 7.2). Placeholder cubes. A lamp on a tower sweeps a visible YELLOW
+ * Desert beacon (AI ворогів, 7.2). Placeholder cubes. A lamp on a tower sweeps a visible ORANGE
  * cone of light left and right. Detection treats the beam as a vertical fan: only the horizontal
- * angle to the basket matters (plus range and line of sight).
- * Once the beam touches the basket it locks for good: the light turns RED and follows the basket in
- * yaw and pitch until the lamp is shot. While locked and the basket is within Range, after SpotTime
- * and then every Cooldown it calls an extra crop duster from the nemesis airship (outside the
- * airship's cooldown, still within its limit). The beacon does no damage itself.
- * One hit on the lamp breaks it for good.
+ * angle to the basket matters (plus Range and line of sight).
+ * Once the beam touches the basket it locks on: the light turns RED and follows the basket in yaw
+ * and pitch, until the lamp is shot or the basket gets farther than TrackRange from the beacon (then
+ * it goes back to searching). SpotTime after locking on it calls a pair of crop dusters from the
+ * nemesis airship: at least one always comes, even above the airship's limit (the second one only
+ * within it). A new lock calls again only after Cooldown. The beacon does no damage itself.
+ * One hit on the lamp breaks it for good; shooting it before it spots you prevents the call.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisBeacon : public AActor
@@ -30,11 +31,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Beacon")
 	bool IsBroken() const { return bBroken; }
 
-	/** Locked on the balloon (red light). Stays true until the lamp is broken. */
+	/** Locked on the balloon (red light): until the lamp is broken or the basket is beyond TrackRange. */
 	UFUNCTION(BlueprintPure, Category = "Beacon")
 	bool IsLocked() const { return bLit; }
 
-	/** Locked on the balloon (true), or the lamp broke while locked (false). Hook for an alarm sound. */
+	/** Locked on the balloon (true) / lost it or the lamp broke while locked (false). Hook for an alarm sound. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Beacon")
 	void OnLitChanged(bool bNowLit);
 
@@ -95,10 +96,19 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float TrackSpeed = 60.f;
 
-	/** Seconds locked before the first plane is called. */
+	/** Locked on, it stops following the basket beyond this distance, cm (250 m). TBD */
+	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
+	float TrackRange = 25000.f;
+
+	/** Crop dusters called per spotting; at least one always comes. */
+	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "1"))
+	int32 PlanesPerCall = 2;
+
+	/** Seconds locked before the planes are called. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float SpotTime = 1.f;
 
+	/** A new lock calls planes again only this long after the last call, s. TBD */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float Cooldown = 15.f;
 
@@ -115,6 +125,7 @@ private:
 	float BeamPitch = 0.f;
 	float SweepDir = 1.f;
 	float LitTime = 0.f;
+	bool bCalledThisLock = false;
 	float CooldownLeft = 0.f;
 	bool bLit = false;
 	bool bBroken = false;

@@ -61,6 +61,13 @@ public:
 	/** Beacon: launch one crop duster now, ignoring the cooldown (still within MaxCropDusters). */
 	bool RequestCropDuster();
 
+	/**
+	 * Beacon: launch up to Count crop dusters now, ignoring the cooldown. The first MinCount launch
+	 * even above MaxCropDusters (a beacon that spotted the balloon always sends someone); the rest
+	 * respect the limit. Returns how many were launched.
+	 */
+	int32 RequestCropDusters(int32 Count, int32 MinCount);
+
 	/** Is another live crop duster (not Except) holding that side (+1 right, −1 left)? */
 	bool IsCropDusterSideTaken(int32 Side, const ANemesisCropDuster* Except) const;
 

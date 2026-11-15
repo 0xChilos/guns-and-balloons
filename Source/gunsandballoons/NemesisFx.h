@@ -12,7 +12,7 @@ class UWorld;
  */
 namespace NemesisFx
 {
-	enum class EKind : uint8 { EngineSmoke, Fire, RocketTrail, BlastFire, BlastSmoke };
+	enum class EKind : uint8 { EngineSmoke, Fire, RocketTrail, MissileTrail, BlastFire, BlastSmoke, FineBlastFire, FineBlastSmoke };
 
 	/** Smoke actor with the colour and air settings for that kind. */
 	AGunSmoke* Spawn(UWorld* World, EKind Kind);
@@ -22,6 +22,12 @@ namespace NemesisFx
 
 	/** One-shot explosion (fire + smoke) at Location; Scale 1 = rocket / mine size. */
 	void Explosion(UWorld* World, const FVector& Location, float Scale = 1.f);
+
+	/**
+	 * Less cartoony one-shot explosion (the AA missile): a short light flash, a fireball of many small
+	 * fine-grained puffs, then a dark, swirling smoke cloud that keeps spreading.
+	 */
+	void FineExplosion(UWorld* World, const FVector& Location, float Scale = 1.f);
 
 	/** A continuous stream into one smoke actor (call Tick every frame while it should emit). */
 	struct FStream

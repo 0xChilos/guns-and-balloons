@@ -28,7 +28,7 @@ Constant pressure that drives the player forward. The distance to the airship is
 | Parachute mine | Descends slowly | Fly around it or shoot it |
 | Crop duster | Launches from the airship, takes a position to the right or left of the balloon and never changes side or distance until shot down; fires at the basket | Hit the engine or the fuselage |
 
-Planes don't change altitude. Enemies shoot straight at the basket, with no correction for bullet drop. Biome enemies (tower guard, beacon, birds, patrols, AA gun) are described in [biomes.md](biomes.md).
+Planes don't change altitude. Enemies shoot straight at the basket, with no correction for bullet drop. Biome enemies (tower cannon, beacon, birds, patrols, AA gun) are described in [biomes.md](biomes.md).
 
 ## Damage to the engine
 The engine has **100 HP**. All values are prototype values (TBD).
@@ -40,12 +40,12 @@ The engine has **100 HP**. All values are prototype values (TBD).
 | Parachute mine (bomber) | 30, the same anywhere within a 5 m radius | One every 7–10 s | 30 | 4 |
 | Bomber | No direct damage, only through mines | — | — | — |
 | Crop duster (also lava patrols) | 3 per bullet | A burst of 6 every 4 s (0.5 s warning before each burst) | 18 per burst | 34 bullets, ≈ 6 full bursts |
-| Tower guard (desert) | 12 | One shot every 6 s (aims 2 s, reloads 4 s) | 12 | 9 |
-| AA gun (all biomes) | 5 per bullet | A burst of 5 every ≈ 3 s (1 s warm-up before the first), 2.5° spread, only within its 50 m radius | 25 per burst | 4 full bursts (20 bullets) |
-| Bird flock (field) | 3 per bird | A bird is gone after it hits; one active flock at a time | 15 per flock | ≈ 7 flocks |
-| Beacon (desert) | None | Calls a crop duster every 15 s while locked on | — | — |
+| Tower cannon (desert) | 12 | One shell every 6 s (aims 2 s, reloads 4 s) | 12 | 9 |
+| AA gun (all biomes) | 50 per homing missile | One missile at a time, the next 4 s after the last is gone (1 s warm-up before the first); only within its 50 m radius, the missile blows up harmlessly when the balloon leaves it | 50 | 2 missiles |
+| Bird flock (field) | 3 per bird; 0 once scared off | A bird is gone after it hits; one active flock at a time | 15 per flock | ≈ 7 flocks |
+| Beacon (desert) | None | Calls a pair of crop dusters (at least one) when it spots the balloon | — | — |
 
-Bullets (crop duster, guard, AA gun) count only if they pass within 1.3 m of the basket's centre. A rocket needs a direct hit; a mine hits everything within its radius.
+Bullets and shells (crop duster, tower cannon) count only if they pass within 1.3 m of the basket's centre. Rockets and AA missiles need a direct hit; a mine hits everything within its radius.
 
 ## Parameters
 | Parameter | Value | Note |
