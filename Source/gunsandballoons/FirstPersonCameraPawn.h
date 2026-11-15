@@ -143,6 +143,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
 	bool IsHandEmpty() const { return HandState == EPlayerHandState::Empty; }
 
+	/** True while LMB is dragging an IGrabbable control (a balloon lever). Read by the crosshair. */
+	bool IsGrabbing() const { return GrabTarget.IsValid(); }
+
 	/** Hide and consume the active item immediately, leaving the hand empty without touching racks. */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Hand")
 	bool ConsumeHeldItem();

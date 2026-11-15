@@ -27,7 +27,9 @@ class UMaterialInterface;
  * The dot stays on the true aim (bInertiaMovesDot to swing it too).
  * Aiming down the sights fades the whole crosshair out with the gun's raise, and back in as it lowers.
  * - a weapon change (the crosshair opens and fades out as the gun goes down, the new gun's comes back).
- * Empty hand: only the dot, bigger over something to interact with. A gun with nothing to fire
+ * Empty hand: only the dot. Over something to interact with (or while dragging a lever) it opens into
+ * four corner brackets: the dot swells into a small square, its sides open up as it grows, and the
+ * brackets snap a little past their size and settle. The dot stays in the middle. A gun with nothing to fire
  * (empty, or the hook below 100) shows faded ticks.
  *
  * All values below are first-pass, TBD: tune in game.
@@ -143,11 +145,42 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Look", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ReloadOpacity = 0.5f;
 
-	/** Dot size (crosshair pixels, odd) with an empty hand over something to interact with. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Look", meta = (ClampMin = "1"))
-	int32 InteractDotSize = 3;
+	// --- Interact brackets: with an empty hand over something to interact with (or while dragging a
+	// lever) the dot swells into a small square whose sides open up, leaving four corner brackets.
+
+	/** Half-size of the brackets (crosshair pixels from the centre to the frame): 6 = a 13x13 square. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact", meta = (ClampMin = "1"))
+	int32 InteractBracketHalfSize = 6;
+
+	/** Length of each bracket's arms, corner included (crosshair pixels). At HalfSize + 1 or more it is a full square. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact", meta = (ClampMin = "1"))
+	int32 InteractBracketLength = 3;
+
+	/** Thickness of the brackets (crosshair pixels). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact", meta = (ClampMin = "1"))
+	int32 InteractBracketThickness = 1;
+
+	/** Seconds for the dot to open into the brackets (and to close back). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact", meta = (ClampMin = "0.01"))
+	float InteractMorphTime = 0.15f;
+
+	/** How far the brackets snap past their size on opening (0 = none; 1.7 = about 10 % past). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact", meta = (ClampMin = "0.0", ClampMax = "4.0"))
+	float InteractOvershoot = 1.7f;
+
+	/** Keep the centre dot inside the brackets (it marks the true aim). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crosshair|Interact")
+	bool bInteractKeepsDot = true;
+
+public:
+	/** 0 = the dot, 1 = the interact brackets. */
+	UFUNCTION(BlueprintPure, Category = "Crosshair")
+	float GetInteractMorph() const { return InteractMorph; }
 
 private:
+	/** The brackets' current half-size in crosshair pixels (0 = just the dot). */
+	int32 GetBracketHalfSize() const;
+
 	void UpdateDynamics(const AFirstPersonCameraPawn& Pawn, float DeltaSeconds);
 	float SpreadToPixels(float Degrees, float PixelSize) const;
 
@@ -161,6 +194,8 @@ private:
 	FVector2D InertiaVelocity = FVector2D::ZeroVector;
 	float TickOpacity = 0.f;
 	float DotOpacity = 0.f;
+	float InteractMorph = 0.f;                          // 0 = dot, 1 = brackets (linear in time; eased when drawn)
+	bool bInteractOpening = false;
 
 	FRotator LastView = FRotator::ZeroRotator;
 	bool bHasLastView = false;

@@ -1,6 +1,6 @@
 # Crosshair — technical reference (C++)
 
-> **For agents.** Design: [crosshair](../features/crosshair.md). **Updated:** 2026-11-14
+> **For agents.** Design: [crosshair](../features/crosshair.md). **Updated:** 2026-11-15
 
 ## Files
 | File | Role |
@@ -12,7 +12,8 @@
 
 ## How it works
 - **Drawing:** the HUD draws after post-processing, so the material does the art style itself. One cell = `round(ViewportHeight / VirtualHeight)` screen pixels. The quad is `QuadCells`² cells, snapped to the cell grid. The Bayer threshold uses `Origin` (the quad's first cell on the screen grid), so the dither pattern doesn't crawl when the crosshair moves. Opacity is exactly 0 or 1. Don't use the Masked blend mode: canvas ignores the opacity mask, and the whole quad draws dark.
-- **Parameters set per frame:** `QuadCells`, `Origin`, `Gap`, `DotSize`, `TickOpacity`, `DotOpacity`, `GrainTime`, and `TickOffset` (cells; the inertia swing, ticks only).
+- **Parameters set per frame:** `QuadCells`, `Origin`, `Gap`, `DotSize`, `TickOpacity`, `DotOpacity`, `GrainTime`, `TickOffset` (cells; the inertia swing, ticks only), and `BoxHalf` / `BoxArm` / `BoxThick` (the interact brackets).
+- **Interact brackets:** the target is `IsHandEmpty() && (IsGrabbing() || GetAimedInteractable())`. `InteractMorph` moves linearly 0↔1 over `InteractMorphTime`. The half-size is `round(ease(morph) × InteractBracketHalfSize)`: ease-out-back (`InteractOvershoot`) on opening, smoothstep on closing. In the material, a cell is a bracket when its square ring `max(|x|,|y|)` is within `BoxThick` of `BoxHalf` and `min(|x|,|y|) > BoxHalf − BoxArm`. So small squares are whole, and bigger ones open in the middle of each side. The outline is the same shape grown by one cell. The quad grows to fit the overshoot.
 - **Spread (degrees):**
   - gun `GetCrosshairSpread()` (`SpreadAngle` + `PelletSpreadAngle` when more than one projectile);
   - plus `RecoilAlpha × AimRecoilPitch × RecoilBloom`;
