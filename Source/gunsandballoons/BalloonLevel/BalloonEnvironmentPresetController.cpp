@@ -10,12 +10,29 @@
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Engine/StaticMesh.h"
 
 ABalloonEnvironmentPresetController::ABalloonEnvironmentPresetController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("Root")));
+	SkyDome = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BiomeSkyDome"));
+	SkyDome->SetupAttachment(GetRootComponent());
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DomeMesh(TEXT("/Engine/EngineSky/SM_SkySphere.SM_SkySphere"));
+	SkyDome->SetStaticMesh(DomeMesh.Object);
+	SkyDome->SetRelativeScale3D(FVector(10000.f));
+	SkyDome->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SkyDome->SetCastShadow(false);
+	SkyDome->SetVisibility(false);
+	for (const TCHAR* Biome : {TEXT("Forest"), TEXT("Field"), TEXT("City"), TEXT("Desert")})
+	{
+		DaySkyMaterials.Add(Biome, TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(FString::Printf(
+			TEXT("/Game/BalloonLevel/Skies/MI_%s_DaySky.MI_%s_DaySky"), Biome, Biome))));
+		NightSkyMaterials.Add(Biome, TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(FString::Printf(
+			TEXT("/Game/BalloonLevel/Skies/MI_%s_NightSky.MI_%s_NightSky"), Biome, Biome))));
+	}
 	// Spec section 10.3 authoring defaults (linear color, density). Designers may override per level.
 	BiomeFog.Add(TEXT("Forest"), {FLinearColor(0.35f, 0.45f, 0.45f), 0.03f});
 	BiomeFog.Add(TEXT("Field"), {FLinearColor(0.75f, 0.70f, 0.55f), 0.015f});
@@ -112,6 +129,11 @@ bool ABalloonEnvironmentPresetController::ApplyEnvironment(FName BiomeId, EBallo
 	if (!SunActor) Diagnostics.Add(TEXT("Warning: no DirectionalLight; sun preset not applied"));
 	if (!SkyActor) Diagnostics.Add(TEXT("Warning: no SkyLight; sky intensity not applied"));
 	if (Error) return false;
+	const auto& SkyMaterials = Preset == EBalloonLightingPreset::Day ? DaySkyMaterials : NightSkyMaterials;
+	const auto* SkyReference = SkyMaterials.Find(BiomeId);
+	UMaterialInterface* SkyMaterial = SkyReference ? SkyReference->LoadSynchronous() : nullptr;
+	if (!SkyMaterial)
+		Diagnostics.Add(TEXT("Warning: biome sky material unavailable; run Scripts/Editor/setup_biome_skies.py"));
 
 	// Apply.
 	if (!FogActor)
@@ -145,6 +167,25 @@ bool ABalloonEnvironmentPresetController::ApplyEnvironment(FName BiomeId, EBallo
 		SunActor->SetActorRotation(Values.SunRotation);
 		Light->SetIntensity(Values.SunIntensity);
 		Light->SetLightColor(Values.SunColor);
+	}
+	if (SkyMaterial)
+	{
+		bool FoundAuthoredDome = false;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (*It == this) continue;
+			TArray<UStaticMeshComponent*> Meshes;
+			It->GetComponents(Meshes);
+			for (UStaticMeshComponent* Mesh : Meshes)
+			{
+				if (!Mesh->GetStaticMesh() || Mesh->GetStaticMesh()->GetPathName() != TEXT("/Engine/EngineSky/SM_SkySphere.SM_SkySphere")) continue;
+				if (!Play) Mesh->Modify();
+				Mesh->SetMaterial(0, SkyMaterial);
+				FoundAuthoredDome = true;
+			}
+		}
+		SkyDome->SetMaterial(0, SkyMaterial);
+		SkyDome->SetVisibility(!FoundAuthoredDome);
 	}
 	if (SkyActor && SkyActor->GetLightComponent())
 	{

@@ -165,6 +165,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
   // All entry points share this path: Details, Blueprint, BeginPlay and regeneration.
   // Use the successful snapshot, including the config chosen by Random mode.
   if (ManageEnvironment) ConfigureEnvironment();
+  SpawnLevelEnemies();
   for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
   {
    if (It->Generator != this) continue;
@@ -216,6 +217,8 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
 	}
  ActiveConfig = DuplicateObject<UBalloonLevelConfig>(SelectedConfig, this);
  ActiveConfig->SetFlags(RF_Transient);
+ if (!SpawnEnemies) ActiveConfig->EnemiesEnabled = false;
+ if (!SpawnEnemies || !SpawnSharedEnemies) ActiveConfig->BorderActorClass.Reset();
  if (OverrideHeights)
  { ActiveConfig->FlightHeightMeters = FlightHeightMeters; ActiveConfig->PlacementGroundZMeters = GroundHeightMeters; }
  if (OverrideTerrain)
