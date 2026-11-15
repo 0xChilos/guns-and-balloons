@@ -1,0 +1,16 @@
+---,Asset,Category,Collision,DensityPerKm2,ScaleMin,ScaleMax,MinSpacingM,RandomYaw,AlignToSlope,ClusterSize,Rule,Notes
+SM_House_Terrace_A,SM_House_Terrace_A,Filler,false,180,0.9,1.1,4,false,true,6,street,"Row of 3 brick houses, 3 floors"
+SM_House_Terrace_B,SM_House_Terrace_B,Filler,false,180,0.9,1.1,4,false,true,6,street,4-floor stucco terrace with mansard roof and dormers
+SM_House_Terrace_C,SM_House_Terrace_C,Filler,false,180,0.9,1.1,4,false,true,6,street,"Narrow 2-floor sooty house, hipped roof"
+SM_Shop_Corner,SM_Shop_Corner,Filler,false,180,0.9,1.1,4,false,true,6,street,Corner shop with awning and a turret
+SM_Church,SM_Church,Obstacle,true,4,1,1,120,false,true,1,scatter,"Spire reaches 40 m, so it has simple collision"
+SM_Warehouse,SM_Warehouse,Filler,false,25,0.9,1.1,8,false,true,3,street,
+SM_Factory_A,SM_Factory_A,Obstacle,true,10,1,1,40,false,true,2,scatter,Smoke from SOCKET_smoke_1 / _2 (chimney tops). Chimneys reach 32 m and collide
+SM_Factory_B,SM_Factory_B,Obstacle,true,8,1,1,40,false,true,2,scatter,Smoke from SOCKET_smoke_1 (chimney top). Chimney reaches 40 m and collides
+SM_Gasholder,SM_Gasholder,Filler,false,3,0.9,1.1,80,true,true,1,scatter,"Iron gas holder frame, 20 m"
+SM_Lamppost,SM_Lamppost,Filler,false,400,1,1,12,true,false,1,street,
+SM_ClockTower,SM_ClockTower,Obstacle,true,1,1,1,400,true,true,1,scatter,"62 m Victorian clock tower, collision"
+SM_Tower_Office_A,SM_Tower_Office_A,Obstacle,true,6,0.9,1.15,60,false,true,2,scatter,"48 m stone office tower, collision"
+SM_Tower_Office_B,SM_Tower_Office_B,Obstacle,true,6,0.9,1.15,60,false,true,2,scatter,"56 m sooty brick tower with mansard top and flagpole, collision"
+SM_JammerTower,SM_JammerTower,Obstacle,true,2,0.9,1.1,250,true,true,1,scatter,"Giant antenna: lattice mast, copper coils, red warning lights (glow slot). Sockets beacon_1..3, jam, loot_01/02 and dish: SM_JammerDish goes on SOCKET_dish, rotates, and can be shot down to stop the jammer"
+SM_JammerDish,SM_JammerDish,Hazard,true,0,1,1,0,true,false,1,scatter,"Rotating jammer dish for SOCKET_dish on SM_JammerTower. Pivot = turntable base, spins around Z. Own collision: shoot it down to stop the jammer. Glowing emitter core (glow slot) marks it as a target"

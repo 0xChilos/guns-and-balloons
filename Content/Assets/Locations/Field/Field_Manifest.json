@@ -1,0 +1,646 @@
+{
+ "SK_Bird": {
+  "file": "SK_Bird.fbx",
+  "kind": "skeletal",
+  "category": "Creature",
+  "tris": 134,
+  "size_m": [
+   1.06,
+   0.62,
+   0.16
+  ],
+  "texture": "T_Field_Bird.png",
+  "materials": [
+   "M_Field_Bird"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [
+   "root",
+   "body",
+   "wing_L",
+   "wingtip_L",
+   "wing_R",
+   "wingtip_R",
+   "tail"
+  ],
+  "anims": [
+   "Bird_Flap",
+   "Bird_Glide"
+  ],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Flock bird with wing-flap animation; collides with the balloon (sphere ~0.5 m)"
+ },
+ "SM_HayBale_Round": {
+  "file": "SM_HayBale_Round.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 36,
+  "size_m": [
+   1.2,
+   1.5,
+   1.43
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_HayStack": {
+  "file": "SM_HayStack.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 42,
+  "size_m": [
+   4.28,
+   4.3,
+   4.2
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Fence": {
+  "file": "SM_Fence.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 48,
+  "size_m": [
+   4.2,
+   0.16,
+   1.3
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "4 m fence section: place end to end along field borders"
+ },
+ "SM_Hedge": {
+  "file": "SM_Hedge.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 108,
+  "size_m": [
+   6.96,
+   2.19,
+   2.39
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "6 m hedge: lines between fields"
+ },
+ "SM_Farmhouse": {
+  "file": "SM_Farmhouse.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 120,
+  "size_m": [
+   11.6,
+   8.9,
+   10.3
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Barn": {
+  "file": "SM_Barn.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 84,
+  "size_m": [
+   10.8,
+   14.6,
+   9.35
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SK_Windmill": {
+  "file": "SK_Windmill.fbx",
+  "kind": "skeletal",
+  "category": "Obstacle",
+  "tris": 1184,
+  "size_m": [
+   24.81,
+   11.05,
+   39.8
+  ],
+  "texture": "T_Field_Windmill.png",
+  "materials": [
+   "M_Field_Windmill"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [
+   "root",
+   "blades",
+   "loot_01",
+   "loot_02"
+  ],
+  "anims": [
+   "Windmill_Spin"
+  ],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "physics_bodies": [
+   {
+    "bone": "root",
+    "type": "capsule",
+    "size_m": [
+     4.3,
+     27.2
+    ],
+    "size_cm": [
+     430.0,
+     2720.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     13.600000381469727
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     1360.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     7.2,
+     8.0,
+     4.6
+    ],
+    "size_cm": [
+     720.0,
+     800.0,
+     460.0
+    ],
+    "center_m": [
+     0.0,
+     0.4000000059604645,
+     28.299999237060547
+    ],
+    "center_ue_cm": [
+     0.0,
+     -40.0,
+     2830.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     11.2,
+     11.2,
+     1.3
+    ],
+    "size_cm": [
+     1120.0,
+     1120.0,
+     130.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     9.399999618530273
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     940.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     10.0,
+     10.0,
+     2.0
+    ],
+    "size_cm": [
+     1000.0,
+     1000.0,
+     200.0
+    ],
+    "center_m": [
+     0.0,
+     0.0,
+     1.0
+    ],
+    "center_ue_cm": [
+     0.0,
+     -0.0,
+     100.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "sphere",
+    "size_m": [
+     0.8
+    ],
+    "size_cm": [
+     80.0
+    ],
+    "center_m": [
+     0.0,
+     4.599999904632568,
+     27.399999618530273
+    ],
+    "center_ue_cm": [
+     0.0,
+     -460.0,
+     2740.0
+    ],
+    "x_axis_ue": [
+     1.0,
+     -0.0,
+     0.0
+    ],
+    "y_axis_ue": [
+     0.0,
+     -1.0,
+     0.0
+    ],
+    "z_axis_ue": [
+     0.0,
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     4.45477294921875,
+     4.599999904632568,
+     33.83467102050781
+    ],
+    "center_ue_cm": [
+     445.5,
+     -460.0,
+     3383.5
+    ],
+    "x_axis_ue": [
+     0.7,
+     -0.0,
+     0.7
+    ],
+    "y_axis_ue": [
+     -0.7,
+     -0.0,
+     0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     -6.434671401977539,
+     4.599999904632568,
+     31.854772567749023
+    ],
+    "center_ue_cm": [
+     -643.5,
+     -460.0,
+     3185.5
+    ],
+    "x_axis_ue": [
+     -0.7,
+     -0.0,
+     0.7
+    ],
+    "y_axis_ue": [
+     -0.7,
+     -0.0,
+     -0.7
+    ],
+    "z_axis_ue": [
+     -0.0,
+     1.0,
+     0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     -4.45477294921875,
+     4.599999904632568,
+     20.9653263092041
+    ],
+    "center_ue_cm": [
+     -445.5,
+     -460.0,
+     2096.5
+    ],
+    "x_axis_ue": [
+     -0.7,
+     -0.0,
+     -0.7
+    ],
+    "y_axis_ue": [
+     0.7,
+     -0.0,
+     -0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     -0.0
+    ]
+   },
+   {
+    "bone": "blades",
+    "type": "box",
+    "size_m": [
+     14.6,
+     2.8,
+     0.4
+    ],
+    "size_cm": [
+     1460.0,
+     280.0,
+     40.0
+    ],
+    "center_m": [
+     6.434671401977539,
+     4.599999904632568,
+     22.945226669311523
+    ],
+    "center_ue_cm": [
+     643.5,
+     -460.0,
+     2294.5
+    ],
+    "x_axis_ue": [
+     0.7,
+     -0.0,
+     -0.7
+    ],
+    "y_axis_ue": [
+     0.7,
+     -0.0,
+     0.7
+    ],
+    "z_axis_ue": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  ],
+  "notes": "31 m tower windmill, collides (physics asset). Sails on bone 'blades' spin with the looping animation Windmill_Spin. Loot spots: lookout on the roof (loot_01) and the gallery (loot_02). Physics bodies (incl. one box per sail on bone 'blades') are listed in Field_Manifest.json"
+ },
+ "SM_Tree_Oak_A": {
+  "file": "SM_Tree_Oak_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 188,
+  "size_m": [
+   7.21,
+   6.88,
+   7.52
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Tree_Oak_B": {
+  "file": "SM_Tree_Oak_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 188,
+  "size_m": [
+   8.15,
+   8.55,
+   9.45
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Scarecrow": {
+  "file": "SM_Scarecrow.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 92,
+  "size_m": [
+   1.8,
+   0.64,
+   2.5
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_HayCart": {
+  "file": "SM_HayCart.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 104,
+  "size_m": [
+   1.92,
+   5.11,
+   2.05
+  ],
+  "texture": "T_Field_Props.png",
+  "materials": [
+   "M_Field_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "_ground": {
+  "texture": "T_Field_Ground.png",
+  "average_linear": [
+   0.3874,
+   0.4104,
+   0.1761
+  ],
+  "average_srgb": [
+   0.6557,
+   0.673,
+   0.4567
+  ]
+ }
+}
