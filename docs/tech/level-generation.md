@@ -29,6 +29,8 @@
 | `Scripts/Verify-BalloonLevelM6.ps1` | Isolated clean build + all BalloonLevel tests |
 
 ## Pipeline (`GenerateLevel`)
+Realization populates every `loot_*` socket on static mesh placements (including individual HISM instances) and socket/bone on actor mesh components with an `AHookPickup`. Socket position/rotation follow the host; pickup scale stays at its authored size. Actor pickups attach to the socket so moving skeletal hosts carry them until hooked. `ItemDensity` (0-1, default 1) controls the fraction of occupied spots, with a separate seeded stream so changing density retains nested subsets and stable item types. Start Options and the menu expose the same setting (menu: 0-100%). Selection uses a separate stream seeded by the plan, with equal weights across the existing five resource models (prototype distribution, needs tuning). Contents, sounds and sparkle match `Hook_Loot_Grab`; pickups float until hooked and are consumed on delivery. Hard references retain loot assets for cooking. Pickups join the realizer's staged actor list for rollback, regeneration, clear and owner deletion.
+
 1. `ClearGeneratedLevel()`: resets the plan, spline, progress, proxies, event timeline and `ActiveConfig`.
 2. Choose a config: `LevelConfig`, or a random valid entry of `RandomBiomeConfigs` (`BiomeSelection=Random`). Duplicate it into the transient `ActiveConfig` and optionally replace the seed (`RandomizeSeed`). Source assets are never modified.
 3. `BalloonSplinePlanning::Build`: validates the config and builds the centerline, sample widths, segments, start/finish. Failure → `InvalidConfig`.

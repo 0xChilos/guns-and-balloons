@@ -17,6 +17,8 @@ struct GUNSANDBALLOONS_API FBalloonLevelStartOptions
  /** Multipliers: zero disables the category, one keeps the authored density. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", ClampMax="10")) float EnemyDensity = 1.f;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", ClampMax="10")) float ObstacleDensity = 1.f;
+ /** Fraction of authored loot spots to fill: zero disables items, one fills every spot. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", ClampMax="1")) float ItemDensity = 1.f;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", ClampMax="10")) float FogDensity = .03f;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", Units="m")) float DistanceToNemesis = 250.f;
  bool Validate(TArray<FString>& Errors) const;

@@ -24,6 +24,8 @@ bool UBalloonLevelLaunchSubsystem::StartLevel(const FBalloonLevelStartOptions& I
 bool FBalloonLevelStartOptions::Validate(TArray<FString>& Errors) const
 {
  const int32 Before = Errors.Num();
+ if (!FMath::IsFinite(ItemDensity) || ItemDensity < 0.f || ItemDensity > 1.f)
+  Errors.Add(TEXT("Start options: item density must be finite and in [0,1]"));
  if (Biome != TEXT("Forest") && Biome != TEXT("Field") && Biome != TEXT("City") && Biome != TEXT("Desert"))
   Errors.Add(TEXT("Start options: choose Forest, Field, City or Desert"));
  if (Cycle != EBalloonLightingPreset::Day && Cycle != EBalloonLightingPreset::Night)
