@@ -54,7 +54,7 @@ The speedometer reads the current speed from the flight component, which already
 | --- | --- | --- |
 | `SpeedometerMaxSpeed` | 0 | 0 = use `MaxSpeed`; a positive value sets the full scale in cm/s. Needs tuning. |
 
-In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
+**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
 
 ## Open questions
 - [ ] A detailed breakdown of the navigation panel: the full set of elements and how they look (TODO in the Director's Cut).
