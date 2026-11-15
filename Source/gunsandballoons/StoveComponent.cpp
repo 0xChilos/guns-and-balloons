@@ -107,6 +107,7 @@ void UStoveComponent::EndPlay(const EEndPlayReason::Type Reason)
 bool UStoveComponent::CanAddFuel(const UStoveFuelType* Fuel) const
 {
 	return IsValid(Fuel) && bDoorOpen && FMath::IsFinite(Fuel->BurnTime) && Fuel->BurnTime >= 0.f
+		&& FMath::IsFinite(Fuel->DecayPauseOverride)
 		&& FMath::IsFinite(Fuel->HeatAdd) && Fuel->HeatAdd >= 0.f
 		&& FMath::IsFinite(Fuel->HeatRateOverride) && Fuel->HeatRateOverride >= 0.f
 		&& (bClampBurnTimeOnOverfill || BurnTimeLeft + Fuel->BurnTime <= MaxBurnTime);
@@ -122,7 +123,8 @@ bool UStoveComponent::AddFuel(const UStoveFuelType* Fuel)
 	ActiveHeatRateOverride = bWasHeating ? FMath::Max(ActiveHeatRateOverride, Fuel->HeatRateOverride) : Fuel->HeatRateOverride;
 	BurnTimeLeft = FMath::Min(BurnTimeLeft + Fuel->BurnTime, MaxBurnTime);
 	TargetTemperature = FMath::Min(FMath::Max(Temperature, TargetTemperature) + Fuel->HeatAdd, MaxTemperature);
-	DecayPauseLeft = DecayPause;
+	bPauseIncludesIgnition = Fuel->DecayPauseOverride >= 0.f;
+	DecayPauseLeft = bPauseIncludesIgnition ? Fuel->DecayPauseOverride : DecayPause;
 	if (Fuel->bInstantHeat)
 	{
 		Temperature = TargetTemperature;
@@ -201,6 +203,9 @@ void UStoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 	bool bJustIgnited = false;
 	if (bIgniting)
 	{
+		// Per-fuel pauses start at insertion, including the cold ignition delay.
+		if (bPauseIncludesIgnition)
+			DecayPauseLeft = FMath::Max(0.f, DecayPauseLeft - FMath::Min(DeltaTime, IgnitionDelayLeft));
 		// Only the part of the frame after ignition can burn fuel or heat the stove.
 		SimulationTime = FMath::Max(0.f, DeltaTime - IgnitionDelayLeft);
 		IgnitionDelayLeft = FMath::Max(0.f, IgnitionDelayLeft - DeltaTime);

@@ -20,6 +20,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stove Fuel", meta = (ClampMin = "0", Units = "s"))
 	float BurnTime = 0.f;
 
+	/** Cooling pause from insertion, including ignition; negative uses the stove default. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stove Fuel", meta = (ClampMin = "-1", Units = "s"))
+	float DecayPauseOverride = -1.f;
+
 	/** Temperature added by one piece, in degrees. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stove Fuel", meta = (ClampMin = "0"))
 	float HeatAdd = 0.f;

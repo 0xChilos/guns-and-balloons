@@ -99,7 +99,8 @@ How to read the **Edit** column:
 | Property | Wood / Coal / Crystal | Edit | Notes |
 | --- | --- | --- | --- |
 | `DisplayName` | — | Asset | UI name |
-| `BurnTime` | 180 / 120 / 10 s | Asset | Burn time added per piece |
+| `BurnTime` | 120 / 60 / 10 s | Asset | Burn time added per piece |
+| `DecayPauseOverride` | 110 / 40 / 10 s | Asset | Pause from insertion, including ignition; -1 uses the legacy stove pause |
 | `HeatAdd` | 20 / 30 / 50 deg | Asset | Added to the pending heat target |
 | `bInstantHeat` | false / false / true | Asset | Jump to the target and skip the cold ignition delay |
 | `HeatRateOverride` | 0 | Asset | deg/s for this fuel; 0 = stove `HeatRate` |

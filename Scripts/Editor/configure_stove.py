@@ -18,8 +18,8 @@ def configure_fuel_assets():
     unreal.EditorAssetLibrary.make_directory(folder)
 
     fuels = (
-        ('Wood', 'Дрова', 180.0, 20.0, False, 'Cube'),
-        ('Coal', 'Вугілля', 120.0, 30.0, False, 'Cylinder'),
+        ('Wood', 'Дрова', 120.0, 20.0, False, 'Cube'),
+        ('Coal', 'Вугілля', 60.0, 30.0, False, 'Cylinder'),
         ('Crystal', 'Кристал', 10.0, 50.0, True, 'Cone'),
     )
     for suffix, label, burn_time, heat_add, instant, shape in fuels:
@@ -35,6 +35,7 @@ def configure_fuel_assets():
             'DisplayName': unreal.Text(label),
             'BurnTime': burn_time,
             'HeatAdd': heat_add,
+            'DecayPauseOverride': {'Wood': 110.0, 'Coal': 40.0, 'Crystal': 10.0}[suffix],
             'bInstantHeat': instant,
             'HeatRateOverride': 0.0,
         }

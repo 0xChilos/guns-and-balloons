@@ -96,6 +96,7 @@ private:
 	float TargetTemperature = 0.f;
 	float BurnTimeLeft = 0.f;
 	float DecayPauseLeft = 0.f;
+	bool bPauseIncludesIgnition = false;
 	float IgnitionDelayLeft = 0.f;
 	float ActiveHeatRateOverride = 0.f;
 	bool bHeatingUsesDefaultRate = true;

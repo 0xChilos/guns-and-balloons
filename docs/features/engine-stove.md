@@ -1,6 +1,6 @@
 # Stove engine
 
-> **Status:** In progress · **Owner:** Rostik · **Updated:** 2026-11-15
+> **Status:** In progress · **Owner:** Rostik · **Updated:** 2026-11-16
 
 ## Why
 A constant small task for the player's hands: keep the fire going, balancing speed against the risk of overheating.
@@ -9,7 +9,7 @@ A constant small task for the player's hands: keep the fire going, balancing spe
 The engine has **2 gauges**: temperature and burn time.
 
 **Temperature** sets the balloon's speed.
-- While there is burn time, it drops by **1°/s**. Adding fuel stops the drop for **10 s**.
+- While there is burn time, it drops by **1°/s**. Adding fuel stops the drop for **110 s (wood), 40 s (coal), or 10 s (crystal)** from insertion, including ignition.
 - **Target temperature** = the current temperature (or the current target) + the degrees of the fuel thrown in. The temperature doesn't drop while heating.
 - Heating runs at a configurable rate (default **5°/s**, can be set per fuel). **Crystal** jumps straight to the target.
 - If the temperature has fallen to **0**: after adding fuel, heating starts after **10 s** (burn time isn't spent meanwhile; crystal has no delay).
@@ -50,15 +50,15 @@ With fuel in hand, clicking a weapon rack or an item does nothing, and levers ca
 ## Parameters
 | Fuel | Burn time | Temperature | Heating |
 | --- | --- | --- | --- |
-| Wood | 3 min | +20° | 5°/s |
-| Coal | 2 min | +30° | 5°/s |
+| Wood | 2 min | +20° | 5°/s |
+| Coal | 1 min | +30° | 5°/s |
 | Crystal | 10 s | +50° | instant |
 
 | Parameter | Value |
 | --- | --- |
 | Temperature drop (burning) | 1°/s |
 | Temperature drop (burn time = 0) | 5°/s |
-| Drop pause after adding fuel | 10 s |
+| Drop pause after adding fuel | Wood 110 s / coal 40 s / crystal 10 s, measured from insertion |
 | Ignition delay from 0 / heating speed | 10 s / 5°/s (configurable) |
 | Max burn time | 10 min |
 | Capacity of each bucket | 6 units |

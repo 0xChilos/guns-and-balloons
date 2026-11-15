@@ -141,6 +141,34 @@ bool FStoveTickSizeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoveFuelPauseTest, "GunsAndBalloons.Stove.FuelPause", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FStoveFuelPauseTest::RunTest(const FString& Parameters)
+{
+    if (!TestNotNull(TEXT("World"), GWorld.GetReference())) return false;
+    auto Check = [this](float Burn, float Heat, float Pause, bool Instant)
+    {
+        auto* Stove = NewObject<UStoveComponent>();
+        Stove->RegisterComponentWithWorld(GWorld);
+        ON_SCOPE_EXIT { Stove->UnregisterComponent(); };
+        auto* Fuel = NewObject<UStoveFuelType>();
+        Fuel->BurnTime = Burn; Fuel->HeatAdd = Heat;
+        Fuel->DecayPauseOverride = Pause; Fuel->bInstantHeat = Instant;
+        Stove->SetDoorOpen(true);
+        TestTrue(TEXT("Fuel accepted"), Stove->AddFuel(Fuel));
+        Stove->SetDoorOpen(false);
+        if (Instant) TestEqual(TEXT("Crystal heats immediately"), Stove->GetTemperature(), Heat);
+        Stove->TickComponent(Pause, LEVELTICK_All, nullptr);
+        TestEqual(TEXT("Temperature held until insertion pause ends"), Stove->GetTemperature(), Heat);
+        TestEqual(TEXT("Burn time includes heating but excludes ignition"), Stove->GetBurnTimeLeft(), Burn - Pause + (Instant ? 0.f : 10.f));
+        Stove->TickComponent(1.f, LEVELTICK_All, nullptr);
+        TestEqual(TEXT("Cooling starts after per-fuel pause"), Stove->GetTemperature(), Heat - (Instant ? 5.f : 1.f));
+    };
+    Check(120.f, 20.f, 110.f, false);
+    Check(60.f, 30.f, 40.f, false);
+    Check(10.f, 50.f, 10.f, true);
+    return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoveOverheatTest, "GunsAndBalloons.Stove.Overheat", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FStoveOverheatTest::RunTest(const FString& Parameters)
 {
