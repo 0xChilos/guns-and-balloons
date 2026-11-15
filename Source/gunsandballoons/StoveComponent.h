@@ -63,6 +63,13 @@ public:
 	/** Spray can cool the stove body, door or configured firebox, not unrelated basket parts. */
 	UFUNCTION(BlueprintPure, Category="Stove") bool AcceptsCoolingHit(const FHitResult& Hit) const;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stove|Cooling") TArray<FName> CoolingBones = {TEXT("stove"), TEXT("furnace_door")};
+	/**
+	 * Repairs the balloon through the stove (the only place it can be repaired): restores the shared Health,
+	 * whose OnHealthChanged closes the bullet holes again. Returns HP restored (0 without Health or at full).
+	 */
+	UFUNCTION(BlueprintCallable, Category="Stove") float ApplyRepair(float Amount, AActor* Repairer = nullptr);
+	/** A repair tool works on the same parts the extinguisher cools: the stove body, its door and the firebox. */
+	UFUNCTION(BlueprintPure, Category="Stove") bool AcceptsRepairHit(const FHitResult& Hit) const { return AcceptsCoolingHit(Hit); }
 	UFUNCTION(BlueprintPure, Category="Stove") bool CanAddFuel(const UStoveFuelType* Fuel) const;
 	UFUNCTION(BlueprintCallable, Category="Stove") void SetDoorOpen(bool bOpen);
 	UFUNCTION(BlueprintCallable, Category="Stove") void ToggleDoor() { SetDoorOpen(!bDoorOpen); }

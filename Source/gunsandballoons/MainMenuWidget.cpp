@@ -1,5 +1,6 @@
 #include "MainMenuWidget.h"
 
+#include "BalloonPlayerController.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/AudioComponent.h"
 #include "Components/Button.h"
@@ -67,30 +68,6 @@ namespace
 		return Brush;
 	}
 
-	/** A small runtime texture, filled pixel by pixel. */
-	UTexture2D* MakeTexture(UObject* Outer, int32 Width, int32 Height, TextureFilter Filter, TFunctionRef<FColor(int32, int32)> Pixel)
-	{
-		UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
-		if (!Texture)
-		{
-			return nullptr;
-		}
-		Texture->Filter = Filter;
-		Texture->SRGB = true;
-		FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
-		FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
-		for (int32 Y = 0; Y < Height; ++Y)
-		{
-			for (int32 X = 0; X < Width; ++X)
-			{
-				Pixels[Y * Width + X] = Pixel(X, Y);
-			}
-		}
-		Mip.BulkData.Unlock();
-		Texture->UpdateResource();
-		return Texture;
-	}
-
 	/** The arrow cursor: 'O' outline, 'X' fill, '.' clear. Hotspot = top-left pixel. */
 	const TCHAR* const CursorRows[] = {
 		TEXT("O......"),
@@ -106,6 +83,29 @@ namespace
 	};
 	constexpr int32 CursorWidth = 7;
 	constexpr int32 CursorHeight = UE_ARRAY_COUNT(CursorRows);
+}
+
+UTexture2D* UMainMenuWidget::MakeRuntimeTexture(int32 Width, int32 Height, TextureFilter Filter, TFunctionRef<FColor(int32, int32)> Pixel)
+{
+	UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+	if (!Texture)
+	{
+		return nullptr;
+	}
+	Texture->Filter = Filter;
+	Texture->SRGB = true;
+	FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
+	FColor* Pixels = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		for (int32 X = 0; X < Width; ++X)
+		{
+			Pixels[Y * Width + X] = Pixel(X, Y);
+		}
+	}
+	Mip.BulkData.Unlock();
+	Texture->UpdateResource();
+	return Texture;
 }
 
 void UMainMenuClickRelay::HandleClicked()
@@ -143,6 +143,7 @@ UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	HoverSound.Start = 1.12f;
 	HoverSound.Length = 0.24f;
 	NewRunLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/Movement_Scene1.Movement_Scene1")));
+	MainMenuLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/MainMenu.MainMenu")));
 
 	CreditsTitle = LOCTEXT("CreditsTitle", "CREDITS");
 	CreditsText = LOCTEXT("CreditsText", "OLEKSII NAHORNIAK\nIVAN LUZHANSKIY\nIVAN PETRENKO\nROSTYSLAV IVLEV");
@@ -156,10 +157,14 @@ UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	};
 	BackLabel = LOCTEXT("Back", "BACK");
 	VersionSuffix = LOCTEXT("VersionSuffix", "RELEASE");
+	GameTitle = LOCTEXT("GameTitle", "GUNS AND\nBALLOONS");
+	GameSubtitle = LOCTEXT("GameSubtitle", "DIRECTOR'S CUT");
 
 	ItemFont = MakeFont(44, 60);
 	PageFont = MakeFont(30, 40);
 	VersionFont = MakeFont(28, 80);
+	GameTitleFont = MakeFont(92, 80);
+	GameSubtitleFont = MakeFont(34, 260);
 }
 
 TSharedRef<SWidget> UMainMenuWidget::RebuildWidget()
@@ -175,7 +180,7 @@ void UMainMenuWidget::MakeTextures()
 {
 	// Haze: alpha falls off smoothly from the left edge; HazeColor tints it.
 	constexpr int32 HazeSteps = 256;
-	HazeTexture = MakeTexture(this, HazeSteps, 4, TF_Bilinear, [](int32 X, int32)
+	HazeTexture = MakeRuntimeTexture(HazeSteps, 4, TF_Bilinear, [](int32 X, int32)
 	{
 		const float U = X / float(HazeSteps - 1);
 		const float Fade = 1.f - FMath::SmoothStep(0.f, 1.f, U);
@@ -184,7 +189,7 @@ void UMainMenuWidget::MakeTextures()
 
 	const FColor Fill = CursorColor.ToFColor(true);
 	const FColor Outline = CursorOutlineColor.ToFColor(true);
-	CursorTexture = MakeTexture(this, CursorWidth, CursorHeight, TF_Nearest, [Fill, Outline](int32 X, int32 Y)
+	CursorTexture = MakeRuntimeTexture(CursorWidth, CursorHeight, TF_Nearest, [Fill, Outline](int32 X, int32 Y)
 	{
 		switch (CursorRows[Y][X])
 		{
@@ -263,6 +268,18 @@ void UMainMenuWidget::BuildTree()
 	ListSlot->SetAutoSize(true);
 	ListSlot->SetPosition(ListPosition);
 
+	// The game's name and the subtitle under it, top left above the items.
+	UVerticalBox* TitleBlock = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("GameTitle"));
+	TitleBlock->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UTextBlock* TitleText = MakeText(GameTitle, GameTitleFont, GameTitleColor);
+	TitleText->SetLineHeightPercentage(0.9f);
+	TitleBlock->AddChildToVerticalBox(TitleText);
+	TitleBlock->AddChildToVerticalBox(MakeText(GameSubtitle, GameSubtitleFont, GameSubtitleColor))
+		->SetPadding(FMargin(4.f, GameSubtitleGap, 0.f, 0.f));
+	UCanvasPanelSlot* TitleSlot = Root->AddChildToCanvas(TitleBlock);
+	TitleSlot->SetAutoSize(true);
+	TitleSlot->SetPosition(GameTitlePosition);
+
 	// Version label, bottom right: "V<project version> RELEASE".
 	const FString ProjectVersion = GetDefault<UGeneralProjectSettings>()->ProjectVersion;
 	UTextBlock* Version = MakeText(FText::Format(LOCTEXT("VersionFormat", "V{0} {1}"), FText::FromString(ProjectVersion), VersionSuffix),
@@ -273,12 +290,21 @@ void UMainMenuWidget::BuildTree()
 	VersionSlot->SetAlignment(FVector2D(1.f, 1.f));
 	VersionSlot->SetPosition(FVector2D(-VersionMargin.X, -VersionMargin.Y));
 
+	AddCursor();
+	ResetOpenState();
+}
+
+void UMainMenuWidget::AddCursor()
+{
 	// Pixel arrow cursor, drawn last so it is on top. Never hit-tested, so it can't block clicks.
 	ArrowCursor = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Cursor"));
 	ArrowCursor->SetBrush(TextureBrush(CursorTexture, FVector2D(CursorWidth, CursorHeight) * CursorPixelSize));
 	ArrowCursor->SetVisibility(ESlateVisibility::Collapsed);
 	Root->AddChildToCanvas(ArrowCursor)->SetAutoSize(true);
+}
 
+void UMainMenuWidget::ResetOpenState()
+{
 	Selected = INDEX_NONE;
 	for (int32 Index = 0; Selected == INDEX_NONE && Index < Items.Num(); ++Index)
 	{
@@ -322,7 +348,7 @@ UMainMenuWidget::FRow UMainMenuWidget::MakeRow(UVerticalBox* Parent, const FText
 	Row.Line = Line;
 	if (UButtonSlot* ContentSlot = Cast<UButtonSlot>(Row.Button->SetContent(Line)))
 	{
-		ContentSlot->SetHorizontalAlignment(HAlign_Fill);
+		ContentSlot->SetHorizontalAlignment(RowAlignment);
 		ContentSlot->SetVerticalAlignment(VAlign_Center);
 		ContentSlot->SetPadding(FMargin(0.f));
 	}
@@ -506,6 +532,31 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 	case EMainMenuAction::Quit:
 		UKismetSystemLibrary::QuitGame(this, GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr, EQuitPreference::Quit, false);
 		break;
+	case EMainMenuAction::Resume:
+		if (ABalloonPlayerController* Player = Cast<ABalloonPlayerController>(GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr))
+		{
+			Player->ResumeGame();
+		}
+		break;
+	case EMainMenuAction::QuitToMenu:
+		if (MainMenuLevel.IsNull())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MainMenu: MainMenuLevel is not set."));
+		}
+		else
+		{
+			// Opening a level is deferred to the end of the frame, so it works from a paused world too.
+			UGameplayStatics::OpenLevelBySoftObjectPtr(this, MainMenuLevel);
+		}
+		break;
+	}
+}
+
+void UMainMenuWidget::ScaleColors(float Brightness)
+{
+	for (FLinearColor* Color : {&TextColor, &SelectedColor, &DisabledTextColor, &CursorColor, &GameTitleColor, &GameSubtitleColor})
+	{
+		*Color = FLinearColor(Color->R * Brightness, Color->G * Brightness, Color->B * Brightness, Color->A);
 	}
 }
 
@@ -598,6 +649,35 @@ void UMainMenuWidget::PlaySlice(const FMainMenuSound& Effect, TObjectPtr<UAudioC
 	Audio->SetVolumeMultiplier(Effect.Volume);
 	Audio->Play(Effect.Start);
 	TimeLeft = Effect.Length;
+	if (Effect.Length > 0.f)
+	{
+		// TickSlice fades the slice out, but only while this widget ticks. A pause-menu click hides the
+		// panel at once, and the rest of the recording would play on into the game, so the audio
+		// device also stops it on its own once the slice and its fade are over.
+		Audio->StopDelayed(Effect.Length + Effect.FadeOut);
+	}
+}
+
+void UMainMenuWidget::NativeDestruct()
+{
+	// The audio components belong to the world, not to this widget. Let a slice still playing finish
+	// (it stops itself, see PlaySlice) and free them, so each opening of the pause menu leaves nothing behind.
+	for (TObjectPtr<UAudioComponent>* Audio : {&ClickAudio, &HoverAudio})
+	{
+		if (UAudioComponent* Component = Audio->Get())
+		{
+			if (Component->IsPlaying())
+			{
+				Component->bAutoDestroy = true;
+			}
+			else
+			{
+				Component->DestroyComponent();
+			}
+		}
+		*Audio = nullptr;
+	}
+	Super::NativeDestruct();
 }
 
 void UMainMenuWidget::TickSlice(const FMainMenuSound& Effect, UAudioComponent* Audio, float& TimeLeft, float DeltaTime) const
