@@ -181,21 +181,33 @@ void UStoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 		OnIgnited.Broadcast();
 	}
 	const float PreviousTemperature = Temperature;
-	if (Temperature > 0.f || bJustIgnited) BurnTimeLeft = FMath::Max(0.f, BurnTimeLeft - SimulationTime);
-	DecayPauseLeft = FMath::Max(0.f, DecayPauseLeft - SimulationTime);
-	if (Temperature < TargetTemperature)
+	while (SimulationTime > 0.f)
 	{
-		const float Rate = bHeatingUsesDefaultRate ? FMath::Max(HeatRate, ActiveHeatRateOverride) : ActiveHeatRateOverride;
-		Temperature = FMath::FInterpConstantTo(Temperature, TargetTemperature, SimulationTime, FMath::Max(0.f, Rate));
-	}
-	else
-	{
-		float Rate = BurnTimeLeft > 0.f ? DecayBurning : DecayEmpty;
-		if (DecayPauseLeft > 0.f)
-			Rate = bDoorOpen ? DecayBurning * FMath::Max(0.f, DoorOpenDecayMultiplier - 1.f) : 0.f;
-		else if (bDoorOpen) Rate *= DoorOpenDecayMultiplier;
-		Temperature -= Rate * SimulationTime;
-		TargetTemperature = FMath::Min(TargetTemperature, Temperature);
+		// Each interval uses the state at its start, ending at the next rate change.
+		float Step = SimulationTime;
+		const bool bBurning = Temperature > 0.f || bJustIgnited;
+		if (bBurning && BurnTimeLeft > 0.f) Step = FMath::Min(Step, BurnTimeLeft);
+		if (DecayPauseLeft > 0.f) Step = FMath::Min(Step, DecayPauseLeft);
+		if (Temperature < TargetTemperature)
+		{
+			const float Rate = FMath::Max(0.f, bHeatingUsesDefaultRate ? FMath::Max(HeatRate, ActiveHeatRateOverride) : ActiveHeatRateOverride);
+			if (Rate > 0.f) Step = FMath::Min(Step, (TargetTemperature - Temperature) / Rate);
+			Temperature = FMath::FInterpConstantTo(Temperature, TargetTemperature, Step, Rate);
+		}
+		else
+		{
+			float Rate = BurnTimeLeft > 0.f ? DecayBurning : DecayEmpty;
+			if (DecayPauseLeft > 0.f)
+				Rate = bDoorOpen ? DecayBurning * FMath::Max(0.f, DoorOpenDecayMultiplier - 1.f) : 0.f;
+			else if (bDoorOpen) Rate *= DoorOpenDecayMultiplier;
+			if (Rate > 0.f && Temperature > 0.f) Step = FMath::Min(Step, Temperature / Rate);
+			Temperature = FMath::Max(0.f, Temperature - Rate * Step);
+			TargetTemperature = FMath::Min(TargetTemperature, Temperature);
+		}
+		if (bBurning) BurnTimeLeft = FMath::Max(0.f, BurnTimeLeft - Step);
+		DecayPauseLeft = FMath::Max(0.f, DecayPauseLeft - Step);
+		SimulationTime = FMath::Max(0.f, SimulationTime - Step);
+		bJustIgnited = false;
 	}
 	Temperature = FMath::Clamp(Temperature, 0.f, FMath::Max(0.f, MaxTemperature));
 	if (PreviousTemperature > 0.f && Temperature <= 0.f)

@@ -29,9 +29,9 @@ bool FStoveHeatTest::RunTest(const FString& Parameters)
 	Tick(4.f); TestEqual(TEXT("Wood heats at five degrees per second"), Stove->GetTemperature(), 20.f);
 	TestEqual(TEXT("Door closes"), Stove->GetDoorAngle(), 0.f);
 	Tick(5.f); TestEqual(TEXT("Pause holds temperature"), Stove->GetTemperature(), 20.f);
-	Tick(1.f); TestEqual(TEXT("Pause expires"), Stove->GetTemperature(), 19.f);
-	Tick(4.f); TestEqual(TEXT("Burning decay reaches fifteen"), Stove->GetTemperature(), 15.f);
-	Tick(1.f); TestEqual(TEXT("Decay never reheats"), Stove->GetTemperature(), 14.f);
+	Tick(1.f); TestEqual(TEXT("Pause ends without retroactive cooling"), Stove->GetTemperature(), 20.f);
+	Tick(4.f); TestEqual(TEXT("Burning decay reaches sixteen"), Stove->GetTemperature(), 16.f);
+	Tick(1.f); TestEqual(TEXT("Decay never reheats"), Stove->GetTemperature(), 15.f);
 	Stove->SetDoorOpen(true);
 	TestTrue(TEXT("Second wood"), Stove->AddFuel(Wood));
 	TestTrue(TEXT("Third wood"), Stove->AddFuel(Wood));
@@ -77,10 +77,13 @@ bool FStoveHeatTest::RunTest(const FString& Parameters)
 	Empty->OnExtinguished.AddDynamic(Observer, &UStoveTestObserver::Extinguished);
 	Empty->DecayPause = 0.f; Empty->SetDoorOpen(true); Empty->AddFuel(Crystal); Empty->SetDoorOpen(false);
 	Empty->TickComponent(10.f, LEVELTICK_All, nullptr);
+	TestEqual(TEXT("Fuel exhaustion does not cool retroactively"), Empty->GetTemperature(), 40.f);
+	Empty->TickComponent(8.f, LEVELTICK_All, nullptr);
 	TestEqual(TEXT("Empty decay is five per second"), Empty->GetTemperature(), 0.f);
 	TestEqual(TEXT("Extinguished event"), Observer->Extinctions, 1);
 	Empty->AddFuel(Crystal); // closed: refused
 	Empty->SetDoorOpen(true); Empty->AddFuel(Crystal); Empty->TickComponent(10.f, LEVELTICK_All, nullptr);
+	Empty->TickComponent(3.f, LEVELTICK_All, nullptr);
 	TestEqual(TEXT("Open door empty decay clamps at zero"), Empty->GetTemperature(), 0.f);
 	Empty->DecayPause = 10.f;
 	Empty->AddFuel(Crystal);
@@ -97,6 +100,44 @@ bool FStoveHeatTest::RunTest(const FString& Parameters)
 	Empty->SetDoorOpen(true);
 	Empty->TickComponent(.5f, LEVELTICK_All, nullptr);
 	TestEqual(TEXT("Open door doubles empty stove decay"), Empty->GetTemperature(), 4.f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStoveTickSizeTest, "GunsAndBalloons.Stove.TickSize", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FStoveTickSizeTest::RunTest(const FString& Parameters)
+{
+	if (!TestNotNull(TEXT("World"), GWorld.GetReference())) return false;
+	auto Check = [this](const TCHAR* Label, float BurnTime, float Pause, bool bOpen, bool bInstant, float Elapsed, float Expected)
+	{
+		auto* Coarse = NewObject<UStoveComponent>();
+		auto* Fine = NewObject<UStoveComponent>();
+		Coarse->RegisterComponentWithWorld(GWorld);
+		Fine->RegisterComponentWithWorld(GWorld);
+		ON_SCOPE_EXIT { Coarse->UnregisterComponent(); Fine->UnregisterComponent(); };
+		auto* Fuel = NewObject<UStoveFuelType>();
+		Fuel->BurnTime = BurnTime; Fuel->HeatAdd = 50.f; Fuel->bInstantHeat = bInstant;
+		for (auto* Stove : { Coarse, Fine })
+		{
+			Stove->DecayPause = Pause;
+			Stove->SetDoorOpen(true);
+			Stove->AddFuel(Fuel);
+			Stove->SetDoorOpen(bOpen);
+		}
+		Coarse->TickComponent(Elapsed, LEVELTICK_All, nullptr);
+		for (int32 I = 0; I < FMath::RoundToInt(Elapsed * 8.f); ++I)
+			Fine->TickComponent(.125f, LEVELTICK_All, nullptr);
+		TestEqual(FString(Label) + TEXT(" expected temperature"), Coarse->GetTemperature(), Expected, .001f);
+		TestEqual(FString(Label) + TEXT(" temperature across tick sizes"), Coarse->GetTemperature(), Fine->GetTemperature(), .001f);
+		TestEqual(FString(Label) + TEXT(" burn time across tick sizes"), Coarse->GetBurnTimeLeft(), Fine->GetBurnTimeLeft(), .001f);
+	};
+	Check(TEXT("Fuel exhaustion"), 2.f, 0.f, false, true, 3.f, 43.f);
+	Check(TEXT("Pause expiry"), 20.f, 2.f, false, true, 3.f, 49.f);
+	Check(TEXT("Both boundaries, open door"), 2.f, 1.f, true, true, 3.f, 37.f);
+	Check(TEXT("Fuel expires before pause"), 1.f, 2.f, false, true, 3.f, 45.f);
+	Check(TEXT("Exact fuel boundary"), 2.f, 0.f, false, true, 2.f, 48.f);
+	Check(TEXT("Exact pause boundary"), 20.f, 2.f, false, true, 2.f, 50.f);
+	Check(TEXT("Ignition and heat completion"), 20.f, 2.f, false, false, 21.f, 49.f);
+	Check(TEXT("Extinction stops fuel consumption"), 100.f, 0.f, true, true, 30.f, 0.f);
 	return true;
 }
 

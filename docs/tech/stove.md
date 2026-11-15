@@ -18,6 +18,7 @@
 | `Source/gunsandballoons/StoveEditorLibrary.h/.cpp` | Editor collision and animation helpers |
 | `Source/gunsandballoons/Tests/StoveTest.cpp`, `StoveInteractionTest.cpp`, `StoveVfxTest.cpp`, `HealthTest.cpp`, `HandItemTest.cpp` | Automation coverage |
 | `Scripts/Editor/configure_stove.py` | Fuel assets and historical BP/ABP setup |
+| `Scripts/Editor/configure_balloon_health.py` | Idempotent shared health setup without rerunning the historical stove migration |
 | `/Game/Data/Stove/DA_Fuel_Wood`, `DA_Fuel_Coal`, `DA_Fuel_Crystal` | Per-type fuel assets |
 
 ## Player flow
@@ -101,6 +102,7 @@ Earlier records on this page reported a successful Development Editor build, Hea
 Coverage exists in `GunsAndBalloons.Stove.Heat`, `.Overheat`, `.Interaction`, `.VFX`, `GunsAndBalloons.Health` and `GunsAndBalloons.Player.HandItems`. Full three-bucket, health, visual/prop-placement and lever-regression acceptance remains the unchecked Phase 6 record.
 
 ## Known issues and pitfalls
+- `BP_Balloon` now includes `Health` with actor damage enabled and point-hit bones `stove` / `furnace_door`. Verified on the placed `BalloonFlight_Test` actor in PIE: stove resolves this pool, and two crystals heat to 100 degrees and reduce health. MaxHealth remains the TBD prototype 100.
 - Phase 6 manual component migration and all its PIE acceptance items are pending; final bucket models and hand presentation need visual tuning.
 - Do not follow the older plan's closed-mouth auto-open instruction; door clicks alone toggle it.
 - Open-door leakage continues during decay pause after heating ends; closing the door preserves the intended pause.
