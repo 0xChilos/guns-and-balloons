@@ -89,6 +89,10 @@ for biome, (color, density) in expected.items():
 config = generator.get_editor_property('level_config')
 assert config
 assert controller.apply_environment(config.get_editor_property('biome_id'), config.get_editor_property('preset'))
+for name, value in dict(environment_controller=controller, sun=sun, sky=sky,
+                        fog=fog, authored_ground=ground[0]).items():
+    generator.set_editor_property(name, value)
+generator.setup_level_controller()
 assert levels.save_current_level()
 output = os.path.join(unreal.Paths.project_saved_dir(), 'M7-environment-checks.json')
 with open(output, 'w', encoding='utf-8') as stream:

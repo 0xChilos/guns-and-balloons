@@ -11,6 +11,16 @@
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
 #include "Components/SphereComponent.h"
+#include "Engine/World.h"
+#include "Engine/StaticMesh.h"
+#include "BalloonTerrainBuilder.h"
+#include "ProceduralMeshComponent.h"
+#include "Misc/ScopeExit.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
 
 ABalloonLevelGenerator::ABalloonLevelGenerator()
 {
@@ -20,6 +30,95 @@ ABalloonLevelGenerator::ABalloonLevelGenerator()
 	Spline = CreateDefaultSubobject<USplineComponent>(TEXT("ProgressionSpline"));
 	SetRootComponent(Spline);
 	Spline->ClearSplinePoints();
+ const auto* Defaults = GetDefault<ABalloonEnvironmentPresetController>();
+ Day = Defaults->Day; Night = Defaults->Night; BiomeFog = Defaults->BiomeFog;
+}
+
+namespace
+{
+template<typename T>
+T* ControllerActor(ABalloonLevelGenerator& Controller, T* Assigned, TArray<TObjectPtr<AActor>>& Owned, TArray<FString>& Diagnostics)
+{
+ T* Result = IsValid(Assigned) ? Assigned : nullptr;
+ if (!Result)
+ {
+  for (TActorIterator<T> It(Controller.GetWorld()); It; ++It)
+  {
+   if (!IsValid(*It) || (It->GetOwner() && It->GetOwner() != &Controller)) continue;
+   if (const auto* Environment = Cast<ABalloonEnvironmentPresetController>(static_cast<AActor*>(*It)))
+    if (Environment->Generator && Environment->Generator != &Controller) continue;
+   if (Result) { Diagnostics.Add(FString::Printf(TEXT("Controller: multiple %s actors; assign one explicitly"), *T::StaticClass()->GetName())); return nullptr; }
+   Result = *It;
+  }
+ }
+ if (!Result)
+ {
+  FActorSpawnParameters Params; Params.Owner = &Controller; Params.ObjectFlags |= RF_Transient;
+  Result = Controller.GetWorld()->SpawnActor<T>(T::StaticClass(), FTransform::Identity, Params);
+  if (Result) Owned.Add(Result);
+ }
+ if (Result && Result->GetRootComponent())
+ {
+  Result->GetRootComponent()->SetMobility(EComponentMobility::Movable);
+  Result->AttachToActor(&Controller, FAttachmentTransformRules::KeepWorldTransform);
+ }
+ return Result;
+}
+}
+
+bool ABalloonLevelGenerator::ConfigureEnvironment()
+{
+ if (!ManageEnvironment || !GetWorld()) return !ManageEnvironment;
+ if (!IsValid(EnvironmentController))
+ {
+  for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
+  {
+   if (It->Generator && It->Generator != this) continue;
+   if (EnvironmentController) { Diagnostics.Add(TEXT("Controller: multiple environment actors; assign one explicitly")); EnvironmentController = nullptr; return false; }
+   EnvironmentController = *It;
+  }
+ }
+ EnvironmentController = ControllerActor(*this, EnvironmentController.Get(), OwnedEnvironmentActors, Diagnostics);
+ if (!EnvironmentController) return false;
+ // Preserve explicit legacy bindings when first consolidating an existing map.
+ Sun = ControllerActor(*this, Sun ? Sun.Get() : EnvironmentController->Sun.Get(), OwnedEnvironmentActors, Diagnostics);
+ Sky = ControllerActor(*this, Sky ? Sky.Get() : EnvironmentController->Sky.Get(), OwnedEnvironmentActors, Diagnostics);
+ Fog = ControllerActor(*this, Fog ? Fog.Get() : EnvironmentController->Fog.Get(), OwnedEnvironmentActors, Diagnostics);
+ if (!Sun || !Sky || !Fog) return false;
+ EnvironmentController->Generator = this;
+ EnvironmentController->ApplyOnBeginPlay = false;
+ EnvironmentController->SetActorTickEnabled(false);
+ EnvironmentController->Sun = Sun; EnvironmentController->Sky = Sky; EnvironmentController->Fog = Fog;
+ const auto* Config = ActiveConfig ? ActiveConfig.Get() : LevelConfig.Get();
+ const auto Mode = OverrideTerrain ? TerrainMode : (Config ? Config->TerrainMode : TerrainMode);
+ if (!AuthoredGround && EnvironmentController->Ground) AuthoredGround = EnvironmentController->Ground;
+ EnvironmentController->Ground = Mode == EBalloonTerrainMode::WorldCollision ? AuthoredGround.Get() : nullptr;
+ if (OverrideEnvironmentSettings)
+ { EnvironmentController->Day = Day; EnvironmentController->Night = Night; EnvironmentController->BiomeFog = BiomeFog; }
+ return true;
+}
+
+void ABalloonLevelGenerator::SetupLevelController() { ConfigureEnvironment(); }
+
+void ABalloonLevelGenerator::PreviewEnvironment()
+{
+ if (!GetWorld() || GetWorld()->IsGameWorld() || !ConfigureEnvironment() || !EnvironmentController) return;
+ const auto* Config = BiomeSelection == EBalloonBiomeSelection::Selected ? LevelConfig.Get() : ActiveConfig.Get();
+ if (!Config) { Diagnostics.Add(TEXT("Controller: select a config, or generate a random biome before previewing")); return; }
+ EnvironmentController->ApplyEnvironment(Config->BiomeId, OverrideLightingPreset ? LightingPreset : Config->Preset);
+ Diagnostics.Append(EnvironmentController->GetDiagnostics());
+}
+
+void ABalloonLevelGenerator::ClearOwnedEnvironment()
+{
+ for (auto& Actor : OwnedEnvironmentActors) if (IsValid(Actor)) Actor->Destroy();
+ OwnedEnvironmentActors.Reset();
+}
+
+void ABalloonLevelGenerator::EndPlay(const EEndPlayReason::Type Reason)
+{
+ ClearOwnedEnvironment();
+ Super::EndPlay(Reason);
 }
 
 void ABalloonLevelGenerator::BeginPlay()
@@ -63,6 +162,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
   BorderProxies.Reset();
   // All entry points share this path: Details, Blueprint, BeginPlay and regeneration.
   // Use the successful snapshot, including the config chosen by Random mode.
+  if (ManageEnvironment) ConfigureEnvironment();
   for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
   {
    if (It->Generator != this) continue;
@@ -114,6 +214,18 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
 	}
  ActiveConfig = DuplicateObject<UBalloonLevelConfig>(SelectedConfig, this);
  ActiveConfig->SetFlags(RF_Transient);
+ if (OverrideHeights)
+ { ActiveConfig->FlightHeightMeters = FlightHeightMeters; ActiveConfig->PlacementGroundZMeters = GroundHeightMeters; }
+ if (OverrideTerrain)
+ {
+  ActiveConfig->TerrainMode = TerrainMode;
+  ActiveConfig->TerrainHeightVariationMeters = TerrainHeightVariationMeters;
+  ActiveConfig->TerrainWavelengthMeters = TerrainWavelengthMeters;
+  ActiveConfig->TerrainCellMeters = TerrainCellMeters;
+  ActiveConfig->TerrainPaddingMeters = TerrainPaddingMeters;
+  ActiveConfig->TerrainMaterial = TerrainMaterial;
+ }
+ if (OverrideLightingPreset) ActiveConfig->Preset = LightingPreset;
  if (RandomizeSeed) ActiveConfig->Seed = FMath::Rand();
  Diagnostics.Add(FString::Printf(TEXT("Generation biome=%s seed=%d"), *ActiveConfig->BiomeId.ToString(), ActiveConfig->Seed));
 	FBalloonLevelPlan Candidate;
@@ -147,12 +259,66 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
  TArray<BalloonPlacementPlanning::FResolvedRow> Rows;
  if(!BalloonPlacementPlanning::Resolve(*ActiveConfig,Candidate.Catalog,Rows,Diagnostics))
  {Status=EBalloonLevelGenerationStatus::InvalidConfig;return false;}
+ AActor* StagedTerrain = nullptr;
+ UProceduralMeshComponent* TerrainComponent = nullptr;
+ ON_SCOPE_EXIT { if (IsValid(StagedTerrain)) StagedTerrain->Destroy(); };
+ double TerrainTop = 0., TerrainBottom = 0.;
+ if (ActiveConfig->TerrainMode != EBalloonTerrainMode::WorldCollision)
+ {
+  BalloonTerrain::FMesh TerrainMesh;
+  if (!BalloonTerrain::Build(*ActiveConfig, Candidate, TerrainMesh, Diagnostics))
+  { Status = EBalloonLevelGenerationStatus::InvalidConfig; return false; }
+  FBox TerrainBounds(TerrainMesh.Vertices);
+  TerrainTop = TerrainBounds.Max.Z + 100.; TerrainBottom = TerrainBounds.Min.Z - 100.;
+  StagedTerrain = BalloonTerrain::Spawn(*this, *ActiveConfig, TerrainMesh, TerrainComponent, Diagnostics);
+  if (!StagedTerrain) { Status = EBalloonLevelGenerationStatus::Failed; return false; }
+ }
  const auto Sweep=BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn);
  bool Reachable=false;
  for(int32 Attempt=0;Attempt<ActiveConfig->RouteAttempts;++Attempt)
  {
   Candidate.PlacementAttempt=Attempt;
-  if(!BalloonPlacementPlanning::Build(*ActiveConfig,Candidate,Rows,Diagnostics))continue;
+  BalloonPlacementPlanning::FGroundSampler TerrainSampler;
+  if (TerrainComponent)
+  {
+   TerrainSampler = [TerrainComponent, TerrainTop, TerrainBottom](const FVector& Position, BalloonPlacementPlanning::FSurface& Surface)
+   {
+    FHitResult Hit;
+    FCollisionQueryParams Query(SCENE_QUERY_STAT(BalloonGeneratedTerrain), true);
+    if (!TerrainComponent->LineTraceComponent(Hit, FVector(Position.X, Position.Y, TerrainTop), FVector(Position.X, Position.Y, TerrainBottom), Query)) return false;
+    Surface.Z = Hit.ImpactPoint.Z; Surface.Normal = Hit.ImpactNormal;
+    return true;
+   };
+  }
+  if (ActiveConfig->TerrainMode == EBalloonTerrainMode::WorldCollision)
+  {
+   TerrainSampler = [this](const FVector& Position, BalloonPlacementPlanning::FSurface& Surface)
+   {
+    // Query tagged components directly so unrelated blocking geometry cannot hide the terrain.
+    FHitResult BestHit;
+    bool Found = false;
+    const FVector Top(Position.X, Position.Y, ActiveConfig->TerrainTraceTopMeters * 100.);
+    const FVector Bottom(Position.X, Position.Y, ActiveConfig->TerrainTraceBottomMeters * 100.);
+    FCollisionQueryParams Query(SCENE_QUERY_STAT(BalloonTerrain), true);
+    for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+    {
+     if (!It->GetActorEnableCollision() || !It->ActorHasTag(ActiveConfig->TerrainActorTag)) continue;
+     TInlineComponentArray<UPrimitiveComponent*> Components(*It);
+     for (UPrimitiveComponent* Component : Components)
+     {
+      FHitResult Hit;
+      if (Component->IsQueryCollisionEnabled() && Component->LineTraceComponent(Hit, Top, Bottom, Query) &&
+          (!Found || Hit.Distance < BestHit.Distance))
+      { BestHit = Hit; Found = true; }
+     }
+    }
+    if (!Found) return false;
+    Surface.Z = BestHit.ImpactPoint.Z;
+    Surface.Normal = BestHit.ImpactNormal;
+    return true;
+   };
+  }
+  if(!BalloonPlacementPlanning::Build(*ActiveConfig,Candidate,Rows,Diagnostics,TerrainSampler))continue;
   const auto Result=BalloonHorizontalRoute::Validate(Candidate,Envelope,Settings,Sweep);
   Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d placement attempt=%d visited=%d: %s"),Candidate.Seed,Attempt+1,Result.CellsVisited,Result.Reachable?TEXT("fixed-Z route proved"):*Result.FailureReason));
   if(Result.Reachable) {Candidate.RoutePoints=Result.Points;Reachable=true;break;}
@@ -168,7 +334,29 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
 	Status = EBalloonLevelGenerationStatus::Realizing;
+ // The route is certified at its configured start, so place the balloon there as part of the commit.
+ // Move its root to carry the basket, camera and attached player together; retain authored scale.
+ const FTransform PreviousBalloonTransform = RoutePawn->GetActorTransform();
+ bool BalloonPlacementCommitted = false;
+ ON_SCOPE_EXIT
+ {
+  if (!BalloonPlacementCommitted && IsValid(RoutePawn))
+   RoutePawn->SetActorTransform(PreviousBalloonTransform, false, nullptr, ETeleportType::TeleportPhysics);
+ };
+ if (!RoutePawn->SetActorLocationAndRotation(Plan.Start.GetLocation(), Plan.Start.GetRotation(), false, nullptr, ETeleportType::TeleportPhysics))
+ {
+  Diagnostics.Add(TEXT("Controller: unable to place the balloon at the generated start"));
+  Status = EBalloonLevelGenerationStatus::Failed;
+  return false;
+ }
  if(!Realizer->Realize(Plan,Diagnostics)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
+ BalloonPlacementCommitted = true;
+ if (StagedTerrain)
+ {
+  Realizer->Actors.Add(StagedTerrain);
+  StagedTerrain = nullptr;
+  Diagnostics.Add(TEXT("Terrain: generated surface realized with collision and biome ground material"));
+ }
  Diagnostics.Add(TEXT("M8 Ready: fixed-Z route certified; placements realized."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
@@ -194,6 +382,7 @@ bool ABalloonLevelGenerator::RegisterBorderProxy(ABalloonBorderThreat* Proxy)
     !Proxy->GetActorLocation().Equals(T.Center) || !Proxy->GetActorScale3D().Equals(FVector::OneVector) ||
     !Proxy->InfluenceCollision->GetComponentLocation().Equals(T.Center) || !Proxy->InfluenceCollision->GetComponentScale().Equals(FVector::OneVector) ||
     Proxy->InfluenceCollision->GetUnscaledSphereRadius()!=T.RadiusCm || BorderProxies.Contains(T.InstanceId)) return false;
+ Proxy->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
  BorderProxies.Add(T.InstanceId,Proxy);return true;
 }
 
@@ -296,5 +485,6 @@ void ABalloonLevelGenerator::DrawGenerationDebug() const
 void ABalloonLevelGenerator::Destroyed()
 {
  ClearGeneratedLevel();
+ ClearOwnedEnvironment();
  Super::Destroyed();
 }
