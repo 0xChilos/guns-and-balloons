@@ -1,5 +1,6 @@
 #include "FirstPersonCameraGameMode.h"
 
+#include "CrosshairHUD.h"
 #include "EngineUtils.h"
 #include "FirstPersonCameraPawn.h"
 #include "GameFramework/PlayerController.h"
@@ -8,6 +9,7 @@
 AFirstPersonCameraGameMode::AFirstPersonCameraGameMode()
 {
 	DefaultPawnClass = AFirstPersonCameraPawn::StaticClass();
+	HUDClass = ACrosshairHUD::StaticClass();
 }
 
 void AFirstPersonCameraGameMode::RestartPlayer(AController* NewPlayer)
