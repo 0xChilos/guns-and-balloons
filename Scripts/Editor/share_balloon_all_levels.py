@@ -63,5 +63,5 @@ for path in maps:
     unreal.log('ALL_LEVELS_SHARED_BALLOON_MAP_PASS ' + path)
 with open(unreal.Paths.project_saved_dir() + 'SharedBalloonAllLevels.json', 'w', encoding='utf-8') as output:
     json.dump(report, output, indent=2)
-assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+assert levels.load_level('/Game/Scenes/MainLevel')
 unreal.log('ALL_LEVELS_SHARED_BALLOON_PASS maps=' + str(len(report)))

@@ -25,7 +25,7 @@
 | `BalloonLevel/BalloonBorderThreat.h/.cpp` | `ABalloonBorderThreat`: optional stationary world proxy for one border threat |
 | `Tests/BalloonLevelM1…M6Test.cpp`, `BalloonLevelModesTest.cpp` | Automation tests `GunsAndBalloons.BalloonLevel.*` |
 | `Content/BalloonLevel/Rules/README.md` | DataTable authoring contract and exact rule semantics |
-| `Scripts/Editor/setup_level_generation_preview.py`, `test_level_generation_pie.py` | Preview fixture in `/Game/Scenes/LevelGeneration_Test` and PIE smoke test |
+| `Scripts/Editor/setup_level_generation_preview.py`, `test_level_generation_pie.py` | Preview fixture in `/Game/Scenes/MainLevel` and PIE smoke test |
 | `Scripts/Verify-BalloonLevelM6.ps1` | Isolated clean build + all BalloonLevel tests |
 
 ## Pipeline (`GenerateLevel`)

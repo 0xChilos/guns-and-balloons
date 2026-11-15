@@ -8,7 +8,7 @@ assert not editor.get_game_world(), 'Stop PIE before sharing balloon defaults'
 assert not unreal.EditorLoadingAndSavingUtils.get_dirty_map_packages(), 'Save level edits first'
 balloon_class = unreal.load_class(None, '/Game/Assets/Balloon/BP_Balloon.BP_Balloon_C')
 
-for path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/LevelGeneration_Test']:
+for path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/MainLevel']:
     assert levels.load_level(path)
     balloons = [a for a in actors.get_all_level_actors()
                 if a.get_component_by_class(unreal.BalloonFlightComponent)]

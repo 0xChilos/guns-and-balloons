@@ -12,7 +12,7 @@
 
 ## Integration
 
-All four project maps (`PostProcess`, `BalloonFlight_Test`, `LevelGeneration_Test`,
+All four project maps (`PostProcess`, `BalloonFlight_Test`, `MainLevel`,
 `Movement_Scene1`) use `/Game/Assets/Balloon/BP_Balloon` and its embedded
 `BP_BalloonPlayer`. `Movement_Scene1`'s former bare skeletal balloon is replaced
 by the shared playable actor. Edit gameplay and camera settings in these shared

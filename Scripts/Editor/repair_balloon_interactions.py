@@ -25,7 +25,7 @@ assert unreal.EditorAssetLibrary.save_loaded_asset(bp)
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 assert levels.save_current_level()
-for path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/LevelGeneration_Test']:
+for path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/MainLevel']:
     assert levels.load_level(path)
     for actor in actors.get_all_level_actors():
         if actor.get_class() != bp.generated_class():

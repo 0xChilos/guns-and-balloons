@@ -3,7 +3,7 @@ import unreal
 
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+assert levels.load_level('/Game/Scenes/MainLevel')
 target_world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
 source_world = unreal.load_asset('/Game/Scenes/BalloonFlight_Test')
 sources = [a for a in unreal.GameplayStatics.get_all_actors_of_class(source_world, unreal.Actor)

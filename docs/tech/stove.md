@@ -10,7 +10,7 @@
 Asset repair (2026-11-15): the checked-in balloon lacked the stove components and
 animation wiring. `Scripts/Editor/repair_balloon_interactions.py` restores that
 authoring, shared health and the existing X-axis lever setting in both
-`BalloonFlight_Test` and `LevelGeneration_Test`, preserving fuel assets and
+`BalloonFlight_Test` and `MainLevel`, preserving fuel assets and
 existing lever states. `Scripts/Editor/test_balloon_interactions_pie.py` checks
 the saved balloon in the currently open map: fuel pickup/return through the
 player trace, door click, heat/burn/speed outputs, animation and lever drags

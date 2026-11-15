@@ -14,7 +14,7 @@ Results: `Saved/BiomeAssetCatalogChecks.json`. Visual testing is left to the use
 
 ## Curved route and generated borders (2026-11-15)
 
-`LevelGeneration_Test` generates eight rocket balloons on both edges of its curved
+`MainLevel` generates eight rocket balloons on both edges of its curved
 corridor with every generation, including BeginPlay. `RandomizeSeed` is enabled:
 each generation picks new geometry and border positions. Disable it to reproduce
 the config's seed. The fixtures use a 500 m route, 600 m corridor, 25 degree heading
@@ -55,7 +55,7 @@ actual border balloons from BeginPlay without invoking generation.
 
 ## M7 environment integration (2026-11-15)
 
-`LevelGeneration_Test` now contains `LevelGeneration_Environment`, bound to
+`MainLevel` now contains `LevelGeneration_Environment`, bound to
 `LevelGeneration_Preview`, `Ground`, the existing DirectionalLight/SkyLight,
 and a persistent `LevelGeneration_Fog`. Both lights are Movable. The ground
 plane covers the selected config's route envelope. The generator uses
@@ -111,7 +111,7 @@ matrix stopped before play due to a test-script enum error; no PIE acceptance
 or visual result is claimed. A fresh build attempt hit the open editor's
 hot-reload DLL lock; verification used the existing compiled controller.
 
-Open `/Game/Scenes/LevelGeneration_Test`. Both test maps use instances of the
+Open `/Game/Scenes/MainLevel`. Both test maps use instances of the
 shared `/Game/Assets/Balloon/BP_Balloon`. Edit that Blueprint's components and
 compile/save it to update both levels. Keep gameplay tuning in the Blueprint;
 only placement and rider attachments belong to each map. The old
