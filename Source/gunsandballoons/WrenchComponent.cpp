@@ -32,10 +32,16 @@ UWrenchComponent::UWrenchComponent()
 	SmokeClass = nullptr;
 	CasingMesh = nullptr;
 
-	// The clips place the wrench themselves (its bone moves a few cm about the component); this is where that
-	// origin sits in front of the eyes: low on the right. First-pass pose, needs tuning in game.
-	ViewOffset = FVector(30.f, 14.f, -12.f);
-	ViewRotation = FRotator(0.f, -4.f, 0.f);
+	// The clips place the wrench themselves (its bone moves up to ~20 cm about the component). The component's
+	// origin is the work spot: the nut the jaw sits on in Fix, on a wall plane the wrench lies flat against.
+	// The artist animated it seen face-on from the wall's open side (Blender: looking along +Y), which after
+	// import looks along the component's -Y: yaw +90 turns that toward the camera, so the wrench's face and the
+	// Fix swing are square to the view. At rest the work spot sits a little right of and below the centre, out
+	// of the way; brought onto the work it slides onto the crosshair (GetCrosshairPin: only the depth, X, is
+	// kept), so the jaw turns where the player aims. The handle reaches to the left.
+	// TBD: first-pass pose, needs tuning in game.
+	ViewOffset = FVector(28.f, 8.f, -4.f);
+	ViewRotation = FRotator(0.f, 90.f, 0.f);
 	ReloadViewOffset = ViewOffset;
 	ReloadViewRotation = ViewRotation;
 	// A tool, not a gun: nothing to aim down.
@@ -153,6 +159,25 @@ void UWrenchComponent::CancelHolster()
 bool UWrenchComponent::IsReadyToHolster() const
 {
 	return Action == EWrenchAction::Unequip && ActionTime <= 0.f;
+}
+
+float UWrenchComponent::GetCrosshairPin() const
+{
+	switch (Action)
+	{
+	case EWrenchAction::ToFix:
+	case EWrenchAction::FromFix:
+	{
+		// Along with the clip bringing the jaw onto the work (FromFix counts its time down).
+		const float Length = AnimLength(ToFixAnim);
+		return Length > 0.f ? FMath::SmoothStep(0.f, 1.f, ActionTime / Length) : 1.f;
+	}
+	case EWrenchAction::Fix:
+	case EWrenchAction::FinishTurn:
+		return 1.f;
+	default:
+		return 0.f;
+	}
 }
 
 // --- Tick ------------------------------------------------------------------------------------

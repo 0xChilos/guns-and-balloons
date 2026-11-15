@@ -2,7 +2,7 @@
 
 PS1 look done in the material itself (the HUD draws after post-processing): chunky cells, a dark
 outline, colour quantized with a 4x4 Bayer dither, dithered opacity and a 12 fps grain.
-ACrosshairHUD sets QuadCells/Origin/Gap/DotSize/TickOpacity/DotOpacity/GrainTime/TickOffset every frame;
+ACrosshairHUD sets QuadCells/Origin/Gap/DotSize/TickOpacity/DotOpacity/GrainTime/TickOffset/BoxHalf/BoxArm/BoxThick every frame;
 colours, tick length/thickness, grain and levels are the look, set on MI_Crosshair.
 
 Re-running updates the graph in place (nothing deleted) and keeps MI_Crosshair's overrides. Run in the editor (py "<path>") or headless:
@@ -34,6 +34,17 @@ float dotm = (a.x <= dh && a.y <= dh) ? hasDot : 0.0;
 float dotO = (a.x <= dh + 1.0 && a.y <= dh + 1.0) ? hasDot * OutlineOn : 0.0;
 tickO *= OutlineOn;
 
+// Interact brackets: the four corners of a square ring of half-size bh, arms bl long (corner included),
+// bt thick. Small squares are whole (the arms meet); as bh grows each side opens in the middle.
+float bh = floor(BoxHalf + 0.5);
+float bl = max(1.0, floor(BoxArm + 0.5));
+float bt = max(1.0, floor(BoxThick + 0.5));
+float d = max(a.x, a.y);                    // which square ring the cell is on
+float m = min(a.x, a.y);                    // how far along the side, from the axis
+float hasBox = bh > 0.5 ? 1.0 : 0.0;
+float box = (d <= bh && d > bh - bt && m > bh - bl) ? hasBox : 0.0;
+float boxO = (d <= bh + 1.0 && d >= bh - bt && m >= bh - bl) ? hasBox * OutlineOn : 0.0;
+
 // 4x4 Bayer threshold on the screen-wide cell grid (Origin = this quad's first cell).
 float2 ac = cell + Origin.xy;
 int2 q = int2(ac - 4.0 * floor(ac / 4.0));
@@ -43,8 +54,8 @@ float bay = (B[q.y * 4 + q.x] + 0.5) / 16.0;
 // Dithered fades: a cell is either there or not.
 float showT = TickOpacity > bay ? 1.0 : 0.0;
 float showD = DotOpacity > bay ? 1.0 : 0.0;
-float fill = max(tick * showT, dotm * showD);
-float outl = max(tickO * showT, dotO * showD);
+float fill = max(tick * showT, max(dotm, box) * showD);
+float outl = max(tickO * showT, max(dotO, boxO) * showD);
 
 // Grain (12 fps, per cell), then colour quantize with the same Bayer dither.
 float frame = floor(GrainTime * 12.0);
@@ -69,6 +80,9 @@ SCALARS = [
     ("Levels", 24.0),
     ("OutlineOn", 1.0),
     ("GrainTime", 0.0),
+    ("BoxHalf", 0.0),   # interact brackets: half-size in cells, set by the HUD (0 = none)
+    ("BoxArm", 3.0),
+    ("BoxThick", 1.0),
 ]
 VECTORS = [
     # Bone-white fill and a near-black olive outline: reads on sky and on the basket, fits the oily grade.

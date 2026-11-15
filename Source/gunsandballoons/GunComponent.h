@@ -142,6 +142,13 @@ public:
 	float GetRecoilKickBack() const { return RecoilKickBack; }
 	float GetRecoilKickPitch() const { return RecoilKickPitch; }
 
+	/**
+	 * 0..1: how far the item's origin is brought onto the crosshair (the camera's forward line, at the view
+	 * offset's depth). The pawn blends the hold onto that line and fades its look lag and idle bob by the same
+	 * amount, so at 1 the origin sits under the crosshair dot whatever the view does. 0 for most items.
+	 */
+	virtual float GetCrosshairPin() const { return 0.f; }
+
 	/** True if RMB held (off an ammo supply) raises this item to the eye. Off for the tools: the hook pumps with RMB. */
 	bool CanAimDownSights() const { return bCanAimDownSights; }
 	const FVector& GetAimViewOffset() const { return AimViewOffset; }

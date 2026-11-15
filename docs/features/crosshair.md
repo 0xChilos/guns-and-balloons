@@ -17,7 +17,7 @@ A simple dynamic crosshair: it shows where the shot will go and how accurate it 
   - from the balloon's speed and jolts;
   - on a weapon switch: they spread and fade while the weapon is lowered, and close in with the new one.
 - **Inertia:** the ticks hang on a spring. When the camera turns they lag behind; when the turn stops they overshoot and settle. The balloon's acceleration (speeding up, braking, climbing, descending) throws them the opposite way.
-- Empty hand: just the dot; over something you can interact with, the dot gets bigger.
+- Empty hand: just the dot. Over something you can interact with (and while dragging a lever), the dot opens smoothly into **four corner brackets**: it swells into a small square, the sides open in the middle as it grows, and the brackets snap a little past their size and settle. The dot stays in the middle. Looking away closes them back into the dot.
 - A weapon with no round loaded (or the hook below 100): the ticks are translucent; also while reloading.
 
 ## Parameters
@@ -26,6 +26,7 @@ A simple dynamic crosshair: it shows where the shot will go and how accurate it 
 | Crosshair pixel size | screen height / 540 | `VirtualHeight`, 2× upscale from the art style |
 | Colours, tick length/thickness, grain | bone white / dark olive outline, 5 / 1, 6 % | `MI_Crosshair` |
 | Spread from recoil, turns, balloon, weapon switch | TBD | `ACrosshairHUD`, starting values in [decisions](../decisions.md) |
+| Interact brackets: size, arm length, thickness, time, snap | TBD | `InteractBracketHalfSize` 6 px (13×13), `InteractBracketLength` 3 px, `InteractBracketThickness` 1 px, `InteractMorphTime` 0.15 s, `InteractOvershoot` 1.7 |
 | Inertia: lag, spring frequency, damping, maximum | TBD | `TurnInertia` 0.05 px/(°/s), `InertiaFrequency` 1.8 Hz, `InertiaDamping` 0.35, `MaxInertia` 16 px |
 
 ## Dependencies
@@ -34,3 +35,4 @@ A simple dynamic crosshair: it shows where the shot will go and how accurate it 
 ## Open questions
 - [ ] Should the dot also sway with inertia (then it no longer shows exactly where the shot goes)? Right now only the ticks do (`bInertiaMovesDot`).
 - [ ] A separate crosshair shape for the hook / shotgun?
+- [ ] An interaction prompt next to the brackets (key + action + item name, e.g. "LMB  Take  Revolver")? Interactables don't provide this text yet.

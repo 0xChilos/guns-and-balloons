@@ -19,6 +19,9 @@ namespace CrosshairParams
 	static const FName DotOpacity(TEXT("DotOpacity"));
 	static const FName GrainTime(TEXT("GrainTime"));
 	static const FName TickOffset(TEXT("TickOffset"));
+	static const FName BoxHalf(TEXT("BoxHalf"));
+	static const FName BoxArm(TEXT("BoxArm"));
+	static const FName BoxThick(TEXT("BoxThick"));
 }
 
 ACrosshairHUD::ACrosshairHUD()
@@ -150,6 +153,33 @@ void ACrosshairHUD::UpdateDynamics(const AFirstPersonCameraPawn& Pawn, float Del
 
 	// The dot always marks the centre.
 	DotOpacity = 1.f;
+
+	// --- Interact brackets: empty hand over something to interact with, or dragging a lever.
+	const bool bInteract = Pawn.IsHandEmpty() && (Pawn.IsGrabbing() || Pawn.GetAimedInteractable());
+	const float MorphTarget = bInteract ? 1.f : 0.f;
+	if (MorphTarget != InteractMorph)
+	{
+		bInteractOpening = bInteract;
+	}
+	InteractMorph = FMath::FInterpConstantTo(InteractMorph, MorphTarget, Dt, 1.f / FMath::Max(InteractMorphTime, 0.01f));
+}
+
+int32 ACrosshairHUD::GetBracketHalfSize() const
+{
+	const float T = FMath::Clamp(InteractMorph, 0.f, 1.f);
+	float Ease;
+	if (bInteractOpening)
+	{
+		// Ease out with a snap past the size (ease-out-back).
+		const float C = InteractOvershoot;
+		const float U = T - 1.f;
+		Ease = 1.f + (C + 1.f) * U * U * U + C * U * U;
+	}
+	else
+	{
+		Ease = FMath::SmoothStep(0.f, 1.f, T); // closes without the snap
+	}
+	return FMath::Max(0, FMath::RoundToInt(Ease * InteractBracketHalfSize));
 }
 
 void ACrosshairHUD::DrawHUD()
@@ -185,14 +215,14 @@ void ACrosshairHUD::DrawHUD()
 	const FIntPoint QuadShift = bInertiaMovesDot ? Swing : FIntPoint::ZeroValue;
 	const FIntPoint TickShift = bInertiaMovesDot ? FIntPoint::ZeroValue : Swing;
 
-	const int32 HalfCells = FMath::Max(MinGap, MaxGap) + FMath::CeilToInt(Length) + FMath::CeilToInt(MaxInertia) + 3;
+	const int32 BracketHalf = GetBracketHalfSize();
+	const int32 MaxBracketHalf = FMath::CeilToInt(InteractBracketHalfSize * (1.f + 0.1f * InteractOvershoot)) + 1;
+	const int32 HalfCells = FMath::Max(FMath::Max(MinGap, MaxGap) + FMath::CeilToInt(Length) + FMath::CeilToInt(MaxInertia), MaxBracketHalf) + 3;
 	const int32 Cells = HalfCells * 2 + 1;
 	const int32 CentreX = FMath::FloorToInt(Canvas->ClipX * 0.5f / PixelSize) + QuadShift.X;
 	const int32 CentreY = FMath::FloorToInt(Canvas->ClipY * 0.5f / PixelSize) + QuadShift.Y;
 	const int32 OriginX = CentreX - HalfCells;
 	const int32 OriginY = CentreY - HalfCells;
-
-	const bool bInteract = Pawn->IsHandEmpty() && Pawn->GetAimedInteractable();
 
 	// Aimed down the sights the sights are the crosshair: it fades out as the gun comes up, and back in
 	// as it goes down (same eased blend as the gun).
@@ -206,7 +236,11 @@ void ACrosshairHUD::DrawHUD()
 	Material->SetVectorParameterValue(CrosshairParams::Origin, FLinearColor(OriginX, OriginY, 0.f, 0.f));
 	Material->SetVectorParameterValue(CrosshairParams::TickOffset, FLinearColor(TickShift.X, TickShift.Y, 0.f, 0.f));
 	Material->SetScalarParameterValue(CrosshairParams::Gap, CurrentGap);
-	Material->SetScalarParameterValue(CrosshairParams::DotSize, bInteract ? InteractDotSize : 1);
+	// The dot alone is a 1-pixel bracket square; from 2 up the brackets frame it (or replace it).
+	Material->SetScalarParameterValue(CrosshairParams::DotSize, (bInteractKeepsDot || BracketHalf < 2) ? 1 : 0);
+	Material->SetScalarParameterValue(CrosshairParams::BoxHalf, BracketHalf);
+	Material->SetScalarParameterValue(CrosshairParams::BoxArm, InteractBracketLength);
+	Material->SetScalarParameterValue(CrosshairParams::BoxThick, InteractBracketThickness);
 	Material->SetScalarParameterValue(CrosshairParams::TickOpacity, TickOpacity * Shown);
 	Material->SetScalarParameterValue(CrosshairParams::DotOpacity, DotOpacity * Shown);
 	Material->SetScalarParameterValue(CrosshairParams::GrainTime, GetWorld()->GetTimeSeconds());

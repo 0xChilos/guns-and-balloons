@@ -688,15 +688,23 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 	// Turn the loading port into view for the whole reload, then bring the gun back.
 	ReloadPoseAlpha = FMath::FInterpConstantTo(ReloadPoseAlpha, ActiveGun->IsReloading() ? 1.f : 0.f, DeltaSeconds, 1.f / ReloadPoseBlendTime);
 	const float PoseBlend = FMath::SmoothStep(0.f, 1.f, ReloadPoseAlpha);
-	const FVector PoseOffset = FMath::Lerp(HoldOffset, ActiveGun->GetReloadViewOffset(), PoseBlend);
+	FVector PoseOffset = FMath::Lerp(HoldOffset, ActiveGun->GetReloadViewOffset(), PoseBlend);
 	const FRotator PoseRotation = FQuat::Slerp(HoldRotation, ActiveGun->GetReloadViewRotation().Quaternion(), PoseBlend).Rotator();
+
+	// A tool at work (the wrench on its nut) brings its origin onto the crosshair: the camera's forward line,
+	// where the dot always is. Pinned, the look lag and the bob would pull it off the dot, so they fade too
+	// (the sway still turns it about that origin, which leaves the origin where it is).
+	const float Pin = FMath::Clamp(ActiveGun->GetCrosshairPin(), 0.f, 1.f);
+	PoseOffset.Y *= 1.f - Pin;
+	PoseOffset.Z *= 1.f - Pin;
+	const float Unpinned = 1.f - Pin;
 
 	// Lowered below the view on possession, during a swap and when hung on a rack.
 	const float Lowered = FMath::Max(FMath::Square(RaiseAlpha), FMath::Square(HandLowerAlpha)); // fast at first, settling softly
 	const FVector Raise(0.f, 0.f, -Lowered * RaiseDrop);
 	const FRotator RaiseRotation(-Lowered * RaisePitch, 0.f, 0.f);
 
-	GunMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + AppliedSway + KickRotation);
+	GunMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + (Lag + Bob) * Unpinned + Kick, PoseRotation + RaiseRotation + AppliedSway + KickRotation);
 }
 
 AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
