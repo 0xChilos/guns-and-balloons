@@ -304,7 +304,8 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
    }
    if(!Found) return Fail(RI,I,TEXT("256 attempts exhausted: spacing/cluster/eligible bounds"));
    FSurface Surface; Surface.Z=C.PlacementGroundZMeters*100.;
-   if(Ground && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
+   // Horizon rings are outside the playable terrain footprint and retain their authored datum.
+   if(Ground && !Ring && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
    if(!FMath::IsFinite(Surface.Z) || Surface.Normal.ContainsNaN() || Surface.Normal.Z<=0. || Surface.Normal.IsNearlyZero()) return Fail(RI,I,TEXT("invalid terrain height/normal"));
    V.Z=Surface.Z;
    FQuat Rotation=FRotator(0.,Yaw,0.).Quaternion();

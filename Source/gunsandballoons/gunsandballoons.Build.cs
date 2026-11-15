@@ -14,10 +14,14 @@ public class gunsandballoons : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
 		// UMG: the main menu widget and its in-world panel. EngineSettings: the project version label.
+<<<<<<< HEAD
 		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "EngineSettings" });
 
 		// Niagara: the hook pickups' sparkle (AHookPickup::Sparkle).
 		PrivateDependencyModuleNames.Add("Niagara");
+=======
+		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "EngineSettings", "ProceduralMeshComponent" });
+>>>>>>> aa03ca1 (fix: fixed generation)
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AnimGraph", "BlueprintGraph", "AnimGraphRuntime" });

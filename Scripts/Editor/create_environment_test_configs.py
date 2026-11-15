@@ -27,6 +27,10 @@ for biome in ('Forest', 'Field', 'City', 'Desert'):
         assert isinstance(config, unreal.BalloonLevelConfig), path
         config.set_editor_property('biome_id', biome)
         config.set_editor_property('preset', preset)
+        # Prototype terrain tuning: city/field stay level; forest/desert have relief.
+        config.set_editor_property('terrain_mode', unreal.BalloonTerrainMode.GENERATED
+                                   if biome in ('Forest', 'Desert') else unreal.BalloonTerrainMode.FLAT)
+        config.set_editor_property('terrain_height_variation_meters', 15.0)
         for flag in ('scenery_enabled', 'obstacles_enabled', 'enemies_enabled'):
             config.set_editor_property(flag, False)
         assert unreal.EditorAssetLibrary.save_loaded_asset(config)
@@ -38,6 +42,7 @@ generator.set_editor_property('biome_selection', unreal.BalloonBiomeSelection.SE
 generator.set_editor_property('randomize_seed', False)
 generator.set_editor_property('generation_mode', unreal.BalloonGenerationMode.ON_LEVEL_START)
 generator.set_editor_property('level_config', configs[0])
+generator.setup_level_controller()
 assert levels.save_current_level()
 actors.set_selected_level_actors([generator])
 unreal.log('M7_CONFIGS_PASS: saved 8 biome/preset configs; selected Forest Day; generator selected in Outliner')
