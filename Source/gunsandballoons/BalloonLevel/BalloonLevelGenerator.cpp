@@ -286,6 +286,7 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   ActiveConfig->WidthProfile.GetRichCurve()->Reset();
   ActiveConfig->EnemyDensity = StartOptions.EnemyDensity;
   ActiveConfig->ObstacleDensity = StartOptions.ObstacleDensity;
+  ActiveConfig->ItemDensity = StartOptions.ItemDensity;
   ActiveConfig->EnemiesEnabled = SpawnEnemies && StartOptions.EnemyDensity > 0.f;
   ActiveConfig->ObstaclesEnabled = StartOptions.ObstacleDensity > 0.f;
   if (ChangedBiome || !ActiveConfig->BiomeAssetTable)
@@ -431,7 +432,7 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
    return false;
   }
  }
- if(!Realizer->Realize(Plan,Diagnostics,BorderClass)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
+ if(!Realizer->Realize(Plan,Diagnostics,BorderClass,ActiveConfig->ItemDensity)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
  BalloonPlacementCommitted = true;
  if (StagedTerrain)
  {

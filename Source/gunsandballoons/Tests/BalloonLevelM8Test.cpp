@@ -5,6 +5,9 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Engine/StaticMeshSocket.h"
+#include "../HookPickup.h"
+#include "Components/StaticMeshComponent.h"
 #include "HAL/PlatformMisc.h"
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
@@ -52,6 +55,59 @@ bool FBalloonLevelM8Test::RunTest(const FString& Parameters)
  TestEqual(TEXT("rollback retains actor count"),G->Realizer->Actors.Num(),OldActors.Num());
  for(int32 I=0;I<OldActors.Num();++I)
   TestTrue(TEXT("rollback retains exact colliding Actors"),OldActors[I].IsValid() && G->Realizer->Actors[I]==OldActors[I] && OldActors[I]->GetActorEnableCollision());
+ // Authored loot sockets work on individual HISM instances and gameplay mesh actors.
+ auto* SocketMesh=DuplicateObject<UStaticMesh>(Mesh,GetTransientPackage());
+ auto* Socket=NewObject<UStaticMeshSocket>(SocketMesh);
+ Socket->SocketName=TEXT("loot_01"); Socket->RelativeLocation=FVector(0,0,200);
+ SocketMesh->Sockets.Add(Socket);
+ auto LootDescriptor=Scenery; LootDescriptor.Asset=FSoftObjectPath(SocketMesh);
+ LootDescriptor.Transform=FTransform(FRotator(0,45,0),FVector(1000,2000,3000),FVector(2));
+ for (auto Representation:{EBalloonPlacementRepresentation::HISM,EBalloonPlacementRepresentation::MeshActor})
+ {
+  LootDescriptor.Representation=Representation;
+  LootDescriptor.Collision=Representation==EBalloonPlacementRepresentation::MeshActor;
+  Plan.Placements={LootDescriptor};
+  TestTrue(TEXT("realize socket loot"),G->Realizer->Realize(Plan,Diag));
+  AHookPickup* Pickup=nullptr;
+  for (const auto& Ref:G->Realizer->Actors) if (auto* P=Cast<AHookPickup>(Ref.Get())) Pickup=P;
+  TestNotNull(TEXT("socket has a hook pickup"),Pickup);
+  if (Pickup)
+  {
+   TestTrue(TEXT("socket transform includes host scale"),Pickup->GetActorLocation().Equals(LootDescriptor.Transform.TransformPosition(Socket->RelativeLocation)));
+   TestTrue(TEXT("pickup keeps authored size"),Pickup->GetActorScale3D().Equals(FVector::OneVector));
+   TestTrue(TEXT("pickup hookable with query collision"),Pickup->CanBeHooked() && Pickup->Mesh->IsQueryCollisionEnabled());
+   TestTrue(TEXT("pickup contains resources"),Pickup->Contents.Num()>0);
+   TestTrue(TEXT("pickup stays on its platform"),Pickup->bFloating && !Pickup->Mesh->IsSimulatingPhysics());
+   auto Weak=TWeakObjectPtr<AHookPickup>(Pickup);
+   G->Realizer->Clear();
+   TestFalse(TEXT("cleanup removes socket loot"),Weak.IsValid());
+  }
+ }
+ // Density controls socket occupancy without changing scenery or breaking replacement rollback.
+ LootDescriptor.Representation=EBalloonPlacementRepresentation::HISM; LootDescriptor.Collision=false;
+ Plan.Placements.Reset();
+ for (int32 I=0; I<100; ++I)
+ {
+  LootDescriptor.Transform.SetLocation(FVector(I*1000,0,0));
+  Plan.Placements.Add(LootDescriptor);
+ }
+ TestTrue(TEXT("zero item density"),G->Realizer->Realize(Plan,Diag,nullptr,0.f));
+ TestEqual(TEXT("zero has no items"),G->Realizer->Actors.Num(),0);
+ TestEqual(TEXT("density preserves scenery"),G->Realizer->Groups[0]->GetInstanceCount(),100);
+ TestTrue(TEXT("partial item density"),G->Realizer->Realize(Plan,Diag,nullptr,.5f));
+ const int32 PartialCount=G->Realizer->Actors.Num();
+ TestTrue(TEXT("half density populates a subset"),PartialCount>0 && PartialCount<100);
+ TArray<FVector> Locations;
+ for (const auto& Ref:G->Realizer->Actors) Locations.Add(Ref->GetActorLocation());
+ TestTrue(TEXT("repeat partial item density"),G->Realizer->Realize(Plan,Diag,nullptr,.5f));
+ TestEqual(TEXT("seed keeps item count stable"),G->Realizer->Actors.Num(),PartialCount);
+ for (int32 I=0; I<FMath::Min(PartialCount,G->Realizer->Actors.Num()); ++I)
+  TestTrue(TEXT("seed keeps occupied sockets stable"),Locations[I].Equals(G->Realizer->Actors[I]->GetActorLocation()));
+ const auto PreviousLoot=G->Realizer->Actors;
+ TestFalse(TEXT("invalid density rejected"),G->Realizer->Realize(Plan,Diag,nullptr,2.f));
+ TestTrue(TEXT("invalid density preserves old items"),PreviousLoot==G->Realizer->Actors);
+ TestTrue(TEXT("full item density"),G->Realizer->Realize(Plan,Diag,nullptr,1.f));
+ TestEqual(TEXT("full density fills every spot"),G->Realizer->Actors.Num(),100);
  // Borders are realized and replaced transactionally, even without optional visual content.
  Plan.Placements.Reset();
  FBalloonBorderInfluence Border; Border.InstanceId=7; Border.Center=FVector(10000.,30000.,10000.); Border.RadiusCm=2500.f;
