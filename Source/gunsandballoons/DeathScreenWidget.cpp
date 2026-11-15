@@ -138,12 +138,12 @@ void UDeathScreenWidget::BuildTree()
 	AddFull(Grain, FMargin(-512.f));
 
 	// The title card: a double line border around a dark field.
-	const auto Frame = [this](const FName& Name, const FLinearColor& Color, const FMargin& Padding)
+	const auto Frame = [this](const FName& Name, const FLinearColor& Color, const FMargin& FramePadding)
 	{
 		UBorder* B = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), Name);
 		B->SetBrush(FSlateBrush());
 		B->SetBrushColor(Color);
-		B->SetPadding(Padding);
+		B->SetPadding(FramePadding);
 		return B;
 	};
 	UBorder* OuterLine = Frame(TEXT("CardOuterLine"), CardInkColor, FMargin(4.f));
