@@ -70,6 +70,30 @@ void AGunSmoke::BeginPlay()
 	CreatePuffTextures();
 }
 
+void AGunSmoke::DrawPuffShape(int32 ShapeIndex, int32 Size, TArrayView<float> Density, TArrayView<uint8> Shade) const
+{
+	const uint8 RimValue = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(RimShade, 0.f, 1.f) * 255.f));
+
+	// A lumpy blob: two octaves of noise push the outline in and out; each shape samples another slice.
+	const float Slice = 0.37f + 1.91f * ShapeIndex;
+	for (int32 Y = 0; Y < Size; ++Y)
+	{
+		for (int32 X = 0; X < Size; ++X)
+		{
+			// Distance from the centre, 1 at the edge of the quad (a little margin so lumps fit).
+			const FVector2D P((X + 0.5f) / Size * 2.f - 1.f, (Y + 0.5f) / Size * 2.f - 1.f);
+			const FVector N(P.X * 2.2f, P.Y * 2.2f, Slice);
+			const float Lumps = 0.65f * FMath::PerlinNoise3D(N) + 0.35f * FMath::PerlinNoise3D(N * 2.1f + FVector(5.3f, 1.7f, 0.f));
+			const float Edge = P.Size() * 1.1f + 0.25f * Lumps;
+
+			// Solid inside, thinning to nothing at the outline; the thin part dithers away first.
+			Density[Y * Size + X] = FMath::Clamp((1.f - Edge) / (1.f - SolidEdge), 0.f, 1.f);
+			// Flat two-tone: light core, darker rim.
+			Shade[Y * Size + X] = Edge < CoreEdge ? 255 : RimValue;
+		}
+	}
+}
+
 void AGunSmoke::CreatePuffTextures()
 {
 	const int32 Size = FMath::Clamp(TextureSize, 8, 64);
@@ -83,28 +107,9 @@ void AGunSmoke::CreatePuffTextures()
 	TArray<uint8> Pixels;
 	Pixels.SetNumUninitialized(Size * Size * 4);
 
-	const uint8 RimValue = static_cast<uint8>(FMath::RoundToInt(FMath::Clamp(RimShade, 0.f, 1.f) * 255.f));
-
 	for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
 	{
-		// A lumpy blob: two octaves of noise push the outline in and out; each shape samples another slice.
-		const float Slice = 0.37f + 1.91f * ShapeIndex;
-		for (int32 Y = 0; Y < Size; ++Y)
-		{
-			for (int32 X = 0; X < Size; ++X)
-			{
-				// Distance from the centre, 1 at the edge of the quad (a little margin so lumps fit).
-				const FVector2D P((X + 0.5f) / Size * 2.f - 1.f, (Y + 0.5f) / Size * 2.f - 1.f);
-				const FVector N(P.X * 2.2f, P.Y * 2.2f, Slice);
-				const float Lumps = 0.65f * FMath::PerlinNoise3D(N) + 0.35f * FMath::PerlinNoise3D(N * 2.1f + FVector(5.3f, 1.7f, 0.f));
-				const float Edge = P.Size() * 1.1f + 0.25f * Lumps;
-
-				// Solid inside, thinning to nothing at the outline; the thin part dithers away first.
-				Density[Y * Size + X] = FMath::Clamp((1.f - Edge) / (1.f - SolidEdge), 0.f, 1.f);
-				// Flat two-tone: light core, darker rim.
-				Shade[Y * Size + X] = Edge < CoreEdge ? 255 : RimValue;
-			}
-		}
+		DrawPuffShape(ShapeIndex, Size, Density, Shade);
 
 		for (int32 Level = 1; Level <= DitherLevels; ++Level)
 		{
@@ -172,8 +177,10 @@ void AGunSmoke::Emit(const FGunSmokePuffs& Kind, int32 Count, const FVector& Loc
 		Puff.Density = Kind.Density * Strength * FMath::FRandRange(0.8f, 1.2f);
 		Puff.Buoyancy = Kind.Buoyancy * FMath::FRandRange(0.8f, 1.2f);
 		Puff.CoolTime = Kind.CoolTime;
+		Puff.Gravity = Kind.Gravity;
+		Puff.StickTime = Kind.StickTime;
 		Puff.Shape = FMath::RandHelper(FMath::Max(NumShapes, 1));
-		Puff.Quarter = FMath::RandHelper(4);
+		Puff.Quarter = bTurnPuffs ? FMath::RandHelper(4) : 0;
 		// Shows at once, at its fresh look (no wait for the next animation step).
 		UpdateLook(Puff);
 
@@ -221,8 +228,14 @@ void AGunSmoke::UpdateLook(FPuff& Puff) const
 
 void AGunSmoke::Simulate(FPuff& Puff, float DeltaSeconds, float Time, const FCollisionQueryParams* Query) const
 {
-	// Hot smoke rises; the pull fades as it cools.
-	FVector Accel(0.f, 0.f, Puff.Buoyancy * FMath::Exp(-Puff.Age / Puff.CoolTime));
+	if (Puff.bStuck)
+	{
+		// Landed: it only moves with what it sits on (placed every frame in Tick).
+		return;
+	}
+
+	// Hot smoke rises; the pull fades as it cools. A heavy spray falls.
+	FVector Accel(0.f, 0.f, Puff.Buoyancy * FMath::Exp(-Puff.Age / Puff.CoolTime) - Puff.Gravity);
 
 	// One turbulence field for all puffs, so neighbours swirl together.
 	if (Turbulence > 0.f)
@@ -248,8 +261,24 @@ void AGunSmoke::Simulate(FPuff& Puff, float DeltaSeconds, float Time, const FCol
 		FHitResult Hit;
 		if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, CollisionChannel, *Query) && !Hit.bStartPenetrating)
 		{
-			// Stop at the surface and slide along it: the part of the motion into it is gone.
 			const FVector Normal = Hit.ImpactNormal;
+			if (Puff.StickTime > 0.f)
+			{
+				// A heavy spray stays where it lands (lifted off the surface a little, so the sprite is not
+				// half inside it), riding on what it hit, and lingers there before it fades.
+				Puff.Location = Hit.Location + Normal * (Puff.Radius * 0.5f);
+				Puff.Velocity = FVector::ZeroVector;
+				Puff.bStuck = true;
+				Puff.Life = Puff.Age + Puff.StickTime * FMath::FRandRange(0.75f, 1.25f);
+				if (USceneComponent* Surface = Hit.GetComponent())
+				{
+					Puff.StuckTo = Surface;
+					Puff.StuckOffset = Surface->GetComponentTransform().InverseTransformPosition(Puff.Location);
+				}
+				return;
+			}
+
+			// Stop at the surface and slide along it: the part of the motion into it is gone.
 			End = Hit.Location + Normal * 0.5f;
 			const float Into = FVector::DotProduct(Puff.Velocity, Normal);
 			if (Into < 0.f)
@@ -343,7 +372,15 @@ void AGunSmoke::Tick(float DeltaSeconds)
 
 	for (int32 i = 0; i < Puffs.Num(); ++i)
 	{
-		const FPuff& Puff = Puffs[i];
+		FPuff& Puff = Puffs[i];
+		if (Puff.bStuck)
+		{
+			// Riding on what it landed on, smoothly every frame (the basket moves with the balloon).
+			if (const USceneComponent* Surface = Puff.StuckTo.Get())
+			{
+				Puff.Location = Surface->GetComponentTransform().TransformPosition(Puff.StuckOffset);
+			}
+		}
 		const FVector ToCamera = CameraLocation - Puff.Location;
 		const float Distance = ToCamera.Size();
 

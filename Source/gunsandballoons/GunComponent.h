@@ -10,6 +10,7 @@ class AGunProjectile;
 class UAnimSequenceBase;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
+class UMeshComponent;
 class USkeletalMeshComponent;
 class UStaticMesh;
 class UTexture;
@@ -27,7 +28,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGunShotHit, const FHitResult&, Hi
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGunEvent);
 
 /**
- * Base for the hand-less viewmodel guns (revolver, rifle, shotgun). Owns what every gun shares:
+ * Base for the hand-less viewmodel guns (revolver, rifle, shotgun) and tools (grappling hook, fire
+ * extinguisher). Owns what every gun shares:
  * - the weapon mesh it animates and the camera it shoots from (SetupWeapon);
  * - equipping (shows/hides the mesh, pauses the gun while holstered) and winding down before a swap;
  * - the shot: a ballistic bullet with a tracer (AGunProjectile) fired from the eye, not a hitscan;
@@ -73,6 +75,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Gun")
 	virtual bool IsReadyToHolster() const { return true; }
 
+	/** The swap was called off (the player picked this gun again) after PrepareToHolster: back to normal. */
+	UFUNCTION(BlueprintCallable, Category = "Gun")
+	virtual void CancelHolster() {}
+
+	/**
+	 * True if the gun's own equip/unequip clips bring it into view and take it out (the fire extinguisher),
+	 * so the pawn does not lower and raise it as well. IsReadyToHolster should then wait for the unequip clip.
+	 */
+	virtual bool AnimatesOwnSwap() const { return false; }
+
 	// --- Mechanism (per gun) ---------------------------------------------------------
 
 	/** Fire (or click on an empty/spent chamber). Mid-reload, wraps the reload up instead. */
@@ -97,6 +109,20 @@ public:
 	/** Call every frame with whether the player is aiming at an ammo supply, so the gun can open ahead of the click. */
 	UFUNCTION(BlueprintCallable, Category = "Gun")
 	virtual void SetAimingAtAmmo(bool bAiming) {}
+
+	/**
+	 * Called by the pawn every frame with whether RMB is held while not aiming at an ammo supply. Unused by
+	 * the guns; the grappling hook pumps its pressure with it.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gun")
+	virtual void SetSecondaryHeld(bool bHeld) {}
+
+	/**
+	 * Called by the pawn every frame with whether LMB is still held since the click that pulled the trigger
+	 * (PullTrigger comes first, on the click itself). Unused by the guns; the fire extinguisher sprays while held.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gun")
+	virtual void SetTriggerHeld(bool bHeld) {}
 
 	/** True while the gun is open for loading (the pawn holds it in the reload pose). */
 	UFUNCTION(BlueprintPure, Category = "Gun")
@@ -124,6 +150,12 @@ public:
 	/** Hand sway of this gun (degrees, pitch/yaw) and its speed; the pawn adds the balloon's on top. */
 	FVector2D GetHandSway() const { return FVector2D(HandSwayPitch, HandSwayYaw); }
 	float GetHandSwaySpeed() const { return HandSwaySpeed; }
+
+	// --- Crosshair (read by ACrosshairHUD) ---------------------------------------------------
+
+	/** Widest a shot strays from the crosshair (degrees): SpreadAngle plus the pellet pattern. */
+	float GetCrosshairSpread() const { return SpreadAngle + (ProjectilesPerShot > 1 ? PelletSpreadAngle : 0.f); }
+	float GetAimRecoilPitch() const { return AimRecoilPitch; }
 
 	// --- Events ------------------------------------------------------------------------
 
@@ -153,6 +185,12 @@ public:
 	/** The gun is closed again after loading. */
 	UPROPERTY(BlueprintAssignable, Category = "Gun")
 	FOnGunEvent OnReloadFinished;
+
+	/**
+	 * Forces WeaponTexture onto every material of Target through dynamic instances: the gun's own mesh, or
+	 * another mesh showing this gun (the one lying on a UWeaponRackComponent). Returns the first instance made.
+	 */
+	UMaterialInstanceDynamic* ApplyWeaponTextureTo(UMeshComponent* Target) const;
 
 	/** The actor simulating this gun's smoke (spawned at BeginPlay; null if SmokeClass is unset). */
 	UFUNCTION(BlueprintPure, Category = "Gun|Smoke")
@@ -434,9 +472,6 @@ protected:
 	float RecoilKickPitch = 12.f;
 
 private:
-	/** Apply WeaponTexture to the mesh's materials. */
-	void ApplyWeaponTexture();
-
 	/** A stream of smoke leaving a point on the gun mesh (a bone, or a mesh-space offset) for a while. */
 	struct FSmokeStream
 	{

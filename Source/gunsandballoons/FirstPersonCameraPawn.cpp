@@ -5,11 +5,15 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
+#include "ExtinguisherComponent.h"
 #include "AmmoSupplyComponent.h"
 #include "BalloonFlightComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Grabbable.h"
 #include "GunAnimInstance.h"
+#include "HookComponent.h"
+#include "HookDebugMenu.h"
+#include "Engine/GameViewportClient.h"
 #include "Interactable.h"
 #include "RevolverAnimInstance.h"
 #include "RevolverComponent.h"
@@ -46,7 +50,7 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	Camera->bEnableFirstPersonScale = true;
 	Camera->FirstPersonScale = 0.7f;
 
-	// --- Revolver (key 1) ---
+	// --- Revolver ---
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	SetupViewmodelMesh(WeaponMesh, Camera);
 
@@ -61,7 +65,7 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Revolver = CreateDefaultSubobject<URevolverComponent>(TEXT("Revolver"));
 
-	// --- Rifle (key 2) ---
+	// --- Rifle ---
 	RifleMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RifleMesh"));
 	SetupViewmodelMesh(RifleMesh, Camera);
 
@@ -76,7 +80,7 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Rifle = CreateDefaultSubobject<URifleComponent>(TEXT("Rifle"));
 
-	// --- Shotgun (key 3) ---
+	// --- Shotgun ---
 	ShotgunMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ShotgunMesh"));
 	SetupViewmodelMesh(ShotgunMesh, Camera);
 
@@ -91,11 +95,44 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Shotgun = CreateDefaultSubobject<UShotgunComponent>(TEXT("Shotgun"));
 
-	WeaponMesh->SetRelativeLocationAndRotation(Revolver->GetViewOffset(), Revolver->GetViewRotation());
-	RifleMesh->SetRelativeLocationAndRotation(Rifle->GetViewOffset(), Rifle->GetViewRotation());
-	ShotgunMesh->SetRelativeLocationAndRotation(Shotgun->GetViewOffset(), Shotgun->GetViewRotation());
-	RifleMesh->SetVisibility(false); // the revolver is in hand by default
-	ShotgunMesh->SetVisibility(false);
+	// --- Grappling hook ---
+	HookMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HookMesh"));
+	SetupViewmodelMesh(HookMesh, Camera);
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> HookAsset(TEXT("/Game/Assets/Hook/SK_Hook.SK_Hook"));
+	if (HookAsset.Succeeded())
+	{
+		HookMesh->SetSkeletalMeshAsset(HookAsset.Object);
+	}
+
+	// Pose comes from code (UHookComponent), not an Animation Blueprint.
+	HookMesh->AnimClass = UGunAnimInstance::StaticClass();
+
+	Hook = CreateDefaultSubobject<UHookComponent>(TEXT("Hook"));
+
+	// --- Fire extinguisher ---
+	ExtinguisherMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ExtinguisherMesh"));
+	SetupViewmodelMesh(ExtinguisherMesh, Camera);
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> ExtinguisherAsset(TEXT("/Game/Assets/Fire_extinguisher/SK_Extinguisher.SK_Extinguisher"));
+	if (ExtinguisherAsset.Succeeded())
+	{
+		ExtinguisherMesh->SetSkeletalMeshAsset(ExtinguisherAsset.Object);
+	}
+
+	// Pose comes from code (UExtinguisherComponent), not an Animation Blueprint.
+	ExtinguisherMesh->AnimClass = UGunAnimInstance::StaticClass();
+
+	Extinguisher = CreateDefaultSubobject<UExtinguisherComponent>(TEXT("Extinguisher"));
+
+	// The hand is empty by default: every item is hidden until it is taken (OnConstruction, BeginPlay).
+	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
+	const TArray<USkeletalMeshComponent*, TInlineAllocator<5>> Meshes = GetGunMeshes();
+	for (int32 i = 0; i < Guns.Num(); ++i)
+	{
+		Meshes[i]->SetRelativeLocationAndRotation(Guns[i]->GetViewOffset(), Guns[i]->GetViewRotation());
+		Meshes[i]->SetVisibility(false);
+	}
 
 	// The actor stays exactly where it was placed: it never takes the controller's rotation.
 	bUseControllerRotationYaw = false;
@@ -108,29 +145,52 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
-TArray<UGunComponent*, TInlineAllocator<3>> AFirstPersonCameraPawn::GetGuns() const
+TArray<UGunComponent*, TInlineAllocator<5>> AFirstPersonCameraPawn::GetGuns() const
 {
-	return { Revolver.Get(), Rifle.Get(), Shotgun.Get() };
+	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get() };
 }
 
-TArray<USkeletalMeshComponent*, TInlineAllocator<3>> AFirstPersonCameraPawn::GetGunMeshes() const
+TArray<USkeletalMeshComponent*, TInlineAllocator<5>> AFirstPersonCameraPawn::GetGunMeshes() const
 {
-	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get() };
+	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get() };
+}
+
+UGunComponent* AFirstPersonCameraPawn::FindGun(TSubclassOf<UGunComponent> GunClass) const
+{
+	if (GunClass)
+	{
+		for (UGunComponent* Gun : GetGuns())
+		{
+			if (Gun && Gun->IsA(GunClass))
+			{
+				return Gun;
+			}
+		}
+	}
+	return nullptr;
+}
+
+USkeletalMeshComponent* AFirstPersonCameraPawn::GetGunMesh(const UGunComponent* Gun) const
+{
+	const int32 Index = Gun ? GetGuns().IndexOfByKey(Gun) : INDEX_NONE;
+	return Index != INDEX_NONE ? GetGunMeshes()[Index] : nullptr;
 }
 
 void AFirstPersonCameraPawn::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	// Keep the editor preview in sync with each gun's tweakable rest pose; only the starting gun shows.
-	const TArray<UGunComponent*, TInlineAllocator<3>> Guns = GetGuns();
-	const TArray<USkeletalMeshComponent*, TInlineAllocator<3>> Meshes = GetGunMeshes();
+	// Keep the editor preview in sync with each gun's tweakable rest pose; only the starting gun shows
+	// (none with an empty hand).
+	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
+	const TArray<USkeletalMeshComponent*, TInlineAllocator<5>> Meshes = GetGunMeshes();
+	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1);
 	for (int32 i = 0; i < Guns.Num(); ++i)
 	{
 		if (USkeletalMeshComponent* Mesh = Meshes[i])
 		{
 			Mesh->SetRelativeLocationAndRotation(Guns[i]->GetViewOffset(), Guns[i]->GetViewRotation());
-			Mesh->SetVisibility(i == FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1));
+			Mesh->SetVisibility(i == ShownIndex);
 		}
 	}
 }
@@ -141,8 +201,10 @@ void AFirstPersonCameraPawn::BeginPlay()
 	Revolver->SetupWeapon(WeaponMesh, Camera);
 	Rifle->SetupWeapon(RifleMesh, Camera);
 	Shotgun->SetupWeapon(ShotgunMesh, Camera);
+	Hook->SetupWeapon(HookMesh, Camera);
+	Extinguisher->SetupWeapon(ExtinguisherMesh, Camera);
 
-	const TArray<UGunComponent*, TInlineAllocator<3>> Guns = GetGuns();
+	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
 	for (UGunComponent* Gun : Guns)
 	{
 		Gun->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
@@ -150,7 +212,7 @@ void AFirstPersonCameraPawn::BeginPlay()
 
 	Super::BeginPlay();
 
-	// Starting with an empty hand means the revolver is on a rack: that is the gun to draw back.
+	// An empty hand still keeps a hidden item as ActiveGun, until the first one is taken from its rack.
 	const bool bStartEmpty = InitialHandState == EPlayerHandState::Empty;
 	ActiveGun = bStartEmpty ? Revolver.Get() : Guns[FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1)];
 	PendingGun = nullptr;
@@ -236,27 +298,6 @@ void AFirstPersonCameraPawn::NotifyControllerChanged()
 	PC->bShowMouseCursor = false;
 }
 
-void AFirstPersonCameraPawn::EquipGun(UGunComponent* Gun)
-{
-	if (!Gun || !ActiveGun)
-	{
-		return;
-	}
-
-	if (PendingGun)
-	{
-		// Mid-swap: picking the gun in hand cancels the swap, picking another redirects it.
-		PendingGun = Gun == ActiveGun ? nullptr : Gun;
-		return;
-	}
-
-	if (Gun != ActiveGun)
-	{
-		PendingGun = Gun;
-		ActiveGun->PrepareToHolster();
-	}
-}
-
 void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -271,27 +312,15 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 
 	const bool bArmed = HandState == EPlayerHandState::Armed;
 
-	// Number keys pick a gun (not while the hand is empty or busy with the rack).
-	if (bArmed)
-	{
-		if (PC->WasInputKeyJustPressed(EKeys::One))
-		{
-			EquipGun(Revolver.Get());
-		}
-		if (PC->WasInputKeyJustPressed(EKeys::Two))
-		{
-			EquipGun(Rifle.Get());
-		}
-		if (PC->WasInputKeyJustPressed(EKeys::Three))
-		{
-			EquipGun(Shotgun.Get());
-		}
-	}
+	UpdateHookDebugMenu(PC);
 
 	if (PendingGun)
 	{
 		// Putting the gun away: it stops waiting for ammo and takes no clicks.
 		ActiveGun->SetAimingAtAmmo(false);
+		ActiveGun->SetSecondaryHeld(false);
+		bTriggerHeld = false;
+		ActiveGun->SetTriggerHeld(false);
 	}
 	else
 	{
@@ -300,18 +329,26 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 		const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
 		ActiveGun->SetAimingAtAmmo(bArmed && AimedSupply && AimedSupply->HasRounds());
 
+		// RMB held anywhere but on ammo (the hook pumps with it).
+		ActiveGun->SetSecondaryHeld(bArmed && !AimedSupply && PC->IsInputKeyDown(EKeys::RightMouseButton));
+
 		// There is no reload key: RMB on an ammo supply takes one round from it.
 		if (bArmed && PC->WasInputKeyJustPressed(EKeys::RightMouseButton))
 		{
 			TryTakeRound();
 		}
 
-		// LMB grabs a control (empty hand) or uses other interactables, otherwise pulls the trigger
-		// (an open gun closes without firing).
+		// LMB grabs a control (empty hand) or uses other interactables (a weapon rack: take, put back or
+		// swap the item), otherwise pulls the trigger (an open gun closes without firing).
 		if (PC->WasInputKeyJustPressed(EKeys::LeftMouseButton) && !TryBeginGrab() && !TryInteract() && bArmed)
 		{
 			ActiveGun->PullTrigger();
+			bTriggerHeld = true;
 		}
+
+		// Held on after that click (the extinguisher sprays while it is).
+		bTriggerHeld = bTriggerHeld && bArmed && PC->IsInputKeyDown(EKeys::LeftMouseButton);
+		ActiveGun->SetTriggerHeld(bTriggerHeld);
 	}
 
 	// The view rides along with the parent's turning: carry the parent yaw delta into the
@@ -346,6 +383,29 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 	UpdateAimMotion(PC, DeltaSeconds);
 	UpdateWeaponSwap(DeltaSeconds);
 	UpdateWeaponSway(DeltaSeconds);
+}
+
+void AFirstPersonCameraPawn::UpdateHookDebugMenu(APlayerController* PC)
+{
+	if (PC->WasInputKeyJustPressed(EKeys::H))
+	{
+		if (!HookDebugMenu.IsValid())
+		{
+			HookDebugMenu = MakeShared<FHookDebugMenu>();
+		}
+		if (HookDebugMenu->IsOpen())
+		{
+			HookDebugMenu->Close();
+		}
+		else
+		{
+			HookDebugMenu->Open(Hook, GetWorld()->GetGameViewport());
+		}
+	}
+	if (HookDebugMenu.IsValid())
+	{
+		HookDebugMenu->HandleInput(PC);
+	}
 }
 
 void AFirstPersonCameraPawn::UpdateLook(APlayerController* PC)
@@ -436,28 +496,46 @@ void AFirstPersonCameraPawn::UpdateAimMotion(APlayerController* PC, float DeltaS
 
 void AFirstPersonCameraPawn::UpdateWeaponSwap(float DeltaSeconds)
 {
+	UWeaponRackComponent* NextRack = TransitionRack.Get();
+	UWeaponRackComponent* HomeRack = HeldItemRack.Get();
+	if (PendingGun && (!NextRack || !NextRack->HasWeapon() || !HomeRack || HomeRack->HasWeapon()))
+	{
+		// A rack of the swap is gone or changed in the meantime: keep the item in hand.
+		PendingGun = nullptr;
+		TransitionRack.Reset();
+		ActiveGun->CancelHolster();
+	}
+
 	// Lowering starts only once the gun has finished firing/reloading and closed up.
 	if (PendingGun && ActiveGun->IsReadyToHolster())
 	{
-		RaiseAlpha = LowerTime > 0.f ? FMath::FInterpConstantTo(RaiseAlpha, 1.f, DeltaSeconds, 1.f / LowerTime) : 1.f;
+		// A gun whose own unequip clip has already taken it out of view is swapped at once.
+		const bool bOwnSwap = ActiveGun->AnimatesOwnSwap();
+		RaiseAlpha = LowerTime > 0.f && !bOwnSwap ? FMath::FInterpConstantTo(RaiseAlpha, 1.f, DeltaSeconds, 1.f / LowerTime) : 1.f;
 		if (RaiseAlpha >= 1.f)
 		{
-			// Out of view: swap, then the normal raise brings the new gun up.
+			// Out of view: the old item is back on its rack and the next one leaves its own, then the
+			// normal raise brings it up.
+			HomeRack->SetHasWeapon(true);
+			NextRack->SetHasWeapon(false);
+			HeldItemRack = NextRack;
+			TransitionRack.Reset();
 			ActiveGun->SetEquipped(false);
 			PendingGun->SetEquipped(true);
 			ActiveGun = PendingGun;
 			PendingGun = nullptr;
 			RecoilAlpha = 0.f;
 			ReloadPoseAlpha = 0.f;
-			if (RaiseTime <= 0.f)
+			if (RaiseTime <= 0.f || ActiveGun->AnimatesOwnSwap())
 			{
+				// (Its equip clip brings it up by itself.)
 				RaiseAlpha = 0.f;
 			}
 		}
 		return;
 	}
 
-	// Swing up from below (on possession, after a swap, or when a swap was cancelled).
+	// Swing up from below (on possession, after a swap, or when putting the item away was called off).
 	if (RaiseTime > 0.f)
 	{
 		RaiseAlpha = FMath::FInterpConstantTo(RaiseAlpha, 0.f, DeltaSeconds, 1.f / RaiseTime);
@@ -548,6 +626,19 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 {
 	FHitResult Hit;
 	const bool bHit = TraceAimed(Hit, bDebugDraw);
+
+	// An interactable component on the hit actor (a weapon rack), if it takes this part of the actor.
+	if (AActor* HitActor = bHit ? Hit.GetActor() : nullptr)
+	{
+		TInlineComponentArray<UActorComponent*> Components(HitActor);
+		for (UActorComponent* Component : Components)
+		{
+			if (Component->Implements<UInteractable>() && IInteractable::Execute_AcceptsHit(Component, Hit))
+			{
+				return HitActor;
+			}
+		}
+	}
 
 	// The hit actor itself, or whoever owns it (e.g. an AInteractSwap owns the meshes it swaps).
 	for (AActor* Actor = bHit ? Hit.GetActor() : nullptr; Actor; Actor = Actor->GetOwner())
@@ -719,10 +810,15 @@ void AFirstPersonCameraPawn::UnPossessed()
 void AFirstPersonCameraPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	EndGrab();
+	if (HookDebugMenu.IsValid())
+	{
+		HookDebugMenu->Close();
+		HookDebugMenu.Reset();
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
-// --- Weapon rack (holstering the revolver) ---------------------------------------------------
+// --- Weapon racks (taking an item, putting it back, swapping) --------------------------------
 
 void AFirstPersonCameraPawn::SetHandState(EPlayerHandState NewState)
 {
@@ -734,35 +830,45 @@ void AFirstPersonCameraPawn::SetHandState(EPlayerHandState NewState)
 	if (HandState != EPlayerHandState::Armed && ActiveGun)
 	{
 		ActiveGun->SetAimingAtAmmo(false);
+		ActiveGun->SetSecondaryHeld(false);
+		bTriggerHeld = false;
+		ActiveGun->SetTriggerHeld(false);
 	}
 	OnHandStateChanged.Broadcast(HandState);
 }
 
 bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
 {
-	// The rack's hooks take the revolver only; it must be at rest, with no swap under way.
+	// A rack takes its own kind of item only; nothing is put away while open for loading or mid-swap.
 	if (HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon()
-		|| !ActiveGun || ActiveGun != Revolver || PendingGun
-		|| ActiveGun->IsReloading() || !ActiveGun->IsReadyToHolster())
+		|| !ActiveGun || ActiveGun != FindGun(Rack->ItemClass) || PendingGun || ActiveGun->IsReloading())
 	{
 		return false;
 	}
 	TransitionRack = Rack;
 	HandLowerAlpha = 0.f;
+	// It finishes what it is doing first (a shot, the hook coming back, the extinguisher's own Unequip).
+	ActiveGun->PrepareToHolster();
 	SetHandState(EPlayerHandState::Holstering);
 	return true;
 }
 
 bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 {
-	if (!IsHandEmpty() || !IsValid(Rack) || !Rack->HasWeapon() || !ActiveGun)
+	UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
+	if (!IsHandEmpty() || !Gun)
 	{
 		return false;
 	}
 	TransitionRack.Reset();
 	Rack->SetHasWeapon(false);
+	HeldItemRack = Rack;
+	ActiveGun = Gun;
+	RecoilAlpha = 0.f;
+	ReloadPoseAlpha = 0.f;
 	HandLowerAlpha = 0.f;
-	RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
+	// (An item with its own Equip clip comes up by itself.)
+	RaiseAlpha = RaiseTime > 0.f && !Gun->AnimatesOwnSwap() ? 1.f : 0.f;
 	// Place it below the camera before it shows.
 	UpdateWeaponSway(0.f);
 	ActiveGun->SetEquipped(true);
@@ -770,29 +876,53 @@ bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 	return true;
 }
 
+bool AFirstPersonCameraPawn::SwapWeapon(UWeaponRackComponent* Rack)
+{
+	UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
+	const UWeaponRackComponent* HomeRack = HeldItemRack.Get();
+	// The item in hand goes back where it was taken from, so that rack has to be there and free.
+	if (HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
+		|| ActiveGun->IsReloading() || !HomeRack || HomeRack->HasWeapon())
+	{
+		return false;
+	}
+	TransitionRack = Rack;
+	PendingGun = Gun;
+	ActiveGun->PrepareToHolster();
+	return true;
+}
+
 void AFirstPersonCameraPawn::UpdateHandState(float DeltaSeconds)
 {
 	if (HandState == EPlayerHandState::Holstering)
 	{
-		if (!TransitionRack.IsValid() || TransitionRack->HasWeapon())
+		if (!TransitionRack.IsValid() || TransitionRack->HasWeapon() || !ActiveGun)
 		{
-			// The rack disappeared or became occupied: keep the player's gun.
+			// The rack disappeared or became occupied: keep the item, raising it back from where it got to.
+			if (ActiveGun)
+			{
+				ActiveGun->CancelHolster();
+			}
+			RaiseAlpha = HandLowerAlpha;
 			HandLowerAlpha = 0.f;
-			RaiseAlpha = RaiseTime > 0.f ? 1.f : 0.f;
 			TransitionRack.Reset();
 			SetHandState(EPlayerHandState::Drawing);
 			return;
 		}
-		HandLowerAlpha = HolsterTime > 0.f ? FMath::Min(1.f, HandLowerAlpha + DeltaSeconds / HolsterTime) : 1.f;
+		if (!ActiveGun->IsReadyToHolster())
+		{
+			// Still finishing and closing up.
+			return;
+		}
+		// An item whose own unequip clip has already taken it out of view is not lowered as well.
+		HandLowerAlpha = HolsterTime > 0.f && !ActiveGun->AnimatesOwnSwap() ? FMath::Min(1.f, HandLowerAlpha + DeltaSeconds / HolsterTime) : 1.f;
 		if (HandLowerAlpha >= 1.f)
 		{
-			// Out of view: it hangs on the rack now (rounds and spent cases kept).
-			if (ActiveGun)
-			{
-				ActiveGun->SetEquipped(false);
-			}
+			// Out of view: it lies on the rack now (rounds, spent cases, pressure and contents kept).
+			ActiveGun->SetEquipped(false);
 			TransitionRack->SetHasWeapon(true);
 			TransitionRack.Reset();
+			HeldItemRack.Reset();
 			SetHandState(EPlayerHandState::Empty);
 		}
 	}

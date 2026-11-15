@@ -25,6 +25,7 @@ namespace
 			Time = Instance->Time;
 			BoneScales = Instance->GetBoneScales();
 			BonePoses = Instance->GetBonePoses();
+			BoneOverrides = Instance->GetBoneOverrides();
 		}
 
 		virtual bool Evaluate(FPoseContext& Output) override
@@ -49,6 +50,20 @@ namespace
 					FPoseContext SourcePose(Output);
 					SamplePose(SourcePose, BonePose.Source, BonePose.Time);
 					Output.Pose[Bone] = SourcePose.Pose[Bone];
+				}
+			}
+
+			for (const FGunBoneOverride& Override : BoneOverrides)
+			{
+				const FCompactPoseBoneIndex Bone = FindBone(Bones, Override.Bone);
+				if (Bone.IsValid())
+				{
+					FTransform& Transform = Output.Pose[Bone];
+					if (Override.Translation.IsSet())
+					{
+						Transform.SetTranslation(Override.Translation.GetValue());
+					}
+					Transform.SetRotation((Transform.GetRotation() * Override.RotationOffset).GetNormalized());
 				}
 			}
 
@@ -82,6 +97,7 @@ namespace
 		float Time = 0.f;
 		TArray<FGunBoneScale> BoneScales;
 		TArray<FGunBonePose> BonePoses;
+		TArray<FGunBoneOverride> BoneOverrides;
 	};
 }
 
@@ -117,6 +133,37 @@ void UGunAnimInstance::SetBonePose(FName Bone, const UAnimSequenceBase* Source, 
 		return;
 	}
 	BonePoses.Add({ Bone, Source, InTime });
+}
+
+FGunBoneOverride& UGunAnimInstance::FindOrAddOverride(FName Bone)
+{
+	if (FGunBoneOverride* Found = BoneOverrides.FindByPredicate([Bone](const FGunBoneOverride& Entry) { return Entry.Bone == Bone; }))
+	{
+		return *Found;
+	}
+	FGunBoneOverride& Added = BoneOverrides.AddDefaulted_GetRef();
+	Added.Bone = Bone;
+	return Added;
+}
+
+void UGunAnimInstance::PruneOverride(FName Bone)
+{
+	BoneOverrides.RemoveAllSwap([Bone](const FGunBoneOverride& Entry)
+	{
+		return Entry.Bone == Bone && !Entry.Translation.IsSet() && Entry.RotationOffset.Equals(FQuat::Identity, 1.e-6f);
+	});
+}
+
+void UGunAnimInstance::SetBoneTranslation(FName Bone, TOptional<FVector> Translation)
+{
+	FindOrAddOverride(Bone).Translation = Translation;
+	PruneOverride(Bone);
+}
+
+void UGunAnimInstance::SetBoneRotationOffset(FName Bone, const FQuat& RotationOffset)
+{
+	FindOrAddOverride(Bone).RotationOffset = RotationOffset;
+	PruneOverride(Bone);
 }
 
 FAnimInstanceProxy* UGunAnimInstance::CreateAnimInstanceProxy()

@@ -83,6 +83,17 @@ struct FGunSmokePuffs
 	/** Share of the source's own motion a puff carries along (the balloon moving, a barrel swinging). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float InheritVelocity = 0.5f;
+
+	/** Downward pull (cm/s²) that never fades: a heavy spray (extinguisher foam) falls in an arc. 0 for smoke. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke", meta = (ClampMin = "0.0"))
+	float Gravity = 0.f;
+
+	/**
+	 * A puff that hits a surface sticks to it (riding along with whatever it hit, e.g. the basket) and stays
+	 * about this long (s) before fading. 0 = it slides along the surface instead, like smoke.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke", meta = (ClampMin = "0.0", Units = "Seconds"))
+	float StickTime = 0.f;
 };
 
 /**
@@ -175,7 +186,7 @@ public:
 	float NearFadeDistance = 10.f;
 
 	/** Puffs alive at once; the oldest gives way to a new one. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "1", ClampMax = "256"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look", meta = (ClampMin = "1", ClampMax = "512"))
 	int32 MaxPuffs = 64;
 
 	/** Size (px) of the generated puff textures. Small and Nearest-filtered: blocky, PS1-like. */
@@ -185,6 +196,13 @@ public:
 	/** How many different blob shapes the puffs pick from at random. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Smoke|Look", meta = (ClampMin = "1", ClampMax = "8"))
 	int32 ShapeVariants = 4;
+
+	/**
+	 * Each puff shows at a random quarter turn, so a few shapes look like more. Off keeps the shapes upright,
+	 * so a light direction drawn into them (the foam's bubble highlights) agrees between puffs.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Smoke|Look")
+	bool bTurnPuffs = true;
 
 	/**
 	 * Updates per second of the puffs' motion, size and fade (they still face the camera every frame).
@@ -208,6 +226,14 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/**
+	 * Draws one puff shape into a Size x Size grid (row-major, Y down): Density 0..1 is how solid each pixel
+	 * is (the dither cuts the thin parts away first as the puff fades), Shade 0..255 its flat brightness
+	 * (tinted by Color). The base draws a lumpy smoke blob, light core and darker rim; override for another
+	 * look (AExtinguisherFoam draws bubble clusters).
+	 */
+	virtual void DrawPuffShape(int32 ShapeIndex, int32 Size, TArrayView<float> Density, TArrayView<uint8> Shade) const;
+
 private:
 	struct FPuff
 	{
@@ -221,6 +247,13 @@ private:
 		float Density;
 		float Buoyancy;
 		float CoolTime;
+		float Gravity = 0.f;
+		float StickTime = 0.f;
+		/** Landed on a surface (StickTime > 0): it no longer moves by itself, only with StuckTo. */
+		bool bStuck = false;
+		/** What it landed on (null once gone: it then stays where it is), and where on it (its local space). */
+		TWeakObjectPtr<USceneComponent> StuckTo;
+		FVector StuckOffset = FVector::ZeroVector;
 		/** Which generated blob shape it shows. */
 		int32 Shape;
 		/** Turn on screen, in quarter turns (0-3). */

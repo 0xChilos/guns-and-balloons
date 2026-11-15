@@ -3,7 +3,7 @@
 > **For agents.** How the gun code works and how to connect new systems to it. Reloading and ammo are in [weapon-reload](weapon-reload.md). Design lives in [weapons](../features/weapons.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-14
 
 ## Core rule
-Each gun is a **`UGunComponent` subclass on the player pawn** that owns its mechanism (chambers, state machine, shot, casings) and drives the pose of its own skeletal mesh. **`AFirstPersonCameraPawn` is the only thing that reads input and places the gun on screen**: it calls the gun's virtuals (`PullTrigger`, `LoadRound`, `SetAimingAtAmmo`, `PrepareToHolster`) and moves the mesh (rest/reload pose, sway, recoil, raise/lower). A gun never reads input, and the pawn never touches chambers.
+Each gun is a **`UGunComponent` subclass on the player pawn** (one of each, always there; a `UWeaponRackComponent` in the world only shows it while it is not in hand) that owns its mechanism (chambers, state machine, shot, casings) and drives the pose of its own skeletal mesh. **`AFirstPersonCameraPawn` is the only thing that reads input and places the gun on screen**: it calls the gun's virtuals (`PullTrigger`, `LoadRound`, `SetAimingAtAmmo`, `PrepareToHolster`) and moves the mesh (rest/reload pose, sway, recoil, raise/lower). A gun never reads input, and the pawn never touches chambers.
 
 ## Files
 | File | Role |
@@ -11,12 +11,17 @@ Each gun is a **`UGunComponent` subclass on the player pawn** that owns its mech
 | `Source/gunsandballoons/GunComponent.h/.cpp` | Abstract base: equip/holster, the shot (spawns a bullet), physics casings, texture, viewmodel pose values |
 | `Source/gunsandballoons/GunProjectile.h/.cpp` | `AGunProjectile`: ballistic bullet with a tracer streak; damage and impulse where it lands |
 | `Source/gunsandballoons/GunSmoke.h/.cpp` | `AGunSmoke`: world-space smoke simulation and sprites, one per gun; `FGunSmokePuffs` (one kind of smoke) |
-| `Source/gunsandballoons/RevolverComponent.h/.cpp` | Pax revolver, 6 chambers, key `1` |
-| `Source/gunsandballoons/RifleComponent.h/.cpp` | Martini-Henry rifle, 1 chamber, key `2` |
-| `Source/gunsandballoons/ShotgunComponent.h/.cpp` | Homestead 78 double-barrel shotgun, 2 barrels, external hammers, key `3` |
+| `Source/gunsandballoons/RevolverComponent.h/.cpp` | Pax revolver, 6 chambers |
+| `Source/gunsandballoons/RifleComponent.h/.cpp` | Martini-Henry rifle, 1 chamber |
+| `Source/gunsandballoons/ShotgunComponent.h/.cpp` | Homestead 78 double-barrel shotgun, 2 barrels, external hammers |
 | `Source/gunsandballoons/RevolverAnimInstance.h/.cpp` | Code-driven pose for `SK_Pax`: one clip + cylinder angle + per-chamber round/case scales |
 | `Source/gunsandballoons/GunAnimInstance.h/.cpp` | Code-driven pose for the rifle and shotgun: one clip + named bone scales + per-bone poses taken from another clip (`SetBonePose`) |
-| `Source/gunsandballoons/FirstPersonCameraPawn.h/.cpp` | Input, aim trace, gun swap, viewmodel placement (sway, recoil, raise) |
+| `Source/gunsandballoons/HookComponent.h/.cpp` | Grappling hook → [grappling-hook](grappling-hook.md) |
+| `Source/gunsandballoons/ExtinguisherComponent.h/.cpp` | Fire extinguisher → [fire-extinguisher](fire-extinguisher.md) |
+| `Source/gunsandballoons/FirstPersonCameraPawn.h/.cpp` | Input, aim trace, hand state (take / put back / swap), viewmodel placement (sway, recoil, raise) |
+| `Source/gunsandballoons/WeaponRackComponent.h/.cpp` | The place one item lies on while it is not in hand; LMB on it takes, puts back or swaps |
+| `Source/gunsandballoons/HandItemPickup.h/.cpp` | `AHandItemPickup`: a rack on its own actor, to lay an item anywhere in a level |
+| `Scripts/Editor/place_item_pickups.py` | Lays the five items out in front of the player start of `Movement_Scene1` |
 | `Content/Assets/Revolver`, `Content/Assets/Rifle_MartiniHenry`, `Content/Assets/Homestead_78` | Meshes, the clips the code uses (`SK_*Armature_*`), casing meshes, material instances |
 | `Content/Textures/Pax_Revolver_Textures`, `Content/Textures/Rifle_MartiniHenry`, `Content/Textures/Homestead_78` | Diffuse maps the guns force onto their materials |
 
@@ -34,7 +39,11 @@ No Animation Blueprints: every pose is set from C++ each tick.
 | `SetAimingAtAmmo(bool)` | virtual | Called by the pawn **every frame**; lets the gun open ahead of the click |
 | `IsReloading()` | BlueprintPure, virtual | True while open for loading; the pawn blends to the reload pose |
 | `GetLiveRounds()` | BlueprintPure, virtual | Live rounds in the gun |
-| `PrepareToHolster()` / `IsReadyToHolster()` | virtual | Wind down before a swap; swap waits until ready |
+| `PrepareToHolster()` / `IsReadyToHolster()` | virtual | Wind down before the item is put on a rack or swapped; the pawn waits until ready |
+| `CancelHolster()` | BlueprintCallable, virtual | Putting it away was called off (the rack involved went away or was taken) |
+| `ApplyWeaponTextureTo(Mesh)` | C++ | Forces `WeaponTexture` onto another mesh showing this gun (the rack's display mesh) |
+| `AnimatesOwnSwap()` | virtual | True if the gun's own equip/unequip clips move it in/out of view; the pawn then skips its lower/raise (extinguisher) |
+| `SetSecondaryHeld(bool)` / `SetTriggerHeld(bool)` | virtual | Called by the pawn **every frame**: RMB held off an ammo supply (hook pump) / LMB still held since the trigger click (extinguisher spray) |
 | `GetViewOffset/Rotation()`, `GetReloadViewOffset/Rotation()`, `GetRecoilKickBack/Pitch()` | C++ | Read by the pawn to place the mesh |
 
 Events (`BlueprintAssignable`): `OnFired` (bullet left the barrel), `OnShotHit(Hit)` (bullet landed, after its flight), `OnDryFire`, `OnReloadStarted`, `OnCaseEjected`, `OnRoundInserted`, `OnReloadFinished`. Hook sounds, muzzle flash and camera shake here; the only VFX in code is the smoke (see **Smoke** below).
@@ -96,17 +105,23 @@ The balloon's share of the sway is on the pawn (`BalloonSway*`: 1°, 0.8°, roll
 - **Limits:** sprites are unlit, masked and write depth, so a big puff touching a wall shows a hard line where it meets it (fits the style). The dither is in texture space, so its pixels grow with the puff; under TSR/TAA a fine pattern can shimmer: if it does, turn temporal AA off as part of the low-res post pass. No Niagara. Draw cost is one masked draw per puff; a fast double shotgun shot plus reloads fills about 60 slots.
 
 ## What the pawn does each tick
-0. `UpdateHandState` (weapon rack, see below).
-1. Number keys `1`/`2`/`3` → `EquipGun(gun)`, only while `HandState == Armed`.
-2. If not swapping: trace from the camera (`InteractRange` 400, `InteractTraceChannel`) → `SetAimingAtAmmo(armed && supply has rounds)`. **RMB** (armed only) → `TryTakeRound()`. **LMB** → `TryBeginGrab()` (empty hand, `IGrabbable`), else `TryInteract()` (interactable components first, then the actor; each must pass `AcceptsHit`; ammo-supply actors are skipped, they are RMB), else, if armed, `ActiveGun->PullTrigger()`. While swapping, `SetAimingAtAmmo(false)` and clicks are ignored.
+0. `UpdateHandState` (weapon racks, see below).
+1. There are no weapon keys: an item gets into the hand through its rack (LMB, step 2). `H` toggles the hook debug menu.
+2. If not swapping: trace from the camera (`InteractRange` 400, `InteractTraceChannel`) → `SetAimingAtAmmo(armed && supply has rounds)`. **RMB** (armed only) → `TryTakeRound()`; RMB held while not on a supply → `SetSecondaryHeld(true)` (the hook pumps). **LMB** → `TryBeginGrab()` (empty hand, `IGrabbable`), else `TryInteract()` (interactable components first, a weapon rack among them, then the actor; each must pass `AcceptsHit`; ammo-supply actors are skipped, they are RMB), else, if armed, `ActiveGun->PullTrigger()`. While swapping, `SetAimingAtAmmo(false)` and clicks are ignored.
 3. Riding on the balloon, its yaw change since last tick is added to the aim (`AddAimRotation`), and the pawn ticks after the balloon's `UBalloonFlightComponent`. Then `UpdateHeldGrab` (mouse drags the held control), and `UpdateLook` only when nothing is held (mouse → control rotation, through `AddAimRotation`: pitch clamp, optional yaw limit; roll is kept, it belongs to the balloon sway).
 4. `UpdateAimMotion` moves the **aim itself**, and bullets follow it:
    - **Recoil:** `OnFired` adds the gun's `RollAimRecoil()` to a pending kick, applied at `AimKickSpeed` (30/s). Then the `AimRecoilRecovery` share eases back over about `AimRecoilRecoveryTime`.
    - **Sway:** Perlin noise per axis. The hand part comes from `GetHandSway()`, blended across swaps at `HandSwayBlendSpeed`; the balloon part from `BalloonSwayPitch/Yaw/Roll` and `BalloonSwaySpeed` on the pawn. Only the change since the last tick is applied, so it never drifts away and the mouse fights it.
-5. `UpdateWeaponSwap`: once `IsReadyToHolster()`, lower over `LowerTime`, then `SetEquipped(false)` on the old gun and `SetEquipped(true)` on the new one, then raise over `RaiseTime`. Picking the gun in hand mid-swap cancels the swap; picking another one redirects it.
+5. `UpdateWeaponSwap` (a swap started by `SwapWeapon`): once `IsReadyToHolster()`, lower over `LowerTime`, then the old item's rack shows it again, the next rack is emptied, `SetEquipped(false)` on the old gun and `SetEquipped(true)` on the new one, then raise over `RaiseTime`. If either rack is gone or changed meanwhile, the swap is called off (`CancelHolster`).
 6. `UpdateWeaponSway`: places the active mesh at `Lerp(ViewOffset, ReloadViewOffset, smoothstep(reload blend))` + raise drop + look lag + idle bob + recoil kick (`OnFired` sets `RecoilAlpha = 1`). The drop is the larger of the swap raise and the rack lowering (`HandLowerAlpha`).
 
-**Weapon rack** (`UWeaponRackComponent`, from the balloon work): `EPlayerHandState` Armed → Holstering → Empty → Drawing → Armed. A rack click while armed calls `HolsterWeapon`, which only accepts the **revolver**, at rest (`IsReadyToHolster`, not reloading) and with no swap running. The gun lowers over `HolsterTime`, then `SetEquipped(false)` and the rack shows its Pax. A click with an empty hand calls `DrawWeapon`: `SetEquipped(true)` and the normal raise. Rounds and spent cases are kept. With an empty hand there is no hand sway, no number-key swap and no RMB loading. `InitialHandState = Empty` starts with the revolver on the rack.
+**Weapon racks** (`UWeaponRackComponent`): the only way an item gets into or out of the hand. A rack is the place of one kind of item, `ItemClass` (a `UGunComponent` subclass; the revolver by default, which is what `BP_Balloon`'s rack on `socket_small_weapon` is). It shows that item's mesh while the item lies there (`HasWeapon`; `bStartsWithWeapon`, on by default) and takes clicks on its `InteractShape` box. The mesh and texture come from the pawn's class defaults (`FindGun(ItemClass)`, `GetGunMesh`), so there are no asset paths to keep in step. `AHandItemPickup` is a rack on its own actor with `bFitInteractShape` on (box = mesh bounds + `InteractPadding`); set `Rack > Item Class` on the placed actor.
+- `EPlayerHandState`: Armed → Holstering → Empty → Drawing → Armed. `InitialHandState` is **Empty** by default; `Armed` starts with the `StartingGunIndex` item in hand (turn `bStartsWithWeapon` off on that item's rack then).
+- Rack click, empty hand → `DrawWeapon(Rack)`: `ActiveGun` becomes the rack's item, `SetEquipped(true)`, the normal raise (none for an item that `AnimatesOwnSwap`), and the rack is remembered as the item's home (`HeldItemRack`).
+- Rack click, armed, rack empty → `HolsterWeapon(Rack)`: only the rack's own kind of item, not while `IsReloading()` or swapping. `PrepareToHolster`, wait for `IsReadyToHolster`, lower over `HolsterTime` (skipped for `AnimatesOwnSwap`), then `SetEquipped(false)` and the rack shows the item.
+- Rack click, armed, rack holds another item → `SwapWeapon(Rack)`: needs the home rack of the item in hand to be there and free, and the item not `IsReloading()`. Runs as step 5 above.
+- Rounds, spent cases, hook pressure and extinguisher contents stay in the pawn's components. With an empty hand there is no hand sway and no RMB loading; `ActiveGun` then still points at the hidden item held last (never null after `BeginPlay`).
+- Limits: a rack does not know about other racks, so two racks of one kind that both start with the item show it twice (the pawn has one of each). The click box blocks `InteractTraceChannel` (Visibility), so bullets stop at it too. Tested by `GunsAndBalloons.Player.HandItems` (`Tests/HandItemTest.cpp`).
 
 Camera: `FirstPersonFieldOfView` 80 and `FirstPersonScale` 0.7. All gun meshes are `EFirstPersonPrimitiveType::FirstPerson` with no collision and no shadow, so they never clip into walls.
 
@@ -119,7 +134,7 @@ Camera: `FirstPersonFieldOfView` 80 and `FirstPersonScale` 0.7. All gun meshes a
 - **HUD ammo:** poll `GetLiveRounds()`; revolver also has `GetChamber(i)`, `GetQueuedRounds()`, `GetState()`; rifle has `GetChamber()`, `GetState()`; shotgun has `GetBarrel(EShotgunBarrel)`, `GetQueuedRounds()`, `GetState()`. No "ammo changed" delegate.
 - **Targets taking damage:** handle `OnTakePointDamage` / `TakeDamage` on the target actor. Bullets trace complex collision on `TraceChannel` each tick and ignore the shooter plus its whole attachment tree (the balloon it rides). Damage arrives after the flight time, not on the click.
 - **New ammo source:** see [weapon-reload](weapon-reload.md).
-- **New gun:** subclass `UGunComponent`. In its constructor, load the mesh's clips, `CasingMesh`, `WeaponTexture` and set the view pose. Override the mechanism virtuals and write the pose to a `UGunAnimInstance` (`Sequence`, `Time`, `SetBoneScale`) every tick. In the pawn: add a `USkeletalMeshComponent` (`SetupViewmodelMesh`, `AnimClass = UGunAnimInstance`) and the component, call `SetupWeapon` in `BeginPlay` before `Super`, and add both to `GetGuns()`/`GetGunMeshes()` (**same order**). Then add the key in `Tick` and raise `StartingGunIndex`'s `ClampMax`.
+- **New gun:** subclass `UGunComponent`. In its constructor, load the mesh's clips, `CasingMesh`, `WeaponTexture` and set the view pose. Override the mechanism virtuals and write the pose to a `UGunAnimInstance` (`Sequence`, `Time`, `SetBoneScale`) every tick. In the pawn: add a `USkeletalMeshComponent` (`SetupViewmodelMesh`, `AnimClass = UGunAnimInstance`) and the component, call `SetupWeapon` in `BeginPlay` before `Super`, and add both to `GetGuns()`/`GetGunMeshes()` (**same order**), and raise `StartingGunIndex`'s `ClampMax`. To get it into the hand, place an `AHandItemPickup` (or add a `UWeaponRackComponent`) with `ItemClass` set to the new component class.
 - **Hammers on the shotgun:** every clip keys both hammers down unless it animates one (`Fire_X` drops it, `Reload_InsertX` cocks it). `UpdatePose` therefore calls `UGunAnimInstance::SetBonePose(hammer_X, Fire_X, 0)` for each live barrel whose hammer the current clip does not drive. Any other code-held bone pose works the same way: sample another clip at a fixed time, axis-agnostic.
 
 ## Known limitations and pitfalls

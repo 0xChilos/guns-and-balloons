@@ -106,7 +106,8 @@ void UGunComponent::BeginPlay()
 		Mesh->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick);
 	}
 
-	ApplyWeaponTexture();
+	// Spawned casings take the same material, so they match the textured gun.
+	CasingMaterial = ApplyWeaponTextureTo(Mesh);
 
 	if (SmokeClass)
 	{
@@ -166,16 +167,17 @@ void UGunComponent::SetEquipped(bool bInEquipped)
 	}
 }
 
-void UGunComponent::ApplyWeaponTexture()
+UMaterialInstanceDynamic* UGunComponent::ApplyWeaponTextureTo(UMeshComponent* Target) const
 {
-	if (!Mesh || !WeaponTexture)
+	if (!Target || !WeaponTexture)
 	{
-		return;
+		return nullptr;
 	}
 
-	for (int32 i = 0; i < Mesh->GetNumMaterials(); ++i)
+	UMaterialInstanceDynamic* First = nullptr;
+	for (int32 i = 0; i < Target->GetNumMaterials(); ++i)
 	{
-		UMaterialInstanceDynamic* Material = Mesh->CreateAndSetMaterialInstanceDynamic(i);
+		UMaterialInstanceDynamic* Material = Target->CreateAndSetMaterialInstanceDynamic(i);
 		if (!Material)
 		{
 			continue;
@@ -185,11 +187,12 @@ void UGunComponent::ApplyWeaponTexture()
 		// Interchange blends the map over the flat diffuse colour by "<Map>Weight"; make it all map.
 		Material->SetScalarParameterValue(FName(*(WeaponTextureParameter.ToString() + TEXT("Weight"))), 1.f);
 
-		if (!CasingMaterial)
+		if (!First)
 		{
-			CasingMaterial = Material;
+			First = Material;
 		}
 	}
+	return First;
 }
 
 void UGunComponent::FireShot()

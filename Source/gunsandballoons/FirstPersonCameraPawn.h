@@ -2,17 +2,21 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "Templates/SubclassOf.h"
 #include "FirstPersonCameraPawn.generated.h"
 
 class UCameraComponent;
+class FHookDebugMenu;
 class UGunComponent;
+class UExtinguisherComponent;
+class UHookComponent;
 class URevolverComponent;
 class URifleComponent;
 class UShotgunComponent;
 class USkeletalMeshComponent;
 class UWeaponRackComponent;
 
-/** What the player's hand holds: a gun, or nothing (the revolver hangs on a weapon rack), and the moves between. */
+/** What the player's hand holds: an item, or nothing (the items lie on their weapon racks), and the moves between. */
 UENUM(BlueprintType)
 enum class EPlayerHandState : uint8 { Armed, Holstering, Empty, Drawing };
 
@@ -27,13 +31,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandStat
  *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
  *   while idle, kicks when fired and turns its loading port toward the eye while reloading.
  *   Where each gun sits and how hard it kicks is set on the gun component (UGunComponent).
- * - Three guns: 1 = Pax revolver (SK_Pax), 2 = Martini-Henry rifle (SK_MartiniHenry),
- *   3 = Homestead 78 double-barrel shotgun (SK_Homestead78). A swap lets the
- *   current gun finish and close up, lowers it out of view, then raises the other one.
- * - LMB interacts with the IInteractable under the crosshair, otherwise fires.
+ * - Three guns and two tools, one of each: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
+ *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
+ *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held).
+ * - The hand starts empty and holds one item at a time. Each item lies on its own place in the world
+ *   (UWeaponRackComponent: the basket's hooks, an AHandItemPickup): LMB on it takes the item, LMB on its
+ *   empty place puts it back, LMB on another item swaps. There are no weapon keys. An item being put
+ *   away first finishes and closes up, is lowered out of view, then the next one is raised.
+ * - RMB held (not on an ammo supply) goes to the gun in hand as SetSecondaryHeld: the hook pumps with it.
+ *   H toggles the hook's debug menu (FHookDebugMenu).
+ * - LMB interacts with the IInteractable under the crosshair, otherwise fires; held after that click it goes
+ *   to the gun as SetTriggerHeld (the extinguisher sprays with it).
  *   There is no reload key: reloading is RMB on an ammo supply (UAmmoSupplyComponent), one round per click.
- * - The revolver can be hung on a weapon rack (UWeaponRackComponent) to free the hand; with an empty
- *   hand LMB grabs and drags IGrabbable controls (the balloon's levers) instead of firing.
+ * - With an empty hand LMB grabs and drags IGrabbable controls (the balloon's levers) instead of firing.
  * - Riding on the balloon, the view turns along with it.
  */
 UCLASS(Blueprintable)
@@ -56,17 +66,21 @@ public:
 	URevolverComponent* GetRevolver() const { return Revolver; }
 	URifleComponent* GetRifle() const { return Rifle; }
 	UShotgunComponent* GetShotgun() const { return Shotgun; }
+	USkeletalMeshComponent* GetHookMesh() const { return HookMesh; }
+	UHookComponent* GetHook() const { return Hook; }
+	USkeletalMeshComponent* GetExtinguisherMesh() const { return ExtinguisherMesh; }
+	UExtinguisherComponent* GetExtinguisher() const { return Extinguisher; }
 
-	/** The gun in hand (the one still being put away during a swap). */
+	/** The item in hand (the one still being put away during a swap); with an empty hand, the one held last. */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	UGunComponent* GetActiveGun() const { return ActiveGun; }
 
-	/**
-	 * Swap to this gun: the current one finishes what it is doing and closes, is lowered out of view,
-	 * then this one is raised. Picking the gun in hand again mid-swap cancels the swap.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	void EquipGun(UGunComponent* Gun);
+	/** This pawn's item of the given kind (it carries one of each), or null. */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	UGunComponent* FindGun(TSubclassOf<UGunComponent> GunClass) const;
+
+	/** The viewmodel mesh of one of this pawn's items. Works on the class defaults too, unlike UGunComponent::GetMesh. */
+	USkeletalMeshComponent* GetGunMesh(const UGunComponent* Gun) const;
 
 	/** The IInteractable actor or ammo supply under the crosshair within InteractRange, or null. */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
@@ -88,15 +102,24 @@ public:
 	bool TryTakeRound();
 
 	/**
-	 * Hang the gun in hand on the rack: lowered over HolsterTime, then hidden and shown on the rack.
-	 * Only the revolver fits a rack, and only while it is at rest and no swap is running.
+	 * Put the item in hand on the rack: it finishes what it is doing, is lowered over HolsterTime, then
+	 * hidden and shown on the rack. The rack must be empty and made for this kind of item (ItemClass);
+	 * not while the item is open for loading or a swap is running.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
 	bool HolsterWeapon(UWeaponRackComponent* Rack);
 
-	/** Take the revolver back from the rack (its rounds kept) and raise it. Needs an empty hand. */
+	/** Take the rack's item (its rounds and contents kept) and raise it. Needs an empty hand. */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
 	bool DrawWeapon(UWeaponRackComponent* Rack);
+
+	/**
+	 * Swap the item in hand for the rack's: the one in hand finishes and closes, is lowered out of view
+	 * and goes back to the rack it was taken from, then the rack's item is raised. Needs that rack to be
+	 * free still; not while the item in hand is open for loading.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
+	bool SwapWeapon(UWeaponRackComponent* Rack);
 
 	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
 	EPlayerHandState GetHandState() const { return HandState; }
@@ -104,13 +127,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
 	bool IsHandEmpty() const { return HandState == EPlayerHandState::Empty; }
 
+	/** How far the gun is lowered out of view: 0 = up, 1 = gone (swap, possession, rack). Read by the crosshair. */
+	float GetGunLowered() const { return FMath::Max(FMath::Square(RaiseAlpha), FMath::Square(HandLowerAlpha)); }
+
+	/** Shot kick of the gun in hand: 1 on the shot, easing to 0. Read by the crosshair. */
+	float GetRecoilAlpha() const { return RecoilAlpha; }
+
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Hand")
 	FOnHandStateChanged OnHandStateChanged;
 
 protected:
-	/** Only Armed and Empty are valid initial states. */
+	/**
+	 * Only Armed and Empty are valid initial states. Armed starts with the StartingGunIndex item in hand;
+	 * its rack in the level, if it has one, should then have bStartsWithWeapon off.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Hand")
-	EPlayerHandState InitialHandState = EPlayerHandState::Armed;
+	EPlayerHandState InitialHandState = EPlayerHandState::Empty;
 
 	/** TBD: prototype duration, needs tuning. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Hand", meta = (ClampMin = "0.0"))
@@ -143,14 +175,17 @@ protected:
 	/** Places the weapon in front of the eyes (rest or reload pose), plus raise, look lag, idle breathing and recoil. */
 	void UpdateWeaponSway(float DeltaSeconds);
 
-	/** Lowers the gun being put away, and once it is out of view hides it and brings out the next one. */
+	/** Lowers the item being swapped out, and once it is out of view puts it on its rack and brings out the next one. */
 	void UpdateWeaponSwap(float DeltaSeconds);
 
-	/** The guns in key order: 1 = revolver, 2 = rifle, 3 = shotgun. */
-	TArray<UGunComponent*, TInlineAllocator<3>> GetGuns() const;
+	/** The items in StartingGunIndex order: revolver, rifle, shotgun, hook, extinguisher. */
+	TArray<UGunComponent*, TInlineAllocator<5>> GetGuns() const;
 
 	/** Each gun's mesh, in the same order as GetGuns. */
-	TArray<USkeletalMeshComponent*, TInlineAllocator<3>> GetGunMeshes() const;
+	TArray<USkeletalMeshComponent*, TInlineAllocator<5>> GetGunMeshes() const;
+
+	/** H: open/close the hook debug menu; while open, its arrow keys. */
+	void UpdateHookDebugMenu(APlayerController* PC);
 
 	UFUNCTION()
 	void HandleWeaponFired();
@@ -203,31 +238,47 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
 
-	/** Revolver chambers, firing, reloading; drives WeaponMesh's animation. Key 1. */
+	/** Revolver chambers, firing, reloading; drives WeaponMesh's animation. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<URevolverComponent> Revolver;
 
-	/** The rifle, attached to the camera like WeaponMesh. Hidden until equipped. */
+	/** The rifle, attached to the camera like WeaponMesh. Hidden until taken in hand. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> RifleMesh;
 
-	/** Rifle chamber, firing, reloading; drives RifleMesh's animation. Key 2. */
+	/** Rifle chamber, firing, reloading; drives RifleMesh's animation. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<URifleComponent> Rifle;
 
-	/** The double-barrel shotgun, attached to the camera like WeaponMesh. Hidden until equipped. */
+	/** The double-barrel shotgun, attached to the camera like WeaponMesh. Hidden until taken in hand. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> ShotgunMesh;
 
-	/** Shotgun barrels, firing, reloading; drives ShotgunMesh's animation. Key 3. */
+	/** Shotgun barrels, firing, reloading; drives ShotgunMesh's animation. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UShotgunComponent> Shotgun;
 
-	/** Gun in hand at BeginPlay: 0 = revolver, 1 = rifle, 2 = shotgun. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "2"))
+	/** The grappling hook, attached to the camera like WeaponMesh. Hidden until taken in hand. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> HookMesh;
+
+	/** Grappling hook: pressure, throw, grab, reel in, pump; drives HookMesh's animation. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UHookComponent> Hook;
+
+	/** The fire extinguisher, attached to the camera like WeaponMesh. Hidden until taken in hand. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> ExtinguisherMesh;
+
+	/** Fire extinguisher: contents counter, foam spray; drives ExtinguisherMesh's animation. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UExtinguisherComponent> Extinguisher;
+
+	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "4"))
 	int32 StartingGunIndex = 0;
 
-	/** Seconds to lower a gun out of view when swapping. Raising the next one takes RaiseTime. */
+	/** Seconds to lower an item out of view when swapping. Raising the next one takes RaiseTime. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Raise", meta = (ClampMin = "0.0"))
 	float LowerTime = 0.25f;
 
@@ -305,6 +356,7 @@ protected:
 
 private:
 	friend class FPlayerGrabTest;
+	friend class FHandItemTest;
 
 	/** Starts dragging the IGrabbable under the crosshair (empty hand only). True if the click was used. */
 	bool TryBeginGrab();
@@ -314,9 +366,12 @@ private:
 	TWeakObjectPtr<UObject> GrabTarget;
 
 	void SetHandState(EPlayerHandState NewState);
-	/** Lowers the gun being holstered and finishes holstering/drawing. */
+	/** Lowers the item being put away once it is at rest, and finishes holstering/drawing. */
 	void UpdateHandState(float DeltaSeconds);
+	/** The rack of the move under way: where a holstered item is going, or where a swap takes the next one from. */
 	TWeakObjectPtr<UWeaponRackComponent> TransitionRack;
+	/** The rack the item in hand was taken from: a swap puts it back there. */
+	TWeakObjectPtr<UWeaponRackComponent> HeldItemRack;
 	/** 0 = in hand, 1 = lowered out of view for the rack (linear; eased when applied). */
 	float HandLowerAlpha = 0.f;
 
@@ -326,13 +381,16 @@ private:
 	float LastParentYaw = 0.f;
 	bool bHasParentYaw = false;
 
-	/** The gun in hand. */
+	/** The item in hand; with an empty hand, the hidden one held last (never null after BeginPlay). */
 	UPROPERTY(Transient)
 	TObjectPtr<UGunComponent> ActiveGun;
 
-	/** The gun a swap is bringing out; null when not swapping. */
+	/** The item a swap is bringing out; null when not swapping. */
 	UPROPERTY(Transient)
 	TObjectPtr<UGunComponent> PendingGun;
+
+	/** LMB still held since the click that pulled the trigger (the extinguisher sprays while it is). */
+	bool bTriggerHeld = false;
 
 	float RecoilAlpha = 0.f;
 	/** 0 = rest pose, 1 = reload pose (linear; eased when applied). */
@@ -358,4 +416,6 @@ private:
 	bool bHasAppliedAimSway = false;
 	FVector2D CurrentHandSway = FVector2D::ZeroVector;
 	float CurrentHandSwaySpeed = 0.7f;
+
+	TSharedPtr<FHookDebugMenu> HookDebugMenu;
 };

@@ -25,6 +25,17 @@ struct FGunBonePose
 };
 
 /**
+ * A bone's local transform changed on top of the sampled pose (not reflected; filled from code every frame):
+ * an optional absolute translation, and a rotation applied in the bone's own frame (Rotation = Sampled * Offset).
+ */
+struct FGunBoneOverride
+{
+	FName Bone;
+	TOptional<FVector> Translation;
+	FQuat RotationOffset = FQuat::Identity;
+};
+
+/**
  * Code-driven pose for a simple gun rig; no Animation Blueprint needed.
  *
  * Samples one sequence at a time chosen by the game code, then scales named bones on top of it,
@@ -60,6 +71,14 @@ public:
 
 	const TArray<FGunBonePose>& GetBonePoses() const { return BonePoses; }
 
+	/** Replace a bone's local translation (applied after the bone poses). Unset hands it back to the clip. */
+	void SetBoneTranslation(FName Bone, TOptional<FVector> Translation);
+
+	/** Turn a bone in its own frame on top of the sampled pose (e.g. a gauge needle). Identity removes it. */
+	void SetBoneRotationOffset(FName Bone, const FQuat& RotationOffset);
+
+	const TArray<FGunBoneOverride>& GetBoneOverrides() const { return BoneOverrides; }
+
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
@@ -67,4 +86,8 @@ protected:
 private:
 	TArray<FGunBoneScale> BoneScales;
 	TArray<FGunBonePose> BonePoses;
+	TArray<FGunBoneOverride> BoneOverrides;
+
+	FGunBoneOverride& FindOrAddOverride(FName Bone);
+	void PruneOverride(FName Bone);
 };
