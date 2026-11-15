@@ -3,6 +3,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInterface.h"
 #include "NemesisBullet.h"
@@ -15,6 +16,14 @@ namespace
 {
 	constexpr float CannonBarrelLength = 300.f;
 	constexpr float CannonPlatformHeight = 40.f;
+	/** The team's turret meshes face −Y; the actor faces +X. */
+	const FRotator ModelToActor(0.f, 90.f, 0.f);
+
+	FVector SocketInMesh(const UStaticMeshComponent* C, FName Socket)
+	{
+		const UStaticMeshSocket* S = C && C->GetStaticMesh() ? C->GetStaticMesh()->FindSocket(Socket) : nullptr;
+		return S ? ModelToActor.RotateVector(S->RelativeLocation) : FVector::ZeroVector;
+	}
 }
 
 ANemesisTowerCannon::ANemesisTowerCannon()
@@ -90,15 +99,58 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 	NemesisCollision::Shootable(TankHitBox);
 
 	ShellClass = ANemesisBullet::StaticClass();
+
+	// The team's model (Content/Assets/Locations/Desert): tower with a gun deck, a head that turns,
+	// twin guns that elevate, and a boiler that is the weak spot. Keeps the cubes if any part is missing.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> TowerMesh(TEXT("/Game/Assets/Locations/Desert/SM_TurretTower.SM_TurretTower"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> HeadMesh(TEXT("/Game/Assets/Locations/Desert/SM_TurretTower_Head.SM_TurretTower_Head"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> GunsMesh(TEXT("/Game/Assets/Locations/Desert/SM_TurretTower_Guns.SM_TurretTower_Guns"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> EngineMesh(TEXT("/Game/Assets/Locations/Desert/SM_TurretTower_Engine.SM_TurretTower_Engine"));
+	if (TowerMesh.Object && HeadMesh.Object && GunsMesh.Object && EngineMesh.Object)
+	{
+		bModel = true;
+		NemesisModel::Use(Tower, TowerMesh.Object);
+		NemesisModel::Use(Carriage, HeadMesh.Object);
+		NemesisModel::Use(Barrel, GunsMesh.Object);
+		NemesisModel::Use(FuelTank, EngineMesh.Object);
+		for (UStaticMeshComponent* C : { Tower.Get(), Carriage.Get(), Barrel.Get(), FuelTank.Get() })
+		{
+			C->SetRelativeRotation(ModelToActor);
+		}
+		NemesisCollision::Solid(Carriage);
+		NemesisCollision::Solid(Barrel);
+		NemesisCollision::Solid(FuelTank); // blocks shots: a hit on the boiler counts like the TankHitBox
+		Platform->SetVisibility(false);
+		NemesisCollision::None(Platform);
+	}
 }
 
 void ANemesisTowerCannon::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	if (bModel)
+	{
+		// Everything hangs off the model's sockets: head on the deck, guns on the head, boiler on the deck.
+		const FVector HeadAt = SocketInMesh(Tower, TEXT("head"));
+		DeckHeight = HeadAt.Z;
+		CannonYaw->SetRelativeLocation(HeadAt);
+		CannonPitch->SetRelativeLocation(SocketInMesh(Carriage, TEXT("guns")));
+		const FVector Muzzle = SocketInMesh(Barrel, TEXT("muzzle_1"));
+		MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
+		const FVector EngineAt = SocketInMesh(Tower, TEXT("engine"));
+		FuelTank->SetRelativeLocation(EngineAt);
+		// Hit box around the boiler, a bit bigger than it.
+		const FBox Box = FuelTank->GetStaticMesh()->GetBoundingBox();
+		TankHitBox->SetBoxExtent(Box.GetExtent().ComponentMax(FVector(1.f)) * FVector(1.1f, 1.1f, 1.05f));
+		TankHitBox->SetRelativeLocation(EngineAt + ModelToActor.RotateVector(Box.GetCenter()));
+		TankHitBox->SetRelativeRotation(ModelToActor);
+		return;
+	}
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
 	Tower->SetRelativeScale3D(FVector(3.f, 3.f, TowerHeight / 100.f));
 	Platform->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + CannonPlatformHeight * 0.5f));
 	const float Top = TowerHeight + CannonPlatformHeight;
+	DeckHeight = Top;
 	CannonYaw->SetRelativeLocation(FVector(0.f, 0.f, Top));
 	const FVector TankAt(-130.f, 130.f, Top + 90.f); // back-left corner; the cylinder pivot is its centre
 	FuelTank->SetRelativeLocation(TankAt);
@@ -188,7 +240,12 @@ void ANemesisTowerCannon::Tick(float DeltaSeconds)
 void ANemesisTowerCannon::Fire(const FVector& Basket)
 {
 	if (!ShellClass) return;
-	const FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (CannonBarrelLength * 0.9f);
+	FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (CannonBarrelLength * 0.9f);
+	if (bModel)
+	{
+		Muzzle = Barrel->GetSocketLocation(bSecondMuzzle ? TEXT("muzzle_2") : TEXT("muzzle_1"));
+		bSecondMuzzle = !bSecondMuzzle;
+	}
 	const FVector Dir = (Basket - Muzzle).GetSafeNormal(); // straight at the basket, no drop
 	FActorSpawnParameters Params;
 	Params.Owner = this;
@@ -205,7 +262,7 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 void ANemesisTowerCannon::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,
 	UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser)
 {
-	if (State == ETowerCannonState::Destroyed || HitComponent != TankHitBox) return; // the cannon and tower ignore shots
+	if (State == ETowerCannonState::Destroyed || (HitComponent != TankHitBox && HitComponent != FuelTank)) return; // the cannon and tower ignore shots
 	BlowUp();
 }
 
@@ -216,9 +273,9 @@ void ANemesisTowerCannon::BlowUp()
 	// The tank goes up first, then the fire runs down the tower.
 	NemesisFx::Explosion(World, FuelTank->GetComponentLocation(), 3.f);
 	NemesisFx::Explosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
-	for (float Z = TowerHeight * 0.75f; Z > 0.f; Z -= TowerHeight * 0.25f)
+	for (float Z = DeckHeight * 0.75f; Z > 0.f; Z -= DeckHeight * 0.25f)
 	{
-		NemesisFx::Explosion(World, GetActorTransform().TransformPosition(FVector(0.f, 0.f, Z)), 1.8f);
+		NemesisFx::Explosion(World, GetActorTransform().TransformPosition(FVector(0.f, 0.f, Z)), bModel ? 2.5f : 1.8f);
 	}
 	// Cannon and tower are gone.
 	TArray<UPrimitiveComponent*> Parts;

@@ -1,6 +1,11 @@
 #include "NemesisFlak.h"
 
+#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PoseableMeshComponent.h"
+#include "Components/SphereComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInterface.h"
@@ -14,6 +19,19 @@ namespace
 {
 	constexpr float BarrelLength = 240.f;
 	constexpr float EnvelopeZ = 420.f; // envelope centre above the gondola
+	/** The model faces −Y; the actor faces +X. */
+	const FRotator ModelToActor(0.f, 90.f, 0.f);
+	/** Model: the launcher bone is this high above the mesh origin; it sits at the actor's origin
+	 *  (the player's altitude). */
+	constexpr float ModelLauncherZ = 200.f;
+	const FName LauncherBone(TEXT("launcher"));
+	const FName LauncherPitchBone(TEXT("launcher_pitch"));
+
+	void MakeSolid(UPrimitiveComponent* C)
+	{
+		NemesisCollision::Solid(C);
+		C->SetHiddenInGame(true);
+	}
 }
 
 ANemesisFlak::ANemesisFlak()
@@ -104,6 +122,65 @@ ANemesisFlak::ANemesisFlak()
 
 	BeamCone = NemesisSearchlight::CreateBeam(this, TurretPitch, BeamMesh.Object, TEXT("BeamCone"));
 	BeamCone->SetRelativeLocation(FVector(50.f, 0.f, -35.f));
+
+	// The team's model. Collision shapes follow its manifest (component space of the mesh, cm).
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> BalloonMesh(TEXT("/Game/Assets/Map_edge/SK_RocketBalloon.SK_RocketBalloon"));
+	Body = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("Body"));
+	Body->SetupAttachment(Root);
+	Body->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -ModelLauncherZ), ModelToActor);
+	EnvelopeCollision = CreateDefaultSubobject<USphereComponent>(TEXT("EnvelopeCollision"));
+	EnvelopeCollision->SetupAttachment(Body);
+	EnvelopeCollision->InitSphereRadius(360.f);
+	EnvelopeCollision->SetRelativeLocation(FVector(0.f, 0.f, 840.f));
+	SkirtCollision = CreateDefaultSubobject<UCapsuleComponent>(TEXT("SkirtCollision"));
+	SkirtCollision->SetupAttachment(Body);
+	SkirtCollision->InitCapsuleSize(240.f, 300.f);
+	SkirtCollision->SetRelativeLocation(FVector(0.f, 0.f, 620.f));
+	DeckCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("DeckCollision"));
+	DeckCollision->SetupAttachment(Body);
+	DeckCollision->InitBoxExtent(FVector(145.f, 170.f, 45.f));
+	DeckCollision->SetRelativeLocation(FVector(0.f, -20.f, 245.f));
+	if (BalloonMesh.Object)
+	{
+		bModel = true;
+		Body->SetSkinnedAssetAndUpdate(BalloonMesh.Object);
+		for (UPrimitiveComponent* C : { (UPrimitiveComponent*)EnvelopeCollision, (UPrimitiveComponent*)SkirtCollision, (UPrimitiveComponent*)DeckCollision }) MakeSolid(C);
+		// Hide the placeholder parts.
+		TArray<UStaticMeshComponent*> Cubes = { Gondola, Envelope, TurretBody, Barrel, Lamp };
+		for (UStaticMeshComponent* R : Ropes) Cubes.Add(R);
+		for (UStaticMeshComponent* C : Cubes)
+		{
+			C->SetVisibility(false);
+			NemesisCollision::None(C);
+		}
+		// The searchlight sits at the model's red lamp; it is aimed from code (UpdateModelPose).
+		Light->SetupAttachment(Body, TEXT("light"));
+		Light->SetRelativeLocation(FVector::ZeroVector);
+		BeamCone->SetupAttachment(Body, TEXT("light"));
+		BeamCone->SetRelativeLocation(FVector::ZeroVector);
+	}
+	else
+	{
+		for (UPrimitiveComponent* C : { (UPrimitiveComponent*)EnvelopeCollision, (UPrimitiveComponent*)SkirtCollision, (UPrimitiveComponent*)DeckCollision }) NemesisCollision::None(C);
+	}
+}
+
+void ANemesisFlak::UpdateModelPose()
+{
+	if (!bModel) return;
+	// Keep each bone's own scale (the model's root bone carries a ×100 import scale).
+	// Rotations about Z are the same in the actor's and the mesh's frame; elevation is about the
+	// mesh's X (its forward is −Y), negative angle = muzzle up.
+	const FQuat YawQ(FVector::UpVector, FMath::DegreesToRadians(Yaw));
+	const FQuat PitchQ(FVector::ForwardVector, FMath::DegreesToRadians(-Pitch));
+	Body->SetBoneTransformByName(LauncherBone,
+		FTransform(YawQ * RefLauncher.GetRotation(), YawQ.RotateVector(RefLauncher.GetLocation()), RefLauncher.GetScale3D()), EBoneSpaces::ComponentSpace);
+	Body->SetBoneTransformByName(LauncherPitchBone,
+		FTransform(YawQ * PitchQ * RefLauncherPitch.GetRotation(), YawQ.RotateVector(RefLauncherPitch.GetLocation()), RefLauncherPitch.GetScale3D()), EBoneSpaces::ComponentSpace);
+	// The lamp is fixed on the deck; its beam points where the launcher aims.
+	const FRotator Aim = (GetActorQuat() * FRotator(Pitch, Yaw, 0.f).Quaternion()).Rotator();
+	Light->SetWorldRotation(Aim);
+	BeamCone->SetWorldRotation(Aim);
 }
 
 void ANemesisFlak::OnConstruction(const FTransform& Transform)
@@ -120,6 +197,12 @@ void ANemesisFlak::BeginPlay()
 	Pitch = SearchPitch;
 	HoverZ = GetActorLocation().Z;
 	NemesisSearchlight::SetLockedState(Light, BeamCone, false);
+	if (bModel)
+	{
+		RefLauncher = Body->GetBoneTransformByName(LauncherBone, EBoneSpaces::ComponentSpace);
+		RefLauncherPitch = Body->GetBoneTransformByName(LauncherPitchBone, EBoneSpaces::ComponentSpace);
+		UpdateModelPose();
+	}
 }
 
 bool ANemesisFlak::CanSeeBasket() const
@@ -182,6 +265,7 @@ void ANemesisFlak::Tick(float DeltaSeconds)
 		Pitch = FMath::FInterpConstantTo(Pitch, SearchPitch, DeltaSeconds, TrackSpeed);
 		TurretYaw->SetRelativeRotation(FRotator(0.f, Yaw, 0.f));
 		TurretPitch->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
+		UpdateModelPose();
 		return;
 	}
 
@@ -195,6 +279,7 @@ void ANemesisFlak::Tick(float DeltaSeconds)
 	Yaw = FRotator::NormalizeAxis(Now.Yaw);
 	TurretYaw->SetRelativeRotation(FRotator(0.f, Yaw, 0.f));
 	TurretPitch->SetRelativeRotation(FRotator(Pitch, 0.f, 0.f));
+	UpdateModelPose();
 
 	// One missile in the air at a time; the cooldown runs once it is gone.
 	if (ActiveMissile.IsValid()) return;
@@ -210,7 +295,14 @@ void ANemesisFlak::Tick(float DeltaSeconds)
 void ANemesisFlak::LaunchMissile()
 {
 	if (!MissileClass) return;
-	const FVector Muzzle = TurretPitch->GetComponentLocation() + TurretPitch->GetForwardVector() * BarrelLength;
+	FVector Muzzle = TurretPitch->GetComponentLocation() + TurretPitch->GetForwardVector() * BarrelLength;
+	if (bModel)
+	{
+		// The model's six tubes, in turn.
+		const FName Tube(*FString::Printf(TEXT("muzzle_%02d"), NextMuzzle + 1));
+		NextMuzzle = (NextMuzzle + 1) % 6;
+		Muzzle = Body->GetSocketLocation(Tube);
+	}
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

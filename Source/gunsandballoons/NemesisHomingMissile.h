@@ -14,7 +14,7 @@ class UStaticMeshComponent;
  * The AA gun's homing missile (team decision 2026-11-15). Steers at the basket with a limited turn
  * rate for as long as its AA gun is engaged (the basket inside its radius). The moment the basket
  * leaves the radius, the missile blows up harmlessly where it is. A direct hit on the basket deals
- * Damage. One shot from any weapon blows it up. Uses the airship rocket's model, smaller.
+ * Damage. One shot from any weapon blows it up. Uses the team's map-edge SM_Rocket and flame.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisHomingMissile : public AActor
@@ -94,6 +94,8 @@ private:
 	NemesisFx::FStream Trail;
 	FVector Direction = FVector::ForwardVector;
 	FVector ExhaustBase = FVector::OneVector;
+	/** Using the team's SM_Rocket (faces −Y) rather than the airship rocket's model. */
+	bool bTeamModel = false;
 	float Age = 0.f;
 	float Roll = 0.f;
 	bool bLaunched = false;

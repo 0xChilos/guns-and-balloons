@@ -44,8 +44,22 @@ ANemesisHomingMissile::ANemesisHomingMissile()
 	NemesisCollision::None(Exhaust);
 	Exhaust->SetCastShadow(false);
 
-	// The airship rocket's model, 0.6 scale.
-	if (NemesisModel::Use(Mesh, BodyMesh.Object))
+	// The team's map-edge rocket (Content/Assets/Map_edge): 1.6 m, faces −Y with the exhaust socket at
+	// its nozzle, plus their flame mesh. Falls back to the airship rocket's model at 0.6 scale.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> MapEdgeRocket(TEXT("/Game/Assets/Map_edge/SM_Rocket.SM_Rocket"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> MapEdgeFlame(TEXT("/Game/Assets/Map_edge/SM_FX_RocketFlame.SM_FX_RocketFlame"));
+	if (NemesisModel::Use(Mesh, MapEdgeRocket.Object))
+	{
+		bTeamModel = true;
+		Mesh->SetRelativeRotation(FRotator(0.f, 90.f, 0.f));
+		NemesisCollision::Shootable(Mesh);
+		if (NemesisModel::Use(Exhaust, MapEdgeFlame.Object))
+		{
+			// The flame's pivot is at the nozzle and it points +Y (backwards once turned).
+			Exhaust->SetRelativeLocationAndRotation(FVector(-80.f, 0.f, 0.f), FRotator(0.f, 90.f, 0.f));
+		}
+	}
+	else if (NemesisModel::Use(Mesh, BodyMesh.Object))
 	{
 		NemesisModel::Use(Exhaust, FlameMesh.Object);
 		Mesh->SetRelativeScale3D(FVector(0.6f));
@@ -124,8 +138,11 @@ void ANemesisHomingMissile::Tick(float DeltaSeconds)
 
 	SetActorLocationAndRotation(To, Direction.Rotation());
 	Roll = FMath::Fmod(Roll + SpinSpeed * DeltaSeconds, 360.f);
-	Mesh->SetRelativeRotation(FRotator(0.f, 0.f, Roll));
-	Exhaust->SetRelativeScale3D(ExhaustBase * FVector(FMath::FRandRange(0.75f, 1.35f), 1.f, 1.f));
+	// Spin around the flight axis (the team model is first turned from −Y to +X).
+	Mesh->SetRelativeRotation(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(Roll)) * (bTeamModel ? FRotator(0.f, 90.f, 0.f).Quaternion() : FQuat::Identity));
+	// Flicker along the flame's length (X for the old flame, Y for the team's).
+	const float Flick = FMath::FRandRange(0.75f, 1.35f);
+	Exhaust->SetRelativeScale3D(ExhaustBase * (bTeamModel ? FVector(1.f, Flick, 1.f) : FVector(Flick, 1.f, 1.f)));
 	Light->SetIntensity(FMath::FRandRange(90000.f, 200000.f));
 	Trail.Tick(DeltaSeconds, To - Direction * 100.f, -Direction, FVector::ZeroVector);
 }

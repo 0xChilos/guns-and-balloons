@@ -5,12 +5,17 @@
 #include "NemesisFlak.generated.h"
 
 class ANemesisHomingMissile;
+class UBoxComponent;
+class UCapsuleComponent;
+class UPoseableMeshComponent;
+class USphereComponent;
 class USpotLightComponent;
 class UStaticMeshComponent;
 
 /**
- * AA gun (ППО): a small flying balloon (placeholder sphere + cubes) with a turret and a searchlight
- * hanging under its gondola. Placed near the map edges; it keeps its X/Y and hovers at the player's
+ * AA gun (ППО): a small flying balloon with a missile launcher and a searchlight. Uses the team's
+ * SK_RocketBalloon model (Content/Assets/Map_edge: a 6-tube rocket pod on bones launcher /
+ * launcher_pitch, a red lamp) when present, placeholder sphere + cubes otherwise. Placed near the map edges; it keeps its X/Y and hovers at the player's
  * altitude (basket height + AltitudeOffset, ClimbSpeed, a slight bob). Guards a radius around itself.
  * Outside EngageRadius its searchlight shines YELLOW and slowly circles the sky.
  * When the basket comes within EngageRadius (and in line of sight) the light turns RED, the turret
@@ -47,7 +52,21 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
 	TObjectPtr<USceneComponent> Root;
 
-	/** The balloon's envelope. */
+	/** The team's model; its launcher bones are turned from code. */
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TObjectPtr<UPoseableMeshComponent> Body;
+
+	/** Collision for the model (the poseable mesh has none): envelope, skirt, deck and pod. */
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TObjectPtr<USphereComponent> EnvelopeCollision;
+
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TObjectPtr<UCapsuleComponent> SkirtCollision;
+
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TObjectPtr<UBoxComponent> DeckCollision;
+
+	/** The balloon's envelope (placeholder). */
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
 	TObjectPtr<UStaticMeshComponent> Envelope;
 
@@ -151,7 +170,13 @@ private:
 	void SetEngaged(bool bNow);
 	void LaunchMissile();
 	void UpdateAltitude(float DeltaSeconds);
+	/** Model: turn the launcher bones and point the searchlight at Yaw / Pitch. */
+	void UpdateModelPose();
 
+	bool bModel = false;
+	FTransform RefLauncher;
+	FTransform RefLauncherPitch;
+	int32 NextMuzzle = 0;
 	float HoverZ = 0.f;
 	float BobTime = 0.f;
 	bool bAltitudeSnapped = false;

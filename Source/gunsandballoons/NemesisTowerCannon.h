@@ -19,7 +19,9 @@ enum class ETowerCannonState : uint8
 };
 
 /**
- * Desert tower with a cannon on top (AI ворогів, 7.1; team decision 2026-11-15). Placeholder cubes.
+ * Desert tower with a cannon on top (AI ворогів, 7.1; team decision 2026-11-15). Uses the team's
+ * SM_TurretTower model (tower, head, twin guns, boiler) when present, placeholder cubes otherwise;
+ * the boiler is the fuel tank (weak spot).
  * The tower is solid level geometry. With the basket inside Range and in line of sight (a sandstorm
  * blocks it) the cannon turns to the basket and aims for AimTime (a glow at the muzzle warns the
  * player), fires one shell straight at the basket (no drop), then reloads for ReloadTime.
@@ -135,4 +137,10 @@ private:
 	float StateTime = 0.f;
 	float Yaw = 0.f;
 	float Pitch = 0.f;
+	/** The team's model is in use (not the cubes). */
+	bool bModel = false;
+	/** Height of the gun deck, cm (the explosions run down from it). */
+	float DeckHeight = 0.f;
+	/** Alternates the two muzzles of the model's twin guns. */
+	bool bSecondMuzzle = false;
 };
