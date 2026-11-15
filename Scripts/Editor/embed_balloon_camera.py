@@ -41,7 +41,7 @@ assert bp.get_editor_property('status') == unreal.BlueprintStatus.BS_UP_TO_DATE
 assert unreal.EditorAssetLibrary.save_loaded_asset(bp)
 assert levels.save_current_level()
 
-for map_path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/LevelGeneration_Test']:
+for map_path in ['/Game/Scenes/BalloonFlight_Test', '/Game/Scenes/MainLevel']:
     assert levels.load_level(map_path)
     balloons = [a for a in actors.get_all_level_actors() if a.get_class() == bp.generated_class()]
     assert len(balloons) == 1

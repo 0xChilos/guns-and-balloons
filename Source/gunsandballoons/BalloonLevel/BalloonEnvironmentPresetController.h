@@ -9,6 +9,7 @@ class AExponentialHeightFog;
 class ADirectionalLight;
 class ASkyLight;
 class UMaterialInterface;
+class UStaticMeshComponent;
 
 /** Biome atmosphere; identical for Day and Night. Color is linear, not 0-255 sRGB. */
 USTRUCT(BlueprintType)
@@ -67,11 +68,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Environment|Presets") TMap<FName, FBalloonFogPreset> BiomeFog;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Environment|Presets") FBalloonLightingPresetValues Day;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Environment|Presets") FBalloonLightingPresetValues Night;
+	/** Prototype sky palettes requiring art tuning. Soft references are included in cooking. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Environment|Sky") TMap<FName, TSoftObjectPtr<UMaterialInterface>> DaySkyMaterials;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Environment|Sky") TMap<FName, TSoftObjectPtr<UMaterialInterface>> NightSkyMaterials;
+	/** Used when the map has no engine sky sphere. Owned and cleaned up with this controller. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Environment|Sky") TObjectPtr<UStaticMeshComponent> SkyDome;
 
 	/** Validates everything, then applies. During play only the first successful call applies;
 	 *  repeating the same biome/preset is a no-op, anything else is rejected (BLG-064). */
 	UFUNCTION(BlueprintCallable, Category="Balloon Environment") bool ApplyEnvironment(FName BiomeId, EBalloonLightingPreset Preset);
-	/** Applies the generator plan (Ready required) or the fallback values. */
+	/** Editor: selected LevelConfig directly (Random requires Ready). Play: immutable ActiveConfig once Ready. */
 	UFUNCTION(BlueprintCallable, Category="Balloon Environment") bool ApplyFromGenerator();
 	/** Editor authoring preview; reapplies freely outside play. */
 	UFUNCTION(CallInEditor, Category="Balloon Environment", meta=(DisplayName="Preview Environment")) void PreviewEnvironment();

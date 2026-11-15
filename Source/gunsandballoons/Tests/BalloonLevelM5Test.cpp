@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "../BalloonFlightComponent.h"
 #include "../BalloonLevel/BalloonLevelGenerator.h"
+#include "../BalloonLevel/BalloonLevelRealizer.h"
 #include "Components/SplineComponent.h"
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalloonLevelM5Test,"GunsAndBalloons.BalloonLevel.M5",EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter)
 bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
@@ -94,13 +95,31 @@ bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
  TestTrue(TEXT("enclosure includes full 3D box"),Actual.Radius>=141.4 && Actual.HalfHeight>=400.);
  TestEqual(TEXT("real authored speed"),Actual.Speed,300.);
  auto* Generator=W->SpawnActor<ABalloonLevelGenerator>();Generator->LevelConfig=C;Generator->RoutePawn=Pawn;
+ Generator->SpawnEnemies=false; // This fixture verifies terrain/route transactions in isolation.
+ Pawn->SetActorLocationAndRotation(FVector(-5000., -5000., 0.), FRotator(0., 90., 0.));
  TestTrue(TEXT("generator Ready requires proof"),Generator->GenerateLevel());
+ TestTrue(TEXT("generation places balloon at route start and flight height"), Pawn->GetActorLocation().Equals(Generator->GetStartTransform().GetLocation(), 0.01));
+ TestTrue(TEXT("generation aligns balloon to initial route heading"), Pawn->GetActorQuat().Equals(Generator->GetStartTransform().GetRotation(), 0.001));
+ TestEqual(TEXT("generator creates ground without scenery rows"), Generator->Realizer->Actors.Num(), 1);
+ const auto FirstTerrain = Generator->Realizer->Actors[0];
+ TestTrue(TEXT("generated ground identified"), FirstTerrain.IsValid() && FirstTerrain->ActorHasTag(TEXT("BalloonLevel.Terrain")));
  TestTrue(TEXT("generator stores route"),Generator->GetPlan().RoutePoints.Num()>=2);
  TestTrue(TEXT("regeneration retains valid proof"),Generator->RegenerateLevel());
+ TestEqual(TEXT("regeneration replaces terrain without duplicates"), Generator->Realizer->Actors.Num(), 1);
+ TestFalse(TEXT("previous terrain removed"), FirstTerrain.IsValid());
+ const auto PreviousTerrain = Generator->Realizer->Actors[0];
  TestEqual(TEXT("no duplicate spline points"),Generator->Spline->GetNumberOfSplinePoints(),Generator->GetPlan().SplineSamples.Num());
  Obstacle->SetActorLocation(FVector(5000.,0.,Z));Box->SetBoxExtent(FVector(100.,5000.,1000.));
- TestFalse(TEXT("world wall gates Ready"),Generator->GenerateLevel());
- TestTrue(TEXT("failed regeneration removes stale proof"),Generator->GetPlan().RoutePoints.IsEmpty());
+ const auto PreviousRoute=Generator->GetPlan().RoutePoints;
+ const auto* PreviousConfig=Generator->ActiveConfig.Get();
+ const FTransform PreviousBalloonTransform = Pawn->GetActorTransform();
+ TestFalse(TEXT("world wall rejects regeneration"),Generator->GenerateLevel());
+ TestTrue(TEXT("failed regeneration retains previous level"),Generator->GetGenerationStatus()==EBalloonLevelGenerationStatus::Ready);
+ TestTrue(TEXT("failed regeneration retains exact previous proof"),Generator->GetPlan().RoutePoints==PreviousRoute);
+ TestTrue(TEXT("failed regeneration restores active config"),Generator->ActiveConfig.Get()==PreviousConfig);
+ TestTrue(TEXT("failed regeneration leaves balloon in place"), Pawn->GetActorTransform().Equals(PreviousBalloonTransform));
+ TestTrue(TEXT("failed generation retains previous colliding terrain"), PreviousTerrain.IsValid() && PreviousTerrain->GetActorEnableCollision());
+ TestEqual(TEXT("failed generation leaves no staged terrain"), Generator->Realizer->Actors.Num(), 1);
  W->DestroyWorld(false);
  return true;
 }

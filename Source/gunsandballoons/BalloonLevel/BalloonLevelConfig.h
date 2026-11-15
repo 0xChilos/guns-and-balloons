@@ -5,6 +5,16 @@
 #include "BalloonLevelTypes.h"
 #include "BalloonLevelConfig.generated.h"
 
+class UMaterialInterface;
+
+UENUM(BlueprintType)
+enum class EBalloonTerrainMode : uint8
+{
+	Flat,
+	WorldCollision,
+	Generated
+};
+
 UCLASS(BlueprintType)
 class GUNSANDBALLOONS_API UBalloonLevelConfig : public UDataAsset
 {
@@ -39,6 +49,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") FRuntimeFloatCurve WidthProfile;
 	/** Border settings are prototypes requiring gameplay tuning. Independent from interior enemies (M4). */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") bool BordersEnabled = false;
+ /** Optional rocket-balloon class. Must expose numeric AggroRangeM and DriftRangeM properties.
+  * Empty realizes collision proxies only. A soft reference keeps the selected class in cooked builds. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") TSoftClassPtr<AActor> BorderActorClass;
  /** -1 uses density per combined border kilometer; 0 explicitly requests none. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders", meta=(ClampMin="-1")) int32 BorderExactCount = -1;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") float BorderDensityPerKm = 8.f;
@@ -59,6 +72,11 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool SceneryEnabled = true;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool ObstaclesEnabled = false;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool EnemiesEnabled = false;
+ /** Start-option multipliers, applied to placement targets (including exact budgets). */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(ClampMin="0", ClampMax="10")) float EnemyDensity = 1.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(ClampMin="0", ClampMax="10")) float ObstacleDensity = 1.f;
+ /** Fraction of authored loot spots populated; prototype default fills all spots. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(ClampMin="0", ClampMax="1")) float ItemDensity = 1.f;
  /** -1 retains row density; override replaces total budget, allocated by relative row density. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 ObstacleExactCount = -1;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 EnemyExactCount = -1;
@@ -67,7 +85,21 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetRoadMeters = 20.f;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetLotDepthMeters = 30.f;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetLampIntervalMeters = 20.f;
- /** Ground sampling fallback is a flat plane; unrelated to fixed flight height. */
+ /** Flat creates a plane; Generated creates rolling terrain; WorldCollision uses authored terrain. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain") EBalloonTerrainMode TerrainMode = EBalloonTerrainMode::Generated;
+ /** Generated terrain prototype settings; tune per biome. Zero height variation makes a flat surface. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(ClampMin="0", Units="m")) float TerrainHeightVariationMeters = 15.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(ClampMin="1", Units="m")) float TerrainWavelengthMeters = 200.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(ClampMin="1", Units="m")) float TerrainCellMeters = 20.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(ClampMin="0", Units="m")) float TerrainPaddingMeters = 100.f;
+ /** Empty uses MI_<Biome>_Ground, then the engine default surface if unavailable. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain") TSoftObjectPtr<UMaterialInterface> TerrainMaterial;
+ /** Only actors with this tag supply terrain, excluding scenery and generated obstacles. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain") FName TerrainActorTag = TEXT("Terrain");
+ /** Absolute world Z trace bounds. Prototype values require tuning to the biome's terrain. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(Units="m")) float TerrainTraceTopMeters = 1000.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Terrain", meta=(Units="m")) float TerrainTraceBottomMeters = -1000.f;
+ /** Flat terrain elevation; unrelated to fixed flight height. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float PlacementGroundZMeters = 0.f;
  bool Validate(TArray<FString>& Errors) const;
 };

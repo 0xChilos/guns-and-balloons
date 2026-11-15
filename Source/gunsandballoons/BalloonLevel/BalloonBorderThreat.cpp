@@ -1,5 +1,26 @@
 #include "BalloonBorderThreat.h"
 #include "Components/SphereComponent.h"
+#include "UObject/UnrealType.h"
+
+namespace
+{
+bool SetThreatNumber(AActor& Actor, FName Name, double Value)
+{
+ auto* Property = FindFProperty<FNumericProperty>(Actor.GetClass(), Name);
+ if (!Property || !Property->IsFloatingPoint()) return false;
+ Property->SetFloatingPointPropertyValue(Property->ContainerPtrToValuePtr<void>(&Actor), Value);
+ return true;
+}
+}
+
+bool ABalloonBorderThreat::BindThreatActor(AActor* Actor)
+{
+ if (!IsValid(Actor) || Actor->GetWorld() != GetWorld() ||
+     !SetThreatNumber(*Actor, TEXT("AggroRangeM"), Influence.RadiusCm / 100.) ||
+     !SetThreatNumber(*Actor, TEXT("DriftRangeM"), 0.)) return false;
+ ThreatActor = Actor;
+ return true;
+}
 
 ABalloonBorderThreat::ABalloonBorderThreat()
 {
@@ -42,4 +63,5 @@ void ABalloonBorderThreat::CommitValidatedInfluence(const FBalloonBorderInfluenc
 {
  Influence=Descriptor;
  InfluenceCollision->SetSphereRadius(Descriptor.RadiusCm,false);
+ if (ThreatActor.IsValid()) SetThreatNumber(*ThreatActor, TEXT("AggroRangeM"), Descriptor.RadiusCm / 100.);
 }

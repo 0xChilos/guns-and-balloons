@@ -83,7 +83,7 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
  FRandomStream Flocks(Seed(P,TEXT("FlockBudget"))); const int32 FlockTotal=Flocks.RandRange(3,6);
  int32 FlockRows=0;
  auto Group=[&](const FResolvedRow& R) { return R.Metadata.InteriorEnemy?2: (R.Entry.Row.Category==TEXT("Obstacle") || R.Entry.Row.Category==TEXT("Hazard")?1:0); };
- auto Enabled=[&](int32 G){return G==2?C.EnemiesEnabled:G==1?C.ObstaclesEnabled:C.SceneryEnabled;};
+ auto Enabled=[&](int32 G){return G==2?(C.EnemiesEnabled && C.EnemyDensity>0.f):G==1?(C.ObstaclesEnabled && C.ObstacleDensity>0.f):C.SceneryEnabled;};
  auto Active=[&](const FResolvedRow& R)
  {
   const FName Rule=R.Entry.Row.Rule;
@@ -132,6 +132,14 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
   for(int32 I:Choices) {const double N=Sum>0?Remaining*Rows[I].Entry.Row.DensityPerKm2/Sum:0.; Targets[I]=FMath::FloorToInt(N); Assigned+=Targets[I]; Remainders.Emplace(I,N-Targets[I]);}
   Remainders.StableSort([](const auto& A,const auto& B){return A.Value>B.Value;});
   for(int32 I=0;I<Remaining-Assigned;++I) ++Targets[Remainders[I].Key];
+ }
+ // Scale final category budgets so explicit counts and mandatory flock targets honour the same controls.
+ for (int32 I=0; I<Rows.Num(); ++I)
+ {
+  const int32 G=Group(Rows[I]);
+  const double Target=FMath::RoundToDouble(Targets[I] * double(G==2?C.EnemyDensity:G==1?C.ObstacleDensity:1.f));
+  if (!FMath::IsFinite(Target) || Target<0. || Target>10000.) return Fail(I,0,TEXT("scaled density target outside [0,10000]"));
+  Targets[I]=int32(Target);
  }
  TArray<FBalloonPlacementDescriptor> Output;
  TMap<FSoftObjectPath,int32> CullByMesh;
@@ -304,7 +312,8 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
    }
    if(!Found) return Fail(RI,I,TEXT("256 attempts exhausted: spacing/cluster/eligible bounds"));
    FSurface Surface; Surface.Z=C.PlacementGroundZMeters*100.;
-   if(Ground && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
+   // Horizon rings are outside the playable terrain footprint and retain their authored datum.
+   if(Ground && !Ring && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
    if(!FMath::IsFinite(Surface.Z) || Surface.Normal.ContainsNaN() || Surface.Normal.Z<=0. || Surface.Normal.IsNearlyZero()) return Fail(RI,I,TEXT("invalid terrain height/normal"));
    V.Z=Surface.Z;
    FQuat Rotation=FRotator(0.,Yaw,0.).Quaternion();

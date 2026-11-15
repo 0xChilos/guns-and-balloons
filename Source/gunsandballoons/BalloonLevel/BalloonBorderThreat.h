@@ -5,13 +5,15 @@
 class USphereComponent;
 class UPrimitiveComponent;
 
-/** Stationary opt-in proxy. Generator does not realize actors until M8. No AI controller or tick. */
+/** Stationary generated influence proxy, optionally paired with a rocket-balloon actor. */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API ABalloonBorderThreat : public AActor
 {
  GENERATED_BODY()
 public:
  ABalloonBorderThreat();
+ /** Sets the rocket's engagement radius and disables drift to match the certified influence. */
+ bool BindThreatActor(AActor* Actor);
  /** Initialization only, rejected after BeginPlay. Runtime edits require M5/M6 safety transaction. */
  UFUNCTION(BlueprintCallable, Category="Border") bool InitializeInfluence(const FBalloonBorderInfluence& Descriptor);
  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Border") TObjectPtr<USphereComponent> InfluenceCollision;
@@ -23,5 +25,6 @@ private:
  friend class ABalloonLevelGenerator;
  void CommitValidatedInfluence(const FBalloonBorderInfluence& Descriptor);
  UPROPERTY(VisibleInstanceOnly, Category="Border") FBalloonBorderInfluence Influence;
+ TWeakObjectPtr<AActor> ThreatActor;
  UFUNCTION() void HandleOverlap(UPrimitiveComponent* Component, AActor* Other, UPrimitiveComponent* OtherComponent, int32 BodyIndex, bool FromSweep, const FHitResult& Hit);
 };

@@ -4,6 +4,12 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
+#include "BalloonBorderThreat.h"
+#include "../HookPickup.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
+#include "UObject/ConstructorHelpers.h"
 
 namespace
 {
@@ -14,10 +20,23 @@ void Remove(TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Group
  Actors.Reset(); Groups.Reset();
 }
 }
+UBalloonLevelRealizer::UBalloonLevelRealizer()
+{
+ const TCHAR* MeshNames[] = {TEXT("AmmoBox"), TEXT("MoneyPouch"), TEXT("Log"), TEXT("Coal"), TEXT("Crystal")};
+ const TCHAR* SoundNames[] = {TEXT("Ammo"), TEXT("Money"), TEXT("Wood"), TEXT("Coal"), TEXT("Crystal")};
+ for (int32 I=0; I<5; ++I)
+ {
+  ConstructorHelpers::FObjectFinder<UStaticMesh> Mesh(*FString::Printf(TEXT("/Game/Assets/Locations/Loot/SM_Loot_%s"), MeshNames[I]));
+  ConstructorHelpers::FObjectFinder<USoundBase> Sound(*FString::Printf(TEXT("/Game/Audio/Sounds/SFX_Loot_%s"), SoundNames[I]));
+  LootMeshes.Add(Mesh.Object); LootSounds.Add(Sound.Object);
+ }
+ ConstructorHelpers::FObjectFinder<UNiagaraSystem> Sparkle(TEXT("/Game/Assets/Locations/Blueprints/NS_LootSparkle"));
+ LootSparkle=Sparkle.Object;
+}
 void UBalloonLevelRealizer::Clear() { Remove(Groups,Actors); }
 void UBalloonLevelRealizer::EndPlay(const EEndPlayReason::Type Reason) { Clear(); Super::EndPlay(Reason); }
 void UBalloonLevelRealizer::OnComponentDestroyed(bool Hierarchy) { Clear(); Super::OnComponentDestroyed(Hierarchy); }
-bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString>& Diagnostics)
+bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString>& Diagnostics,UClass* BorderActorClass,float ItemDensity)
 {
  check(IsInGameThread());
  const double Start=FPlatformTime::Seconds();
@@ -26,6 +45,43 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
  TMap<UStaticMesh*,UHierarchicalInstancedStaticMeshComponent*> ByMesh;
  auto Fail=[&](const FString& Reason) { Diagnostics.Add(Reason); Remove(NewGroups,NewActors); return false; };
  if(!GetWorld() || !GetOwner()) return Fail(TEXT("M8: realization requires a world/owner"));
+ if (!FMath::IsFinite(ItemDensity) || ItemDensity < 0.f || ItemDensity > 1.f)
+  return Fail(TEXT("Loot: item density must be finite and in [0,1]"));
+ FRandomStream LootRandom(Plan.Seed);
+ FRandomStream LootOccupancy(Plan.Seed);
+ auto SpawnLoot=[&](const FTransform& Spot, USceneComponent* Parent, FName Socket)
+ {
+  const int32 Kind=LootRandom.RandRange(0,4);
+  // Separate streams keep item types and nested occupied subsets stable as density changes.
+  const float Roll=LootOccupancy.FRand();
+  if (ItemDensity <= 0.f || Roll >= ItemDensity) return true;
+  if (!LootMeshes[Kind]) return false;
+  // Socket scale belongs to the host; pickups use their authored size and base-centred pivot.
+  FTransform Transform(Spot.GetRotation(), Spot.GetLocation(), FVector::OneVector);
+  auto* Pickup=GetWorld()->SpawnActorDeferred<AHookPickup>(AHookPickup::StaticClass(),Transform,GetOwner(),nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+  if (!Pickup) return false;
+  NewActors.Add(Pickup);
+  Pickup->SetFlags(RF_Transient | RF_DuplicateTransient);
+  Pickup->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
+  Pickup->Tags.AddUnique(TEXT("BalloonLevel.Loot"));
+  Pickup->Mesh->SetStaticMesh(LootMeshes[Kind]);
+  Pickup->Mesh->EmptyOverrideMaterials();
+  Pickup->bFloating=true;
+  Pickup->bConsumeOnDelivery=true;
+  Pickup->SparkleSystem=LootSparkle;
+  Pickup->GrabSound=LootSounds[Kind];
+  const FLinearColor Colors[]={FLinearColor(1,.7f,.2f),FLinearColor(1,.85f,.25f),FLinearColor(.6f,1,.4f),FLinearColor(1,.35f,.1f),FLinearColor(.35f,.9f,1)};
+  Pickup->Color=Colors[Kind];
+  FResourceYield Yield; Yield.ResourceType=ResourceTypes::All[Kind];
+  if (Kind==0) Yield.MaxAmount=3;
+  Pickup->Contents.Add(Yield);
+  if (Kind==0) { Yield.ResourceType=EResourceType::Money; Yield.MaxAmount=10; Pickup->Contents.Add(Yield); }
+  Pickup->FinishSpawning(Transform);
+  if (!IsValid(Pickup)) return false;
+  Pickup->SetActorScale3D(FVector::OneVector);
+  Pickup->AttachToComponent(Parent,FAttachmentTransformRules::KeepWorldTransform,Socket);
+  return true;
+ };
  int32 Instances=0;
  for(const auto& D:Plan.Placements)
  {
@@ -41,6 +97,7 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    {
     C=NewObject<UHierarchicalInstancedStaticMeshComponent>(GetOwner(),NAME_None,RF_Transient | RF_DuplicateTransient);
     NewGroups.Add(C); GetOwner()->AddInstanceComponent(C);
+    C->SetupAttachment(GetOwner()->GetRootComponent());
     C->SetStaticMesh(Mesh); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     C->SetGenerateOverlapEvents(false); C->SetCanEverAffectNavigation(false);
     C->bAllowCullDistanceVolume=false; C->SetCullDistances(0,D.CullEndCm);
@@ -48,6 +105,11 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    }
    if(C->AddInstance(D.Transform,true)==INDEX_NONE) return Fail(TEXT("M8: AddInstance failed"));
    ++Instances;
+   // HISM sockets need the individual instance transform, not the group's transform.
+   for (FName Socket:C->GetAllSocketNames())
+    if (Socket.ToString().StartsWith(TEXT("loot_")))
+     if (!SpawnLoot(C->GetSocketTransform(Socket,RTS_Component)*D.Transform,GetOwner()->GetRootComponent(),NAME_None))
+      return Fail(TEXT("Loot: failed to spawn socket pickup"));
   }
   else
   {
@@ -60,6 +122,8 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    if(auto* M=Cast<AStaticMeshActor>(A)) { M->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable); M->GetStaticMeshComponent()->SetStaticMesh(Cast<UStaticMesh>(Asset)); M->GetStaticMeshComponent()->SetCollisionProfileName(TEXT("BlockAllDynamic")); }
    A->FinishSpawning(D.Transform);
    if(!IsValid(A)) return Fail(TEXT("M8: Actor destroyed during construction"));
+   if (A->GetRootComponent() && A->GetRootComponent()->Mobility == EComponentMobility::Movable)
+    A->AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
    A->SetActorEnableCollision(D.Collision);
    TInlineComponentArray<UPrimitiveComponent*> Primitives(A);
    bool HasCollision=false;
@@ -70,6 +134,49 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
     HasCollision |= P->IsQueryCollisionEnabled();
    }
    if(D.Collision && !HasCollision) return Fail(TEXT("M8: gameplay Actor requires authored query collision"));
+   TInlineComponentArray<USceneComponent*> Components(A);
+   for (auto* C:Components)
+   {
+    if (!Cast<UStaticMeshComponent>(C) && !Cast<USkinnedMeshComponent>(C)) continue;
+    for (FName Socket:C->GetAllSocketNames())
+     if (Socket.ToString().StartsWith(TEXT("loot_")))
+      if (!SpawnLoot(C->GetSocketTransform(Socket),C,Socket))
+       return Fail(TEXT("Loot: failed to spawn socket pickup"));
+   }
+  }
+ }
+ // Border descriptors use the same staged ownership and rollback as other generated actors.
+ if (BorderActorClass && (!BorderActorClass->IsChildOf(AActor::StaticClass()) || BorderActorClass->HasAnyClassFlags(CLASS_Abstract)))
+  return Fail(TEXT("Borders: selected threat class must be a concrete Actor"));
+ for (const auto& Border : Plan.Borders)
+ {
+  const FTransform Transform(FQuat::Identity, Border.Center);
+  auto* Proxy = GetWorld()->SpawnActorDeferred<ABalloonBorderThreat>(ABalloonBorderThreat::StaticClass(), Transform,
+      GetOwner(), nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+  if (!Proxy) return Fail(TEXT("Borders: influence proxy spawn failed"));
+  NewActors.Add(Proxy);
+  Proxy->SetFlags(RF_Transient | RF_DuplicateTransient);
+  Proxy->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
+  if (!Proxy->InitializeInfluence(Border)) return Fail(TEXT("Borders: invalid influence descriptor"));
+  Proxy->FinishSpawning(Transform);
+  if (!IsValid(Proxy)) return Fail(TEXT("Borders: proxy destroyed during construction"));
+  Proxy->AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
+  if (BorderActorClass)
+  {
+   auto* Threat = GetWorld()->SpawnActorDeferred<AActor>(BorderActorClass, Transform, GetOwner(), nullptr,
+       ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+   if (!Threat) return Fail(TEXT("Borders: rocket balloon spawn failed"));
+   NewActors.Add(Threat);
+   Threat->SetFlags(RF_Transient | RF_DuplicateTransient);
+   Threat->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
+   // Set before construction/BeginPlay so no frame uses the Blueprint's wider default range.
+   if (!Proxy->BindThreatActor(Threat)) return Fail(TEXT("Borders: rocket class requires floating-point AggroRangeM and DriftRangeM"));
+   Threat->FinishSpawning(Transform);
+   if (!IsValid(Threat) || !Proxy->BindThreatActor(Threat)) return Fail(TEXT("Borders: rocket balloon initialization failed"));
+   Threat->AttachToActor(Proxy, FAttachmentTransformRules::KeepWorldTransform);
+   // The certified influence supplies collision. Decorative mesh bounds must not add unplanned blockers.
+   Threat->SetActorEnableCollision(false);
+   if (Border.Policy != EBalloonBorderInfluencePolicy::Damaging) Threat->SetActorTickEnabled(false);
   }
  }
  Clear(); Groups=MoveTemp(NewGroups); Actors=MoveTemp(NewActors);

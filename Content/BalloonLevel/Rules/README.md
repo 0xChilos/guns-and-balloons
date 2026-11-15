@@ -4,7 +4,26 @@ Create DataTables using `FBalloonLevelAssetRow` (native `BalloonLevelAssetRow` i
 `DT_BalloonAssets_Shared` and `DT_BalloonAssets_Forest/Field/City/Desert`.
 Assign shared and exactly one selected biome table to a `BalloonLevelConfig` DataAsset.
 These tables are separate from the legacy `S_LevelAsset` placement tables; M1 does not migrate those assets.
-No native-schema .uasset tables have been authored yet.
+Native tables are now authored in this folder. Reimport and bind the nine preview
+configs with `py G:/UE/gunsandballoons/Scripts/Editor/setup_biome_asset_catalogs.py`.
+The editable JSON sources are `BalloonAssets_Shared/Forest/Field/City/Desert.json`.
+Shared contains two rock meshes; each biome supplies its location mesh palette.
+Scenery and mesh obstacles are enabled. Biome rows still override shared names.
+
+Prototype tuning for the 500 m preview: shared rocks 30/km2 each, small pines
+500/km2 each, positive sparse scatter densities at least 4/km2, street buildings
+at most 50/km2, general spacing at most 50 m and obstacle spacing at most 20 m
+with single-item obstacle clusters. Forest mountain rings use 3/km2 per row with
+reduced maximum scales to stay outside the corridor. City uses 60 m street cells,
+12 m roads and 24 m lots. These values require gameplay/visual tuning.
+
+Catalogs currently cover static meshes. Skeletal windmills, birds and functional
+hazard Blueprints require separate actor integration; static factories/towers are
+geometry only, without smoke, weapons, jamming or loot components. Zero-density
+legacy fence/hedge and assembly-part rows stay inactive. Existing legacy tables
+and CSVs are unchanged. All eight biome/preset combinations passed nonvisual
+generation, correct shared/biome mesh checks and obstacle checks; results are in
+`Saved/BiomeAssetCatalogChecks.json`. Visual acceptance remains with the user.
 
 CSV first column is the stable row name. Exactly twelve data columns follow:
 

@@ -16,17 +16,17 @@
 
 Game design is in [docs/](docs/README.md). Instructions for AI agents are in [AGENTS.md](AGENTS.md).
 
-## Level generation sandbox
+## Main gameplay level
 
-Open `/Game/Scenes/LevelGeneration_Test` and press Play. The balloon carries the
-auto-possessed first-person pawn. Click the viewport to capture keyboard input:
-W/S change target speed per press; hold A/D to turn; use the mouse to look.
-The map has lighting and a large ground reference, with the old flight-test
-obstacles removed to leave space for generation experiments. It does not include
-a level generator yet. The original `BalloonFlight_Test` is unchanged.
+Open `/Game/Scenes/MainLevel` and press Play. It is the main gameplay level (formerly
+`LevelGeneration_Test`): the shared `BP_Balloon` carries the auto-possessed first-person
+pawn, and the level generator builds the route, borders, scenery and environment at every
+level start. Click the viewport to capture keyboard input: W/S change target speed per
+press; hold A/D to turn; use the mouse to look. The old PlayerStart and the test AmmoCrate
+were removed. The original `BalloonFlight_Test` is unchanged.
 
-`Scripts/Editor/create_level_generation_test.py` creates and checks this map in
-Unreal Python; it refuses to overwrite an existing sandbox.
+`Scripts/Editor/create_level_generation_test.py` is the historical script that created the
+sandbox (now pointing at `MainLevel`); it refuses to overwrite an existing map.
 
 ## Native procedural planner (M4)
 

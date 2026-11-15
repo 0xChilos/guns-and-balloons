@@ -1,0 +1,32 @@
+[
+  {
+    "Name": "Shared_Rock_A",
+    "Asset": "/Game/Assets/Locations/Forest/SM_Rock_A.SM_Rock_A",
+    "Category": "Filler",
+    "Collision": false,
+    "DensityPerKm2": 30,
+    "ScaleMin": 0.6,
+    "ScaleMax": 1.8,
+    "MinSpacingM": 6.0,
+    "RandomYaw": true,
+    "AlignToSlope": true,
+    "ClusterSize": 2,
+    "Rule": "scatter",
+    "Notes": " | Native catalog; preview density/spacing require tuning."
+  },
+  {
+    "Name": "Shared_Rock_B",
+    "Asset": "/Game/Assets/Locations/Forest/SM_Rock_B.SM_Rock_B",
+    "Category": "Filler",
+    "Collision": false,
+    "DensityPerKm2": 30,
+    "ScaleMin": 0.6,
+    "ScaleMax": 1.8,
+    "MinSpacingM": 6.0,
+    "RandomYaw": true,
+    "AlignToSlope": true,
+    "ClusterSize": 2,
+    "Rule": "scatter",
+    "Notes": " | Native catalog; preview density/spacing require tuning."
+  }
+]
