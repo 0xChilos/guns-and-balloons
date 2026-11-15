@@ -155,7 +155,7 @@ protected:
 
 	/** Next missile this long after the previous one is gone, s. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float MissileCooldown = 4.f;
+	float MissileCooldown = 5.f; // team damage table 2026-11-15 (was 4 s). TBD
 
 	/** Launches only when the launcher is within this many degrees of the basket. */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))

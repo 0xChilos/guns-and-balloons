@@ -30,8 +30,20 @@ PARTS = {
         "SM_Mine_Parachute": (["SM_Mine_Canopy", "SM_Mine_CanopyRed", "SM_Mine_Lines"], None),
     },
     "Rocket": {
-        "SM_Rocket_Body": (["SM_Rocket_Body", "SM_Rocket_Nose", "SM_Rocket_Brass", "SM_Rocket_Fins", "SM_Rocket_Nozzle"], None),
-        "SM_Rocket_Flame": (["SM_Rocket_Flame"], None),
+        "SM_Rocket_Body": (["SM_Rocket_Hull", "SM_Rocket_NoseCap", "SM_Rocket_Bands", "SM_Rocket_Spine", "SM_Rocket_Pipes",
+                            "SM_Rocket_Brass", "SM_Rocket_GaugeFace", "SM_Rocket_GaugeNeedle", "SM_Rocket_Fins",
+                            "SM_Rocket_Nozzle", "SM_Rocket_NozzleRing"], None),
+        "SM_Rocket_Flame": (["SM_Rocket_Flame"], "SM_Rocket_Flame"),
+    },
+    "TowerGun": {
+        "SM_TowerGun_Mount": (["SM_TowerGun_Turntable", "SM_TowerGun_Rim", "SM_TowerGun_Cheeks", "SM_TowerGun_Shield",
+                               "SM_TowerGun_MountBrass", "SM_TowerGun_GaugeFace", "SM_TowerGun_GaugeNeedle",
+                               "SM_TowerGun_MountPipe"], None),
+        "SM_TowerGun_Barrel": (["SM_TowerGun_Tube", "SM_TowerGun_Bore", "SM_TowerGun_Bands", "SM_TowerGun_Recoil"],
+                               "SM_TowerGun_Tube"),
+        "SM_TowerGun_FuelTank": (["SM_TowerGun_TankShell", "SM_TowerGun_TankHazard", "SM_TowerGun_TankCradle",
+                                  "SM_TowerGun_TankBrass", "SM_TowerGun_TankGauge", "SM_TowerGun_TankPipe"],
+                                 "SM_TowerGun_TankShell"),
     },
 }[MODEL]
 

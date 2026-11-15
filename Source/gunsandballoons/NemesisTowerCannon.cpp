@@ -5,6 +5,10 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
+#include "FirstPersonCameraPawn.h"
+#include "RevolverComponent.h"
+#include "RifleComponent.h"
+#include "ShotgunComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "NemesisBullet.h"
 #include "NemesisFx.h"
@@ -18,6 +22,13 @@ namespace
 	constexpr float CannonPlatformHeight = 40.f;
 	/** The team's turret meshes face −Y; the actor faces +X. */
 	const FRotator TurretModelToActor(0.f, 90.f, 0.f);
+	/** Our TowerGun model (Scripts/Blender/build_tower_gun.py, faces +X): the barrel's pivot (trunnion) in
+	 *  the mount, and the muzzle's distance from it along the barrel, cm. */
+	const FVector TowerGunTrunnion(15.f, 0.f, 135.f);
+	constexpr float TowerGunMuzzle = 430.f;
+	/** The team tower's deck is 70 cm thick (its deck collision, 19.75–20.45 m); our fuel tank hangs
+	 *  from its underside below the tower's centre. Scaled with the tower's stretch. */
+	constexpr float TowerDeckThickness = 70.f;
 
 	FVector TurretSocketInMesh(const UStaticMeshComponent* C, FName Socket)
 	{
@@ -122,6 +133,22 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 		NemesisCollision::Solid(FuelTank); // blocks shots: a hit on the boiler counts like the TankHitBox
 		Platform->SetVisibility(false);
 		NemesisCollision::None(Platform);
+
+		// Our steampunk cannon and fuel tank (team decision 2026-11-15) replace the team's head, guns and
+		// boiler; the team's tower stays. Built facing +X, so no model rotation.
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnMount(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_Mount.SM_TowerGun_Mount"));
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnBarrel(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_Barrel.SM_TowerGun_Barrel"));
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnTank(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_FuelTank.SM_TowerGun_FuelTank"));
+		if (OwnMount.Object && OwnBarrel.Object && OwnTank.Object)
+		{
+			bOwnGun = true;
+			NemesisModel::Use(Carriage, OwnMount.Object);
+			NemesisModel::Use(Barrel, OwnBarrel.Object);
+			NemesisModel::Use(FuelTank, OwnTank.Object);
+			// Shots go through the lattice tower to the tank under the deck (it still blocks the
+			// balloon and the cannon's line of sight, which traces WorldStatic objects).
+			Tower->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+		}
 	}
 }
 
@@ -142,16 +169,27 @@ void ANemesisTowerCannon::ApplyLayout()
 		const FVector HeadAt = TurretSocketInMesh(Tower, TEXT("head")) * Stretch;
 		DeckHeight = HeadAt.Z;
 		CannonYaw->SetRelativeLocation(HeadAt);
-		CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
-		const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
-		MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
-		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
+		if (bOwnGun)
+		{
+			CannonPitch->SetRelativeLocation(TowerGunTrunnion);
+			MuzzleGlow->SetRelativeLocation(FVector(TowerGunMuzzle + 20.f, 0.f, 0.f));
+		}
+		else
+		{
+			CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
+			const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
+			MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
+		}
+		// Our tank hangs under the deck below the tower's centre; the team's boiler stands on its socket.
+		const FVector EngineAt = bOwnGun ? FVector(0.f, 0.f, DeckHeight - TowerDeckThickness * TowerZScale)
+			: TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
 		FuelTank->SetRelativeLocation(EngineAt);
-		// Hit box around the boiler, a bit bigger than it.
+		// Hit box around the fuel tank, a bit bigger than it.
+		const FRotator TankRotation = bOwnGun ? FRotator::ZeroRotator : TurretModelToActor;
 		const FBox Box = FuelTank->GetStaticMesh()->GetBoundingBox();
 		TankHitBox->SetBoxExtent(Box.GetExtent().ComponentMax(FVector(1.f)) * FVector(1.1f, 1.1f, 1.05f));
-		TankHitBox->SetRelativeLocation(EngineAt + TurretModelToActor.RotateVector(Box.GetCenter()));
-		TankHitBox->SetRelativeRotation(TurretModelToActor);
+		TankHitBox->SetRelativeLocation(EngineAt + TankRotation.RotateVector(Box.GetCenter()));
+		TankHitBox->SetRelativeRotation(TankRotation);
 		return;
 	}
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
@@ -272,7 +310,11 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 {
 	if (!ShellClass) return;
 	FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (CannonBarrelLength * 0.9f);
-	if (bModel)
+	if (bOwnGun)
+	{
+		Muzzle = CannonPitch->GetComponentTransform().TransformPosition(FVector(TowerGunMuzzle, 0.f, 0.f));
+	}
+	else if (bModel)
 	{
 		Muzzle = Barrel->GetSocketLocation(bSecondMuzzle ? TEXT("muzzle_2") : TEXT("muzzle_1"));
 		bSecondMuzzle = !bSecondMuzzle;
@@ -286,15 +328,42 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 		Shell->Fire(Dir, ShellSpeed, Damage);
 		Shell->SetActorScale3D(FVector(2.5f)); // a cannon shell, not a bullet
 	}
-	NemesisFx::Explosion(GetWorld(), Muzzle, 0.35f); // muzzle blast
+	NemesisFx::FineExplosion(GetWorld(), Muzzle, 0.5f); // muzzle blast, fine-grained like the AA missile's
 	OnShot();
 }
 
 void ANemesisTowerCannon::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,
 	UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser)
 {
-	if (State == ETowerCannonState::Destroyed || (HitComponent != TankHitBox && HitComponent != FuelTank)) return; // the cannon and tower ignore shots
-	BlowUp();
+	if (State == ETowerCannonState::Destroyed) return;
+	if (HitComponent == TankHitBox || HitComponent == FuelTank)
+	{
+		BlowUp(); // one hit on the fuel tank
+		return;
+	}
+	if (HitComponent != Carriage && HitComponent != Barrel) return; // the tower ignores shots
+	const int32 Hits = CannonHitsFor(DamageCauser);
+	if (Hits <= 0) return; // another pellet of the same shotgun shot
+	CannonHealth = FMath::Max(0.f, CannonHealth - 1.f / Hits);
+	UE_LOG(LogTemp, Log, TEXT("%s: cannon hit (1/%d), %.2f left"), *GetName(), Hits, CannonHealth);
+	if (CannonHealth <= KINDA_SMALL_NUMBER) BlowUp();
+}
+
+int32 ANemesisTowerCannon::CannonHitsFor(AActor* DamageCauser)
+{
+	// Gun bullets name the shooter as the causer; the gun is the one in the shooter's hand.
+	const AFirstPersonCameraPawn* Pawn = Cast<AFirstPersonCameraPawn>(DamageCauser);
+	const UGunComponent* Gun = Pawn ? Pawn->GetActiveGun() : nullptr;
+	if (Cast<URevolverComponent>(Gun)) return RevolverCannonHits;
+	if (Cast<URifleComponent>(Gun)) return RifleCannonHits;
+	if (Cast<UShotgunComponent>(Gun))
+	{
+		const double Now = GetWorld()->GetTimeSeconds();
+		const bool bSameShot = LastShotgunHitTime >= 0.0 && Now - LastShotgunHitTime <= ShotgunPelletWindow;
+		LastShotgunHitTime = Now;
+		return bSameShot ? 0 : ShotgunCannonHits;
+	}
+	return OtherCannonHits;
 }
 
 FVector ANemesisTowerCannon::DeckLocation() const
@@ -307,8 +376,9 @@ void ANemesisTowerCannon::BlowUp()
 	SetState(ETowerCannonState::Destroyed);
 	UWorld* World = GetWorld();
 	// The tank goes up and takes the cannon with it; the tower stays with an empty deck.
-	NemesisFx::Explosion(World, FuelTank->GetComponentLocation(), 3.f);
-	NemesisFx::Explosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
+	// The AA missile's fine-grained blast (team decision 2026-11-15), not the shared cartoony one.
+	NemesisFx::FineExplosion(World, FuelTank->Bounds.Origin, 3.f);
+	NemesisFx::FineExplosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
 	for (UStaticMeshComponent* Part : { FuelTank.Get(), Carriage.Get(), Barrel.Get() })
 	{
 		Part->SetVisibility(false);
@@ -319,7 +389,7 @@ void ANemesisTowerCannon::BlowUp()
 	WreckTime = 0.f;
 	WreckFire.Start(World, NemesisFx::EKind::Fire, 20.f);
 	WreckSmoke.Start(World, NemesisFx::EKind::EngineSmoke, 10.f);
-	UE_LOG(LogTemp, Log, TEXT("%s: fuel tank hit, cannon destroyed"), *GetName());
+	UE_LOG(LogTemp, Log, TEXT("%s: the fuel tank and the cannon blew up"), *GetName());
 	OnTowerDestroyed();
 }
 

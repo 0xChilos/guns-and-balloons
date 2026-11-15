@@ -14,6 +14,9 @@ class UPointLightComponent;
  * Base for the airship's planes (AI ворогів, sections 3–5). Placeholder cube body.
  * - Never changes altitude: Z is fixed at launch (except when falling after a downed engine).
  * - Holds a slot relative to the balloon (subclass picks it) with inertia.
+ * - Never flies through the balloon, other enemies (airship, towers, beacons, AA guns) or another
+ *   plane (2026-11-15): at an obstacle's height it slides around its bounds box, and planes push each
+ *   other apart; a hard limit keeps them out even if steering lags.
  * - Two hit zones: Engine (incl. propeller) and Fuselage, each with HP. Damage per hit comes
  *   from the weapon (ApplyPointDamage amount). Engine destroyed → loses thrust and falls;
  *   fuselage destroyed → explodes.
@@ -133,6 +136,23 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Plane|Flight", meta = (ClampMin = "0"))
 	float SlotGain = 0.5f;
 
+	/** Gap kept between the plane and an obstacle's bounds (the balloon, the airship, towers,
+	 *  beacons, AA guns), cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "Plane|Avoidance", meta = (ClampMin = "0"))
+	float ObstacleClearance = 400.f;
+
+	/** Starts steering around an obstacle this far before the clearance, cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "Plane|Avoidance", meta = (ClampMin = "0"))
+	float ObstacleAvoidDistance = 2000.f;
+
+	/** Gap kept between two planes (their bounds), cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "Plane|Avoidance", meta = (ClampMin = "0"))
+	float PlaneClearance = 400.f;
+
+	/** Push away from an obstacle / another plane: cm/s per cm inside the zone. TBD */
+	UPROPERTY(EditAnywhere, Category = "Plane|Avoidance", meta = (ClampMin = "0"))
+	float AvoidGain = 1.5f;
+
 	/** Seconds a plane with a dead engine falls before it is removed. */
 	UPROPERTY(EditAnywhere, Category = "Plane|Damage", meta = (ClampMin = "0"))
 	float FallTime = 6.f;
@@ -147,6 +167,11 @@ protected:
 
 	FVector Velocity = FVector::ZeroVector;
 	float FixedZ = 0.f;
+	/** The plane's own size for avoidance (from its bounds at launch): XY radius and half height, cm. */
+	float BodyRadius = 500.f;
+	float BodyHalfHeight = 150.f;
+	/** False while a plane that just left the airship's hangar is still inside the airship. */
+	bool bClearOfAirship = true;
 
 private:
 	UFUNCTION()
@@ -154,6 +179,13 @@ private:
 		UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser);
 
 	void Fly(float DeltaSeconds);
+	/** Steers DesiredVel around the balloon and away from other planes. */
+	FVector Avoid(const FVector& Pos, FVector DesiredVel) const;
+	/** Hard limit: moves NewPos out of the balloon and other planes. */
+	FVector KeepClear(FVector NewPos) const;
+	/** Bounds boxes (centre, half size) of everything planes keep out of: the balloon and the
+	 *  airship, towers, beacons and AA guns. Pairs of (centre, extent). */
+	void GetObstacles(TArray<TPair<FVector, FVector>>& Out) const;
 	void Fall(float DeltaSeconds);
 	void GoDown(bool bEngine);
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;

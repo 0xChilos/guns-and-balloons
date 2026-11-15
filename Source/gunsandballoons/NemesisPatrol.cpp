@@ -98,7 +98,9 @@ void ANemesisPatrol::Tick(float DeltaSeconds)
 	{
 		for (const TWeakObjectPtr<ANemesisPlane>& P : Planes)
 		{
-			if (FVector::DistSquared(P->GetActorLocation(), Basket) <= FMath::Square(AggroDistance) && T->TryEngagePatrol(this))
+			// Crop dusters join only while there's room under the map-wide limit of attacking crop dusters.
+			const bool bRoom = !PlaneClass || !PlaneClass->IsChildOf(ANemesisCropDuster::StaticClass()) || T->CanAddCropDusters(Planes.Num());
+			if (bRoom && FVector::DistSquared(P->GetActorLocation(), Basket) <= FMath::Square(AggroDistance) && T->TryEngagePatrol(this))
 			{
 				SetEngaged(true);
 				break;

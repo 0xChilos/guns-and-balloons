@@ -61,6 +61,20 @@ ANemesisBomber::ANemesisBomber()
 void ANemesisBomber::Launch(ANemesisAirship* InAirship)
 {
 	Super::Launch(InAirship);
+	// The airship's bomber flies clear above the balloon (its bounds + clearance), so the balloon is
+	// never in its way and it can always pass over it to its slot ahead. Patrols keep their route height.
+	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+	if (InAirship && T && T->GetBalloon())
+	{
+		FVector Centre, Extent;
+		T->GetBalloon()->GetActorBounds(false, Centre, Extent);
+		const float MinZ = Centre.Z + Extent.Z + BodyHalfHeight + ObstacleClearance + 100.f;
+		if (FixedZ < MinZ)
+		{
+			FixedZ = MinZ;
+			SetActorLocation(FVector(GetActorLocation().X, GetActorLocation().Y, FixedZ));
+		}
+	}
 	// First mine comes a bit sooner than the rest, once the bomber is in place.
 	DropTimer = DropIntervalMin * 0.5f;
 	Lane = FMath::RandRange(-1, 1);

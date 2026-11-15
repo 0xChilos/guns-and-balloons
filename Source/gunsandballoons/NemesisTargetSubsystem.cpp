@@ -5,6 +5,7 @@
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "NemesisAirship.h"
+#include "NemesisCropDuster.h"
 
 namespace
 {
@@ -122,6 +123,16 @@ bool UNemesisTargetSubsystem::TryEngagePatrol(AActor* Patrol)
 	if (Patrols.Num() >= MaxEngagedPatrols) return false;
 	Patrols.Add(Patrol);
 	return true;
+}
+
+int32 UNemesisTargetSubsystem::CountAttackingCropDusters()
+{
+	int32 Count = 0;
+	for (TActorIterator<ANemesisCropDuster> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsDown() && !It->IsOnRoute()) ++Count;
+	}
+	return Count;
 }
 
 void UNemesisTargetSubsystem::ReleasePatrol(AActor* Patrol)

@@ -74,6 +74,10 @@ SLOTS = {
     "Wood": ("T_Nemesis_Wood", (1, 1, 1), 0),
     "PropWood": ("T_Nemesis_PropWood", (1, 1, 1), 0),
     "Brass": ("T_Nemesis_Brass", (1, 1, 1), 0),
+    "Plates": ("T_Nemesis_Plates", (1, 1, 1), 0),  # airship rocket hull (2026-11-15)
+    "Copper": ("T_Nemesis_Copper", (1, 1, 1), 0),  # airship rocket nose, pipes
+    "FuelPaint": ("T_Nemesis_FuelPaint", (1, 1, 1), 0),  # tower cannon fuel tank
+    "Hazard": ("T_Nemesis_Hazard", (1, 1, 1), 0),  # hazard band on the fuel tank
     "Glow": ("T_Nemesis_Glow", (1, 1, 1), 4),
     "Dark": (None, (0.02, 0.018, 0.015), 0),
 }

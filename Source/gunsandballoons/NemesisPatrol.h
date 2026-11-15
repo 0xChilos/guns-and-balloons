@@ -45,8 +45,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Patrol")
 	TSubclassOf<ANemesisPlane> PlaneClass;
 
+	/** Team decision 2026-11-15: one crop duster per patrol. */
 	UPROPERTY(EditAnywhere, Category = "Patrol", meta = (ClampMin = "1", ClampMax = "4"))
-	int32 GroupSize = 2;
+	int32 GroupSize = 1;
 
 	/** Spacing between planes along the route, cm. */
 	UPROPERTY(EditAnywhere, Category = "Patrol", meta = (ClampMin = "0"))
