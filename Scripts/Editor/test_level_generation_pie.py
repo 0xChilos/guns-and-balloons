@@ -37,6 +37,11 @@ def tick(_delta):
             rockets = [a for a in unreal.GameplayStatics.get_all_actors_of_class(world, rocket_class)
                        if a.get_owner() == generator]
             assert len(proxies) == len(rockets) == 8, 'Expected eight generated border proxies and rocket balloons'
+            groups = generator.get_components_by_class(unreal.HierarchicalInstancedStaticMeshComponent)
+            meshes = {c.get_editor_property('static_mesh').get_path_name() for c in groups if c.get_instance_count()}
+            assert '/Game/Assets/Locations/Forest/SM_Rock_A.SM_Rock_A' in meshes, 'Missing shared scenery at level start'
+            biome = str(generator.get_editor_property('active_config').get_editor_property('biome_id'))
+            assert any(f'/Locations/{biome}/' in path and 'SM_Rock_' not in path for path in meshes), 'Missing biome scenery at level start'
             generator.draw_border_debug(60.0)
             assert balloon.get_component_by_class(unreal.BalloonKeyboardControlComponent)
             state.update(balloon=balloon, location=balloon.get_actor_location(),
