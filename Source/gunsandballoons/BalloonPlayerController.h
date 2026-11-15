@@ -5,6 +5,7 @@
 #include "InputCoreTypes.h"
 #include "BalloonPlayerController.generated.h"
 
+class ADeathScreen;
 class APauseHintScreen;
 class APauseMenuScreen;
 
@@ -15,6 +16,11 @@ class APauseMenuScreen;
  * spawns an APauseMenuScreen in front of the camera; another press, or RETURN TO GAME, resumes.
  * While paused the mouse is free, the system cursor hidden (the menu draws its own), the crosshair
  * HUD hidden, and LMB goes to the menu's pointer. During play a small APauseHintScreen shows the key.
+ *
+ * And the death screen (docs/features/ui-menus.md): when the engine is destroyed
+ * (UEngineHealthComponent) the world slows down for DeathSlowMoTime with a blast at the basket, then
+ * pauses under an ADeathScreen (ENGINE DESTROYED, the cause, TRY AGAIN). The console command
+ * "DeathScreen" plays it at once, to see it without dying.
  */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API ABalloonPlayerController : public APlayerController
@@ -47,6 +53,20 @@ public:
 	UFUNCTION(BlueprintPure, Category="Player|Pause")
 	bool IsPauseMenuOpen() const { return PauseMenu != nullptr; }
 
+	/** The engine is destroyed: play the death sequence, then show the death screen. Cause: what
+	 *  destroyed it (UEngineHealthComponent::GetDeathCause). Once per life. */
+	void ShowDeath(const FText& Cause);
+
+	UFUNCTION(BlueprintPure, Category="Player|Death")
+	bool IsDead() const { return bDead; }
+
+	UFUNCTION(BlueprintPure, Category="Player|Death")
+	FText GetDeathCause() const { return DeathCause; }
+
+	/** Console: "DeathScreen" plays the death sequence and shows the death screen now. */
+	UFUNCTION(Exec)
+	void DeathScreen();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -69,7 +89,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Pause")
 	TSubclassOf<APauseHintScreen> PauseHintClass;
 
+	/** Real seconds of slow motion between the engine's death and the death screen. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Death", meta=(ClampMin="0.0"))
+	float DeathSlowMoTime = 2.f;
+
+	/** How slow the world runs meanwhile (time dilation). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Death", meta=(ClampMin="0.05", ClampMax="1.0"))
+	float DeathTimeDilation = 0.3f;
+
 private:
+	/** Free mouse for a panel menu drawn in the scene (the pause menu, the death screen). */
+	void EnterPanelMenuMode();
+	void OpenDeathScreen();
 	void PausePointerPressed();
 	void PausePointerReleased();
 
@@ -80,4 +111,11 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<APauseHintScreen> PauseHint;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ADeathScreen> DeathMenu;
+
+	bool bDead = false;
+	FText DeathCause;
+	FTimerHandle DeathTimer;
 };

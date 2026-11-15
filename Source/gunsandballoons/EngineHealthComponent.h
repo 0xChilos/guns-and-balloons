@@ -23,9 +23,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Balloon|Health")
 	void ApplyEngineDamage(float Amount);
 
-	/** Instant death (nemesis turrets). */
+	/** Instant death (nemesis turrets). Causer: who did it, for the death screen. */
 	UFUNCTION(BlueprintCallable, Category = "Balloon|Health")
-	void Kill();
+	void Kill(AActor* Causer = nullptr);
+
+	/** What destroyed the engine, as the death screen shows it ("SHOT DOWN BY A TOWER CANNON"),
+	 *  from the last hit's damage causer (a bullet counts as whoever fired it). */
+	UFUNCTION(BlueprintPure, Category = "Balloon|Health")
+	FText GetDeathCause() const;
 
 	UFUNCTION(BlueprintPure, Category = "Balloon|Health")
 	float GetHealth() const { return Health; }
@@ -53,7 +58,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Balloon|Health", meta = (ClampMin = "1"))
 	float MaxHealth = 100.f;
 
-	/** Until there is a game-over screen: show a message and reload the level. */
+	/** Fallback when the player controller is not an ABalloonPlayerController (which shows the death
+	 *  screen): show a message and reload the level. */
 	UPROPERTY(EditAnywhere, Category = "Balloon|Health")
 	bool bRestartLevelOnDeath = true;
 
@@ -67,5 +73,7 @@ private:
 	void Die();
 
 	float Health = 0.f;
+	/** The last thing that damaged the engine (a bullet, rocket, mine, flock, the airship). */
+	TWeakObjectPtr<AActor> LastCauser;
 	FTimerHandle RestartTimer;
 };

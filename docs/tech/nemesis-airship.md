@@ -23,7 +23,7 @@
 | `Source/gunsandballoons/NemesisPatrol.h/.cpp` | `ANemesisPatrol`: lava patrol group flying a spline route |
 | `Source/gunsandballoons/NemesisFx.h/.cpp` | Enemy effects on the guns' PS1 smoke (`AGunSmoke`): engine smoke, fire, rocket trail, explosions; `FStream` for continuous emitters |
 | `Source/gunsandballoons/NemesisPlaceholder.h` | Collision presets for placeholder cubes (`Shootable`, `Solid`, `None`) |
-| `Source/gunsandballoons/EngineHealthComponent.h/.cpp` | `UEngineHealthComponent`: balloon health (the engine), death, level restart |
+| `Source/gunsandballoons/EngineHealthComponent.h/.cpp` | `UEngineHealthComponent`: balloon health (the engine), death and its cause (for the death screen) |
 | `Content/Assets/Nemesis/` | `SM_Nemesis_Airship`, `SM_Nemesis_Turret`, `SM_Nemesis_Prop`, `M_Nemesis` + `MI_Nemesis_*`, pixel textures; sources `Nemesis.blend`, `*.fbx`, `Textures/*.png` |
 | `Content/Assets/Enemies/` | Enemy models: `CropDuster.blend`, `Bomber.blend`, `Mine.blend`, `Rocket.blend`; `export_enemies.py` writes one FBX per part into `FBX/`, which the editor auto-imports to `/Game/Assets/Enemies/FBX` |
 | `Scripts/Editor/import_enemy_models.py` | Imports missing enemy FBXs, points every material slot at the shared `/Game/Assets/Nemesis/MI_Nemesis_*`, deletes the importer's duplicate materials |
@@ -97,7 +97,7 @@ All drawn with the teammates' `AGunSmoke` (blocky dithered PS1 puffs with air ph
 - **Mine:** explosion when it goes off (in place or after the parachute is shot).
 
 ## UEngineHealthComponent
-`ApplyEngineDamage`, `Kill`, `GetHealth`, `GetHealth01`, `IsDead`, delegates `OnHealthChanged(Health, Delta)`, `OnDestroyed`. It listens to the owner's `OnTakeAnyDamage`, so any `ApplyDamage` on the balloon lands here. On death: flight tick stops; with `bRestartLevelOnDeath` a red message is shown and the level reloads after `RestartDelay`.
+`ApplyEngineDamage`, `Kill`, `GetHealth`, `GetHealth01`, `IsDead`, delegates `OnHealthChanged(Health, Delta)`, `OnDestroyed`. It listens to the owner's `OnTakeAnyDamage`, so any `ApplyDamage` on the balloon lands here. It remembers the last damage causer; `GetDeathCause()` turns it into the death screen's text (a bullet counts as its owner; `Kill(Causer)` from the turrets passes the airship). On death: flight tick stops and `ABalloonPlayerController::ShowDeath` plays the death sequence and shows `ADeathScreen` / `UDeathScreenWidget` ([ui-menus](../features/ui-menus.md)); only without that controller does `bRestartLevelOnDeath` show a red message and reload after `RestartDelay`.
 
 ## Not done yet
 Lava pillars, sandstorms and other biome hazards (not enemies), radar registration (`BPC_RadarBlip` from `docs/Unreal_Prompt_3_RadarEnemies.md` does not exist in the project yet), real models/VFX/SFX for rocket, planes, mines and bullets engine damage decals.

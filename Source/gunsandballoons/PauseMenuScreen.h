@@ -41,6 +41,19 @@ private:
 };
 
 /**
+ * The death screen's panel (UDeathScreenWidget): the pause menu's panel with another menu and a
+ * masked, dithered material. Spawned by ABalloonPlayerController when the engine is destroyed.
+ */
+UCLASS()
+class GUNSANDBALLOONS_API ADeathScreen : public APauseMenuScreen
+{
+	GENERATED_BODY()
+
+public:
+	ADeathScreen();
+};
+
+/**
  * The small "[P] PAUSE" hint in the bottom-right corner during play (UPauseHintWidget), on the same
  * kind of filtered panel. Spawned by ABalloonPlayerController, hidden while the pause menu is open.
  * Takes no input: no collision, no pointer, and its picture is redrawn only a few times a second.

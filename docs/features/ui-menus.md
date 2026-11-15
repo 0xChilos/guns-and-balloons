@@ -1,6 +1,6 @@
 # UI, menus and the navigation panel
 
-> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game) · **Owner:** Rostik · **Updated:** 2026-11-15
+> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE) · **Owner:** Rostik · **Updated:** 2026-11-15
 
 ## Why
 As little non-diegetic interface as possible. During play, information comes from the gauges in the basket.
@@ -64,6 +64,24 @@ Esc (or P) pauses the game; the same key, or Return to Game, resumes it.
 | Layout | title at 230 px, items from 470 px (of 1080) | TitleTop, ListTop. TBD |
 | Fade-in | 0.25 s | TBD |
 | Keys | Esc, P | `ABalloonPlayerController` PauseKeys. TBD |
+
+## Death screen
+Shown when the engine is destroyed (`UEngineHealthComponent`: enemy hits, the airship's turrets). Team decision 2026-11-15: of three drafts (dark red smoke, blackout, silent-film title card) the title card was picked.
+- **Death sequence:** the stove goes up in a big blast and the world runs at 0.3 speed for 2 s; the hands stop, the pause hint disappears, P/Esc do nothing. Then the world pauses under the screen.
+- **Screen:** a silent-film title card over the frozen game, which is washed in sepia with film grain and dark corners; the grain jumps ~6 times a second (was 12); the card itself stays steady, without flicker (2026-11-15). A double line border around a dark field holds three things, all in English:
+  - the title **ENGINE DESTROYED**;
+  - what destroyed the engine, from the last hit: SHOT DOWN BY A TOWER CANNON, SHOT DOWN BY A CROP DUSTER, HIT BY THE AIRSHIP'S ROCKET, BLOWN UP BY A PARACHUTE MINE, HIT BY AN AA MISSILE, BROUGHT DOWN BY A FLOCK OF BIRDS, CAUGHT BY THE NEMESIS AIRSHIP (its turrets), otherwise THE ENGINE GAVE OUT;
+  - one row, **TRY AGAIN**, which restarts the level. It takes a click only after 1 s, so panicked clicking from the fight can't press it.
+- Same font, rows, hover, sounds and pixel cursor as the other menus; mouse only. The panel is masked and dithered (PS1 stipple instead of soft transparency).
+- No run statistics (decided 2026-11-15).
+- **Test level:** `/Game/Scenes/DeathScreen_Test` (built by `Scripts/Editor/create_death_screen_test_level.py` from Enemies_Test): an `ADeathScreenPreview` plays the death 6 s after Play (`Delay`, `Cause`), and TRY AGAIN restarts the level, which shows it again. In any gameplay level the console command `DeathScreen` does the same.
+
+| Parameter | Value | Note |
+| --- | --- | --- |
+| Slow motion | 2 s at 0.3 speed | `ABalloonPlayerController` DeathSlowMoTime, DeathTimeDilation. TBD |
+| Blast | `NemesisFx::FineExplosion` × 2.5 at the stove | TBD |
+| Click delay | 1 s | `UDeathScreenWidget` InputDelay. TBD |
+| Film | grain 0.18, 6 frames/s, sepia wash | GrainOpacity, FilmFrameRate, SepiaColor. TBD |
 
 ## Navigation panel (in the basket)
 The panel in front of the player, through which the [balloon is controlled](balloon-controls.md).

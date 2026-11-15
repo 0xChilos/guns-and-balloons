@@ -30,7 +30,9 @@ enum class EMainMenuAction : uint8
 	/** Pause menu: close it and unpause. */
 	Resume,
 	/** Pause menu: open MainMenuLevel; the run is lost. */
-	QuitToMenu
+	QuitToMenu,
+	/** Death screen: restart the current level. */
+	Retry
 };
 
 /** One row of the main menu. */

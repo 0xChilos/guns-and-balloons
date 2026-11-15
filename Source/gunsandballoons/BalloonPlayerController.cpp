@@ -2,7 +2,12 @@
 
 #include "Components/InputComponent.h"
 #include "FirstPersonCameraPawn.h"
+#include "DeathScreenWidget.h"
+#include "EngineHealthComponent.h"
 #include "GameFramework/HUD.h"
+#include "Kismet/GameplayStatics.h"
+#include "NemesisFx.h"
+#include "NemesisTargetSubsystem.h"
 #include "PauseMenuScreen.h"
 #include "TimerManager.h"
 
@@ -65,6 +70,7 @@ void ABalloonPlayerController::UseMenuInput()
 
 void ABalloonPlayerController::TogglePause()
 {
+	if (bDead) return; // no pause over the death sequence or the death screen
 	if (PauseMenu)
 	{
 		ResumeGame();
@@ -82,27 +88,7 @@ void ABalloonPlayerController::PauseGame()
 		return;
 	}
 
-	UseMenuInput();
-	// The menu is a panel in the scene, not Slate on the viewport: input stays with this controller,
-	// which forwards LMB to the panel's pointer. The menu draws its own cursor, so the system one is hidden.
-	FInputModeGameAndUI Mode;
-	Mode.SetHideCursorDuringCapture(false);
-	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
-	SetInputMode(Mode);
-	DefaultMouseCursor = EMouseCursor::None;
-	CurrentMouseCursor = EMouseCursor::None;
-	int32 ViewWidth = 0, ViewHeight = 0;
-	GetViewportSize(ViewWidth, ViewHeight);
-	SetMouseLocation(ViewWidth / 2, ViewHeight / 2);
-
-	if (MyHUD)
-	{
-		MyHUD->bShowHUD = false;
-	}
-	if (PauseHint)
-	{
-		PauseHint->SetActorHiddenInGame(true);
-	}
+	EnterPanelMenuMode();
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
@@ -142,18 +128,97 @@ void ABalloonPlayerController::ResumeGame()
 	UseGameplayInput();
 }
 
+void ABalloonPlayerController::EnterPanelMenuMode()
+{
+	UseMenuInput();
+	// The menu is a panel in the scene, not Slate on the viewport: input stays with this controller,
+	// which forwards LMB to the panel's pointer. The menu draws its own cursor, so the system one is hidden.
+	FInputModeGameAndUI Mode;
+	Mode.SetHideCursorDuringCapture(false);
+	Mode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
+	SetInputMode(Mode);
+	DefaultMouseCursor = EMouseCursor::None;
+	CurrentMouseCursor = EMouseCursor::None;
+	int32 ViewWidth = 0, ViewHeight = 0;
+	GetViewportSize(ViewWidth, ViewHeight);
+	SetMouseLocation(ViewWidth / 2, ViewHeight / 2);
+
+	if (MyHUD)
+	{
+		MyHUD->bShowHUD = false;
+	}
+	if (PauseHint)
+	{
+		PauseHint->SetActorHiddenInGame(true);
+	}
+}
+
+void ABalloonPlayerController::ShowDeath(const FText& Cause)
+{
+	if (bDead || !IsLocalController()) return;
+	bDead = true;
+	DeathCause = Cause;
+	UE_LOG(LogTemp, Log, TEXT("Death: %s"), *Cause.ToString());
+	if (PauseMenu) ResumeGame();
+
+	// The hands stop; the pause hint goes away.
+	bGameplayInputEnabled = false;
+	if (AFirstPersonCameraPawn* PlayerPawn = Cast<AFirstPersonCameraPawn>(GetPawn()))
+	{
+		PlayerPawn->ReleaseGameplayInput();
+	}
+	if (PauseHint) PauseHint->SetActorHiddenInGame(true);
+
+	// The stove goes up in a big blast and the world slows down for a moment.
+	if (UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this))
+	{
+		if (T->GetBalloon()) NemesisFx::FineExplosion(GetWorld(), T->GetBasketLocation() + FVector(0.f, 0.f, 120.f), 2.5f);
+	}
+	UGameplayStatics::SetGlobalTimeDilation(this, DeathTimeDilation);
+	// Timers run on dilated time.
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &ABalloonPlayerController::OpenDeathScreen,
+		FMath::Max(0.01f, DeathSlowMoTime * DeathTimeDilation), false);
+}
+
+void ABalloonPlayerController::OpenDeathScreen()
+{
+	UGameplayStatics::SetGlobalTimeDilation(this, 1.f);
+	if (DeathMenu)
+	{
+		DeathMenu->Destroy();
+		DeathMenu = nullptr;
+	}
+	SetPause(true);
+	EnterPanelMenuMode();
+
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	DeathMenu = GetWorld()->SpawnActor<ADeathScreen>(ADeathScreen::StaticClass(), FTransform::Identity, Params);
+}
+
+void ABalloonPlayerController::DeathScreen()
+{
+	if (bDead) return;
+	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+	UEngineHealthComponent* Health = T ? T->GetHealth() : nullptr;
+	const FText Cause = Health && Health->IsDead() ? Health->GetDeathCause()
+		: NSLOCTEXT("DeathScreen", "PreviewCause", "SHOT DOWN BY A TOWER CANNON");
+	ShowDeath(Cause);
+}
+
 void ABalloonPlayerController::PausePointerPressed()
 {
-	if (PauseMenu)
+	if (AMainMenuScreen* Menu = PauseMenu ? static_cast<AMainMenuScreen*>(PauseMenu) : static_cast<AMainMenuScreen*>(DeathMenu))
 	{
-		PauseMenu->PressPointer();
+		Menu->PressPointer();
 	}
 }
 
 void ABalloonPlayerController::PausePointerReleased()
 {
-	if (PauseMenu)
+	if (AMainMenuScreen* Menu = PauseMenu ? static_cast<AMainMenuScreen*>(PauseMenu) : static_cast<AMainMenuScreen*>(DeathMenu))
 	{
-		PauseMenu->ReleasePointer();
+		Menu->ReleasePointer();
 	}
 }
