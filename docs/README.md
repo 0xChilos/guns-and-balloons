@@ -31,6 +31,9 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Sokin |
 | [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses), FBX take split and import | TBD |
 | [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, the single Pawn and interaction routing | Sokin |
+| [tech/level-generation.md](tech/level-generation.md) | Technical reference for agents: level generator pipeline, API, events, border proxies, interaction with the balloon | TBD |
+| [tech/BalloonLevel/STATUS.md](tech/BalloonLevel/STATUS.md) | Level generation implementation status vs spec, validation results, known defects | TBD |
+| [tech/BalloonLevel/HANDOFF.md](tech/BalloonLevel/HANDOFF.md) | Procedural level generation: M6 handoff, verification and implementation limits | TBD |
 | [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Rostik |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Sokin |
 | [tech/nemesis-airship.md](tech/nemesis-airship.md) | Technical reference for agents: nemesis airship, turrets, rockets, biome enemies, engine health | Vano |

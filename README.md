@@ -15,3 +15,30 @@
 ## Documentation
 
 Game design is in [docs/](docs/README.md). Instructions for AI agents are in [AGENTS.md](AGENTS.md).
+
+## Level generation sandbox
+
+Open `/Game/Scenes/LevelGeneration_Test` and press Play. The balloon carries the
+auto-possessed first-person pawn. Click the viewport to capture keyboard input:
+W/S change target speed per press; hold A/D to turn; use the mouse to look.
+The map has lighting and a large ground reference, with the old flight-test
+obstacles removed to leave space for generation experiments. It does not include
+a level generator yet. The original `BalloonFlight_Test` is unchanged.
+
+`Scripts/Editor/create_level_generation_test.py` creates and checks this map in
+Unreal Python; it refuses to overwrite an existing sandbox.
+
+## Native procedural planner (M4)
+
+The C++ BalloonLevel generator now plans the biome catalog and six placement rules,
+with independent optional obstacle/enemy budgets and deterministic Actor/HISM
+**descriptors**. It does not yet realize content or prove a safe flight route.
+Authoring details: [catalog and rules](Content/BalloonLevel/Rules/README.md).
+Build/test evidence and next milestone: [handoff](docs/tech/BalloonLevel/HANDOFF.md).
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`
+for the isolated UE 5.9 build and M1–M4 automation. Full project integration is blocked
+by existing merge markers in `FirstPersonCameraPawn.h`.
+
+M4 was re-verified on 2026-11-15: clean isolated compilation and all four M1–M4
+automation tests passed. The full-project build reproduced the Pawn header blocker.
+See the handoff for current report and log paths. Stop before M5.
