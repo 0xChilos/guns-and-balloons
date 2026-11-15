@@ -10,7 +10,7 @@ levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 assert not editor.get_game_world(), 'Stop PIE before configuring generation'
 assert editor.get_editor_world().get_path_name() == (
-    '/Game/Scenes/LevelGeneration_Test.LevelGeneration_Test'), 'Open LevelGeneration_Test first'
+    '/Game/Scenes/MainLevel.MainLevel'), 'Open MainLevel first'
 generators = [a for a in actors.get_all_level_actors()
               if isinstance(a, unreal.BalloonLevelGenerator)]
 assert len(generators) == 1

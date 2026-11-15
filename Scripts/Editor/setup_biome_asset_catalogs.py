@@ -12,7 +12,7 @@ editor = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
 assert not editor.get_game_world(), 'Stop PIE before configuring catalogs'
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 world = editor.get_editor_world()
-assert world and world.get_path_name() == '/Game/Scenes/LevelGeneration_Test.LevelGeneration_Test'
+assert world and world.get_path_name() == '/Game/Scenes/MainLevel.MainLevel'
 generator_class = unreal.load_class(None, '/Script/gunsandballoons.BalloonLevelGenerator')
 generators = unreal.GameplayStatics.get_all_actors_of_class(world, generator_class)
 assert len(generators) == 1

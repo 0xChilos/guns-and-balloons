@@ -12,7 +12,7 @@ assert hasattr(unreal, 'BalloonLevelGenerator'), (
 
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+assert levels.load_level('/Game/Scenes/MainLevel')
 balloons = [a for a in actors.get_all_level_actors()
             if a.get_component_by_class(unreal.BalloonFlightComponent)]
 assert len(balloons) == 1, 'Expected the single BalloonFlight_Test-derived balloon'

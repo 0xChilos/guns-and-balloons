@@ -5,8 +5,8 @@ import unreal
 
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 editor_world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
-if not editor_world or editor_world.get_path_name() != '/Game/Scenes/LevelGeneration_Test.LevelGeneration_Test':
-    assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+if not editor_world or editor_world.get_path_name() != '/Game/Scenes/MainLevel.MainLevel':
+    assert levels.load_level('/Game/Scenes/MainLevel')
 state = {'start': time.monotonic()}
 
 
