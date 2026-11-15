@@ -165,7 +165,7 @@ protected:
 	TSubclassOf<ANemesisRocket> RocketClass;
 
 	UPROPERTY(EditAnywhere, Category = "Nemesis|Rockets", meta = (ClampMin = "0"))
-	float RocketCooldown = 7.f;
+	float RocketCooldown = 10.f; // team decision 2026-11-15 (was 7 s). TBD
 
 	UPROPERTY(EditAnywhere, Category = "Nemesis|Rockets", meta = (ClampMin = "0"))
 	int32 MaxRockets = 2;

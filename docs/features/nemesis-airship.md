@@ -31,17 +31,17 @@ Constant pressure that drives the player forward. The distance to the airship is
 Planes don't change altitude. Enemies shoot straight at the basket, with no correction for bullet drop. Biome enemies (tower cannon, beacon, birds, patrols, AA gun) are described in [biomes.md](biomes.md).
 
 ## Damage to the engine
-The engine has **100 HP**. All values are prototype values (TBD).
+The engine has **100 HP**. Values from the team's damage table (2026-11-15), in the code; still prototype values (TBD), to be tuned after playtests.
 
 | Enemy | Damage per hit | How often | Max per cycle | Hits to kill |
 | --- | --- | --- | --- | --- |
 | Airship turrets | Instant death | When the basket is within 30 m of the airship | — | — |
-| Rocket | 25 + the balloon slows by 20% for 3 s | One every 7 s, at most 2 in the air | 25 | 4 |
-| Parachute mine (bomber) | 30, the same anywhere within a 5 m radius | One every 7–10 s | 30 | 4 |
+| Rocket | 25 + the balloon slows by 20% for 3 s | One every 10 s, at most 2 in the air | 25 | 4 |
+| Parachute mine (bomber) | 30, the same anywhere within a 4 m radius | One every 7–10 s | 30 | 4 |
 | Bomber | No direct damage, only through mines | — | — | — |
 | Crop duster (also lava patrols) | 3 per bullet | A burst of 6 every 4 s (0.5 s warning before each burst) | 18 per burst | 34 bullets, ≈ 6 full bursts |
-| Tower cannon (desert) | 12 | One shell every 6 s (aims 2 s, reloads 4 s) | 12 | 9 |
-| AA gun (all biomes) | 50 per homing missile | One missile at a time, the next 4 s after the last is gone (1 s warm-up before the first); only within its 25 m radius, the missile blows up harmlessly when the balloon leaves it | 50 | 2 missiles |
+| Tower cannon (desert) | 12 | One shell every 5 s (aims 2 s, reloads 3 s) | 12 | 9 |
+| AA gun (all biomes) | 50 per homing missile | One missile at a time, the next 5 s after the last is gone (1 s warm-up before the first); only within its 25 m radius, the missile blows up harmlessly when the balloon leaves it | 50 | 2 missiles |
 | Bird flock (field) | 3 per bird; 0 once scared off | A bird is gone after it hits; one active flock at a time | 15 per flock | ≈ 7 flocks |
 | Beacon (desert) | None | Calls a pair of crop dusters (at least one) when it spots the balloon | — | — |
 
@@ -54,10 +54,10 @@ Bullets and shells (crop duster, tower cannon) count only if they pass within 1.
 | Turret / warning distance | 30 m / 50 m | Prototype, from the airship's nose to the basket |
 | D1 / D2 / D3 | 30–100 m / 100–220 m / > 220 m | Prototype |
 | Rocket: speed, damage, slowdown | 25 m/s, 25, −20% for 3 s | Prototype |
-| Rockets: cooldown / limit | 7 s / 2 | Prototype |
+| Rockets: cooldown / limit | 10 s / 2 | Prototype (was 7 s) |
 | Hits to shoot down a plane | Engine: 1 from any weapon. Fuselage: revolver 4, shotgun 3 (one shot = one hit), rifle 2 | Decision 2026-11-14 |
 | Mines in the air at once | 3 | Prototype |
-| Mine damage radius | 5 m | Prototype (was 8 m) |
+| Mine damage radius | 4 m | Prototype (was 8 m, then 5 m) |
 | Engine health | 100 | TBD, prototype |
 | Airship height above the balloon's trail | 15 m | Prototype |
 

@@ -118,7 +118,7 @@ protected:
 	float AimTime = 2.f;
 
 	UPROPERTY(EditAnywhere, Category = "Tower", meta = (ClampMin = "0"))
-	float ReloadTime = 4.f;
+	float ReloadTime = 3.f; // with AimTime: one shot every 5 s (team damage table 2026-11-15). TBD
 
 	/** Cannon turn speed, degrees/s. */
 	UPROPERTY(EditAnywhere, Category = "Tower", meta = (ClampMin = "0"))

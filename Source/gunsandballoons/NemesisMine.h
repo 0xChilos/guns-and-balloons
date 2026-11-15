@@ -52,7 +52,7 @@ protected:
 
 	/** Flat damage inside, nothing outside; also the red glow radius. cm */
 	UPROPERTY(EditAnywhere, Category = "Mine", meta = (ClampMin = "0"))
-	float Radius = 500.f; // 8 m was too big (playtest 2026-11-15). TBD
+	float Radius = 400.f; // team damage table 2026-11-15 (was 8 m, then 5 m). TBD
 
 	/** The balloon this close sets it off. cm */
 	UPROPERTY(EditAnywhere, Category = "Mine", meta = (ClampMin = "0"))
