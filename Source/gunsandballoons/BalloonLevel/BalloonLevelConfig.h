@@ -72,6 +72,9 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool SceneryEnabled = true;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool ObstaclesEnabled = false;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool EnemiesEnabled = false;
+ /** Start-option multipliers, applied to placement targets (including exact budgets). */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(ClampMin="0", ClampMax="10")) float EnemyDensity = 1.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(ClampMin="0", ClampMax="10")) float ObstacleDensity = 1.f;
  /** -1 retains row density; override replaces total budget, allocated by relative row density. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 ObstacleExactCount = -1;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 EnemyExactCount = -1;

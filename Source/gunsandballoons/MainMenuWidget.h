@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Fonts/SlateFontInfo.h"
 #include "GameOptions.h"
+#include "BalloonLevel/BalloonLevelStartOptions.h"
 #include "MainMenuWidget.generated.h"
 
 class UAudioComponent;
@@ -16,6 +17,9 @@ class UTexture2D;
 class UVerticalBox;
 class UWidget;
 class UWidgetSwitcher;
+class UComboBoxString;
+class USpinBox;
+class USizeBox;
 
 /** What a main menu item does when clicked. */
 UENUM(BlueprintType)
@@ -101,7 +105,8 @@ enum class EMainMenuRowKind : uint8
 {
 	Item,
 	Back,
-	Toggle
+	Toggle,
+ StartLevel
 };
 
 /** UButton::OnClicked has no parameters, so each row's button reports through one of these. */
@@ -155,6 +160,8 @@ public:
 	/** Runs the action of row Index (as a click on it does). */
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void ActivateItem(int32 Index);
+ UFUNCTION(BlueprintCallable, Category="Menu") void StartConfiguredLevel();
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Menu|Level Start") FBalloonLevelStartOptions LevelStartOptions;
 
 	/** Leaves a Credits/Options page for the item list. */
 	UFUNCTION(BlueprintCallable, Category = "Menu")
@@ -399,6 +406,16 @@ protected:
 	float OpenTime = 0.f;
 
 private:
+ void BuildLevelStartPage();
+ void ShowLevelStartPage();
+ UFUNCTION() UWidget* MakeLevelChoiceText(FString Value);
+ UPROPERTY(Transient) TObjectPtr<UComboBoxString> BiomeChoice;
+ UPROPERTY(Transient) TObjectPtr<UComboBoxString> CycleChoice;
+ UPROPERTY(Transient) TArray<TObjectPtr<USpinBox>> LevelNumbers;
+ UPROPERTY(Transient) TObjectPtr<UTextBlock> LevelStartError;
+ UPROPERTY(Transient) TObjectPtr<USizeBox> PageWidth;
+ FRow StartLevelRow;
+ FRow LevelBackRow;
 	UVerticalBox* MakePage(const FName& Name, UTextBlock*& OutTitle);
 	void ShowOptions();
 	void RefreshToggleValue(int32 Index);

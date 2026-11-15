@@ -10,7 +10,7 @@
 
 void ABalloonLevelGenerator::SpawnLevelEnemies()
 {
- if (!SpawnEnemies || !ActiveConfig || !GetWorld() || Plan.LengthCm <= 0.) return;
+ if (!SpawnEnemies || !ActiveConfig || ActiveConfig->EnemyDensity <= 0.f || !GetWorld() || Plan.LengthCm <= 0.) return;
  FRandomStream Random(Plan.Seed ^ 0x454E454D);
  auto Spawn = [&](UClass* Class, const FVector& Position, const FRotator& Rotation) -> AActor*
  {
@@ -36,7 +36,7 @@ void ABalloonLevelGenerator::SpawnLevelEnemies()
  };
  auto AlongRoute = [&](UClass* Class, int32 RequestedCount, bool Edge, bool Ground)
  {
-  const int32 Count = FMath::Clamp(RequestedCount, 0, 100);
+  const int32 Count = FMath::Clamp(FMath::RoundToInt(RequestedCount * ActiveConfig->EnemyDensity), 0, 100);
   const double Clearance = FMath::Max(0.f, EnemyStartClearanceMeters) * 100.;
   if (Clearance >= Plan.LengthCm) return;
   for (int32 Index = 0; Index < Count; ++Index)
@@ -81,7 +81,7 @@ void ABalloonLevelGenerator::SpawnLevelEnemies()
   for (TActorIterator<ANemesisAirship> It(GetWorld()); It; ++It) { HasAirship = true; break; }
   if (!HasAirship)
    Spawn(ANemesisAirship::StaticClass(), Plan.Start.GetLocation() - Plan.Start.GetRotation().GetForwardVector() *
-       FMath::Max(0.f, AirshipStartDistanceMeters) * 100. + FVector(0., 0., AirshipHeightOffsetMeters * 100.), Plan.Start.Rotator());
+       FMath::Max(0.f, UseStartOptions ? StartOptions.DistanceToNemesis : AirshipStartDistanceMeters) * 100. + FVector(0., 0., AirshipHeightOffsetMeters * 100.), Plan.Start.Rotator());
   // An authored border class already supplies edge enemies; do not double-populate the edges.
   if (ActiveConfig->BorderActorClass.IsNull() || Plan.Borders.IsEmpty()) AlongRoute(ANemesisFlak::StaticClass(), EdgeAACount, true, false);
  }

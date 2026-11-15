@@ -3,6 +3,8 @@
 bool UBalloonLevelConfig::Validate(TArray<FString>& Errors) const
 {
 	const int32 Before = Errors.Num();
+ for (float Value : {EnemyDensity, ObstacleDensity})
+  if (!FMath::IsFinite(Value) || Value < 0.f || Value > 10.f) { Errors.Add(TEXT("Placement densities must be finite and in [0,10]")); break; }
  if (TerrainMode != EBalloonTerrainMode::Flat && TerrainMode != EBalloonTerrainMode::WorldCollision && TerrainMode != EBalloonTerrainMode::Generated) Errors.Add(TEXT("Invalid TerrainMode"));
  if (!FMath::IsFinite(TerrainHeightVariationMeters) || TerrainHeightVariationMeters < 0.f ||
      !FMath::IsFinite(TerrainWavelengthMeters) || TerrainWavelengthMeters < 1.f ||
