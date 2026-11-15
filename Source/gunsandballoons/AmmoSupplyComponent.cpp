@@ -3,6 +3,22 @@
 #include "GameFramework/Pawn.h"
 #include "GunComponent.h"
 
+bool UAmmoSupplyComponent::AcceptsHit(const FHitResult& Hit) const
+{
+	return HitBones.IsEmpty() || (Hit.GetActor() == GetOwner() && HitBones.Contains(Hit.BoneName));
+}
+
+UAmmoSupplyComponent* UAmmoSupplyComponent::FindForHit(const FHitResult& Hit)
+{
+	// The hit actor itself, or whoever owns it (e.g. an AInteractSwap owns the meshes it swaps).
+	for (AActor* Actor = Hit.GetActor(); Actor; Actor = Actor->GetOwner())
+	{
+		UAmmoSupplyComponent* Supply = Actor->FindComponentByClass<UAmmoSupplyComponent>();
+		if (Supply && Supply->AcceptsHit(Hit)) return Supply;
+	}
+	return nullptr;
+}
+
 bool UAmmoSupplyComponent::GiveRound(APawn* InstigatorPawn)
 {
 	if (!HasRounds() || !InstigatorPawn)
