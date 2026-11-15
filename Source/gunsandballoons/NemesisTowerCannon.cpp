@@ -13,8 +13,8 @@
 
 namespace
 {
-	constexpr float BarrelLength = 300.f;
-	constexpr float PlatformHeight = 40.f;
+	constexpr float CannonBarrelLength = 300.f;
+	constexpr float CannonPlatformHeight = 40.f;
 }
 
 ANemesisTowerCannon::ANemesisTowerCannon()
@@ -43,7 +43,7 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 	Platform->SetupAttachment(Root);
 	Platform->SetStaticMesh(Cube.Object);
 	Platform->SetMaterial(0, Wood.Object);
-	Platform->SetRelativeScale3D(FVector(4.f, 4.f, PlatformHeight / 100.f));
+	Platform->SetRelativeScale3D(FVector(4.f, 4.f, CannonPlatformHeight / 100.f));
 	NemesisCollision::Solid(Platform);
 
 	CannonYaw = CreateDefaultSubobject<USceneComponent>(TEXT("CannonYaw"));
@@ -65,13 +65,13 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 	Barrel->SetupAttachment(CannonPitch);
 	Barrel->SetStaticMesh(Cube.Object);
 	Barrel->SetMaterial(0, Dark.Object);
-	Barrel->SetRelativeLocation(FVector(BarrelLength * 0.4f, 0.f, 0.f));
-	Barrel->SetRelativeScale3D(FVector(BarrelLength / 100.f, 0.45f, 0.45f));
+	Barrel->SetRelativeLocation(FVector(CannonBarrelLength * 0.4f, 0.f, 0.f));
+	Barrel->SetRelativeScale3D(FVector(CannonBarrelLength / 100.f, 0.45f, 0.45f));
 	NemesisCollision::None(Barrel);
 
 	MuzzleGlow = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleGlow"));
 	MuzzleGlow->SetupAttachment(CannonPitch);
-	MuzzleGlow->SetRelativeLocation(FVector(BarrelLength * 0.9f + 20.f, 0.f, 0.f));
+	MuzzleGlow->SetRelativeLocation(FVector(CannonBarrelLength * 0.9f + 20.f, 0.f, 0.f));
 	MuzzleGlow->SetLightColor(FLinearColor(1.f, 0.45f, 0.1f));
 	MuzzleGlow->SetIntensity(400000.f);
 	MuzzleGlow->SetAttenuationRadius(2500.f);
@@ -97,8 +97,8 @@ void ANemesisTowerCannon::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
 	Tower->SetRelativeScale3D(FVector(3.f, 3.f, TowerHeight / 100.f));
-	Platform->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + PlatformHeight * 0.5f));
-	const float Top = TowerHeight + PlatformHeight;
+	Platform->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + CannonPlatformHeight * 0.5f));
+	const float Top = TowerHeight + CannonPlatformHeight;
 	CannonYaw->SetRelativeLocation(FVector(0.f, 0.f, Top));
 	const FVector TankAt(-130.f, 130.f, Top + 90.f); // back-left corner; the cylinder pivot is its centre
 	FuelTank->SetRelativeLocation(TankAt);
@@ -188,7 +188,7 @@ void ANemesisTowerCannon::Tick(float DeltaSeconds)
 void ANemesisTowerCannon::Fire(const FVector& Basket)
 {
 	if (!ShellClass) return;
-	const FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (BarrelLength * 0.9f);
+	const FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (CannonBarrelLength * 0.9f);
 	const FVector Dir = (Basket - Muzzle).GetSafeNormal(); // straight at the basket, no drop
 	FActorSpawnParameters Params;
 	Params.Owner = this;
