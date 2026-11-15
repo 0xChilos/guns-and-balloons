@@ -22,6 +22,8 @@
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
+#include "Engine/GameInstance.h"
+#include "Engine/DataTable.h"
 
 ABalloonLevelGenerator::ABalloonLevelGenerator()
 {
@@ -147,6 +149,9 @@ void ABalloonLevelGenerator::EndPlay(const EEndPlayReason::Type Reason)
 void ABalloonLevelGenerator::BeginPlay()
 {
  Super::BeginPlay();
+ if (auto* Instance = GetGameInstance())
+  if (auto* Launch = Instance->GetSubsystem<UBalloonLevelLaunchSubsystem>())
+   if (Launch->Consume(StartOptions)) { UseStartOptions = true; GenerationMode = EBalloonGenerationMode::OnLevelStart; }
  if (GenerationMode == EBalloonGenerationMode::OnLevelStart)
  {
   GenerateLevel();
@@ -199,6 +204,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
   for (TActorIterator<ABalloonEnvironmentPresetController> It(GetWorld()); It; ++It)
   {
    if (It->Generator != this) continue;
+   if (UseStartOptions) It->BiomeFog.FindOrAdd(ActiveConfig->BiomeId).Density = StartOptions.FogDensity;
    if (!It->ApplyEnvironment(ActiveConfig->BiomeId, ActiveConfig->Preset))
    {
     Diagnostics.Add(TEXT("Environment application failed; inspect the bound environment controller diagnostics"));
@@ -224,7 +230,16 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
  Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); ActiveConfig=nullptr; Spline->ClearSplinePoints();
 	Status = EBalloonLevelGenerationStatus::Planning;
  UBalloonLevelConfig* SelectedConfig = LevelConfig;
- if (BiomeSelection == EBalloonBiomeSelection::Random)
+ if (UseStartOptions)
+ {
+  if (!StartOptions.Validate(Diagnostics)) { Status = EBalloonLevelGenerationStatus::InvalidConfig; return false; }
+  if (!SelectedConfig || SelectedConfig->BiomeId != StartOptions.Biome)
+   for (const auto& Config : RandomBiomeConfigs)
+    if (IsValid(Config) && Config->BiomeId == StartOptions.Biome) { SelectedConfig = Config; break; }
+  // Direct level setup also works without the deleted preview fixture.
+  if (!SelectedConfig) SelectedConfig = NewObject<UBalloonLevelConfig>(this);
+ }
+ else if (BiomeSelection == EBalloonBiomeSelection::Random)
  {
   TArray<UBalloonLevelConfig*> Choices;
   for (const auto& Entry : RandomBiomeConfigs)
@@ -261,6 +276,27 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   ActiveConfig->TerrainMaterial = TerrainMaterial;
  }
  if (OverrideLightingPreset) ActiveConfig->Preset = LightingPreset;
+ if (UseStartOptions)
+ {
+  const bool ChangedBiome = ActiveConfig->BiomeId != StartOptions.Biome;
+  ActiveConfig->BiomeId = StartOptions.Biome;
+  ActiveConfig->Preset = StartOptions.Cycle;
+  ActiveConfig->FlightHeightMeters = StartOptions.FlightHeight;
+  ActiveConfig->BaseWidthMeters = ActiveConfig->MinWidthMeters = StartOptions.LevelWidth;
+  ActiveConfig->WidthProfile.GetRichCurve()->Reset();
+  ActiveConfig->EnemyDensity = StartOptions.EnemyDensity;
+  ActiveConfig->ObstacleDensity = StartOptions.ObstacleDensity;
+  ActiveConfig->EnemiesEnabled = SpawnEnemies && StartOptions.EnemyDensity > 0.f;
+  ActiveConfig->ObstaclesEnabled = StartOptions.ObstacleDensity > 0.f;
+  if (ChangedBiome || !ActiveConfig->BiomeAssetTable)
+   ActiveConfig->BiomeAssetTable = LoadObject<UDataTable>(nullptr, *FString::Printf(TEXT("/Game/BalloonLevel/Rules/DT_BalloonAssets_%s.DT_BalloonAssets_%s"), *StartOptions.Biome.ToString(), *StartOptions.Biome.ToString()));
+  if (!ActiveConfig->SharedAssetTable)
+   ActiveConfig->SharedAssetTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/BalloonLevel/Rules/DT_BalloonAssets_Shared.DT_BalloonAssets_Shared"));
+  if (ChangedBiome) ActiveConfig->TerrainMaterial.Reset();
+  if (ActiveConfig->BorderExactCount >= 0) ActiveConfig->BorderExactCount = FMath::Min(10000, FMath::RoundToInt(ActiveConfig->BorderExactCount * StartOptions.EnemyDensity));
+  else ActiveConfig->BorderDensityPerKm *= StartOptions.EnemyDensity;
+  if (StartOptions.EnemyDensity == 0.f) ActiveConfig->BorderActorClass.Reset();
+ }
  if (RandomizeSeed) ActiveConfig->Seed = FMath::Rand();
  Diagnostics.Add(FString::Printf(TEXT("Generation biome=%s seed=%d"), *ActiveConfig->BiomeId.ToString(), ActiveConfig->Seed));
 	FBalloonLevelPlan Candidate;
