@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
+#include "DeathScreenWidget.h"
 #include "PauseMenuWidget.h"
 
 APauseMenuScreen::APauseMenuScreen()
@@ -64,6 +65,14 @@ void APauseMenuScreen::AimPointer()
 		}
 	}
 	Pointer->SetCustomHitResult(Hit);
+}
+
+ADeathScreen::ADeathScreen()
+{
+	MenuClass = UDeathScreenWidget::StaticClass();
+	// Masked and dithered, so it writes depth and the filter's depth fog doesn't wash out its darks
+	// (Scripts/Editor/create_death_screen_material.py).
+	PanelMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/UI/DeathScreen/M_DeathScreenPanel.M_DeathScreenPanel")));
 }
 
 APauseHintScreen::APauseHintScreen()

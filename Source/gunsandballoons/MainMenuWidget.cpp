@@ -538,6 +538,10 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 			Player->ResumeGame();
 		}
 		break;
+	case EMainMenuAction::Retry:
+		// Deferred to the end of the frame like any level change, so it works from a paused world.
+		UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+		break;
 	case EMainMenuAction::QuitToMenu:
 		if (MainMenuLevel.IsNull())
 		{

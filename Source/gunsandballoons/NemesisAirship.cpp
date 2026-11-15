@@ -274,7 +274,7 @@ void ANemesisAirship::UpdateTurrets(float DeltaSeconds)
 		OnTurretsFired();
 		if (UEngineHealthComponent* H = Health.Get())
 		{
-			H->Kill();
+			H->Kill(this); // the turrets
 		}
 	}
 }
