@@ -15,6 +15,24 @@ enum class EBalloonLevelGenerationStatus : uint8
 UENUM(BlueprintType)
 enum class EBalloonLightingPreset : uint8 { Day, Night };
 
+UENUM(BlueprintType)
+enum class EBalloonBorderInfluencePolicy : uint8 { Blocked, Damaging, Pushback, VisualOnly };
+
+/** Stationary sphere; projected onto the fixed flight envelope for XY planning. All distances cm. */
+USTRUCT(BlueprintType)
+struct GUNSANDBALLOONS_API FBalloonBorderInfluence
+{
+ GENERATED_BODY()
+ UPROPERTY(BlueprintReadOnly) int32 InstanceId = 0;
+ UPROPERTY(BlueprintReadOnly) int32 SegmentId = 0;
+ UPROPERTY(BlueprintReadOnly) int32 Side = 1;
+ UPROPERTY(BlueprintReadOnly) float DistanceCm = 0.f;
+ UPROPERTY(BlueprintReadOnly) FVector Center = FVector::ZeroVector;
+ UPROPERTY(BlueprintReadOnly) float RadiusCm = 0.f;
+ UPROPERTY(BlueprintReadOnly) float IntrusionCm = 0.f;
+ UPROPERTY(BlueprintReadOnly) EBalloonBorderInfluencePolicy Policy = EBalloonBorderInfluencePolicy::Damaging;
+};
+
 /** Exact CSV/JSON contract. Technical placement metadata belongs outside this row. */
 USTRUCT(BlueprintType)
 struct GUNSANDBALLOONS_API FBalloonLevelAssetRow : public FTableRowBase
@@ -72,4 +90,9 @@ struct FBalloonLevelPlan
 	double MinWidthCm = 0.;
 	TArray<FBalloonLevelSegment> Segments;
 	TArray<FBalloonCatalogEntry> Catalog;
+ double BalloonRadiusCm = 0.;
+ double BalloonHalfHeightCm = 0.;
+ TArray<FBalloonBorderInfluence> Borders;
+ TArray<FVector> LeftBoundary;
+ TArray<FVector> RightBoundary;
 };

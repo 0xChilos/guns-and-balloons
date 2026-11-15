@@ -1,32 +1,31 @@
 # Balloon level generation handoff
 
-Updated: 2026-11-15. Current milestone: M2. Stop before M3. M1/M2 source implemented; final isolated UE build and both automation tests PASSED (2 tests). Eleven source/test copies verified byte-identical. See TEST_REPORT.md for commands and evidence. Full project integration remains blocked by existing FirstPersonCameraPawn.h merge markers (UHT line 335).
+Updated: 2026-11-15. Current milestone: M3. Stop before M4. M1/M2/M3 source implemented. Final clean UE build and M1/M2/M3 automation PASSED (3 tests, exit 0); all 16 source/test copies verified byte-identical. Details and intermediate failed attempts are recorded in TEST_REPORT.md. Full-project integration remains blocked by existing FirstPersonCameraPawn.h merge markers (UHT line 335).
 
 ## Build and scope
 
-Actual module/export: gunsandballoons / GUNSANDBALLOONS_API. Engine: UE 5.9.0, changelist 60351404, G:/UE/UE_5.9. Read specification v1.1 sections 5, 8 and M2. User requested M2 only. No Pawn movement, assets, collision configuration, hazards, route proof or realization changed. Fixed world Z is an authoring datum; queries use XY regardless of query Z. Ready means descriptors only, never a playable-level guarantee.
+Actual module/export: gunsandballoons / GUNSANDBALLOONS_API. Engine: UE 5.9.0, installed G:/UE/UE_5.9. Read supplied specification v1.1 section 6 and M3. User requested M3 only. No Pawn movement, native BP assets, pursuit AI, scenery realization or lighting changes. Ready still means descriptors, never a playable-level guarantee. No runtime radius API until M5/M6 safety transactions exist.
 
-## Files and public APIs
+## M3 files and APIs
 
-- Source/gunsandballoons/BalloonLevel/BalloonSplinePlanner.h/.cpp: pure Build, PositionAt, WidthAt, SegmentAt, NearestDistance and per-player FBalloonLevelProgress::Update.
-- BalloonLevelConfig.h/.cpp: MaxHeadingDegrees, MinimumTurningRadiusMeters, GeometrySampleMeters, MinWidthMeters, WidthProfile (FRuntimeFloatCurve), validation and allocation limits.
-- BalloonLevelTypes.h: cumulative centimeter sample distances, sampled widths, immutable rich-curve snapshot, length and horizontal Start/Finish transforms.
-- BalloonLevelGenerator.h/.cpp: GenerateLevel now builds M2; Blueprint GetNormalizedProgress (stateless full search), UpdateProgress(WorldPosition, Teleported), GetCurrentProgressCm, GetMaxReachedProgressCm, GetStartTransform, GetFinishTransform, GetWidthAtDistanceCm. GetPlan remains const C++ API.
-- Tests/BalloonLevelM2Test.cpp; M1Test retains original straight-plan checks and adjusts generator assertions for dense M2 sampling.
-- Scripts/Verify-BalloonLevelM2.ps1 copies exact feature sources and both tests to ignored Saved/M2Verification, builds and runs GunsAndBalloons.BalloonLevel with NullRHI.
+- BalloonLevelTypes.h: reflected FBalloonBorderInfluence, typed Blocked/Damaging/Pushback/VisualOnly policy; plan stores border descriptors, left/right sampled boundaries and envelope snapshot.
+- BalloonLevelConfig.h/.cpp: independent BordersEnabled, optional BorderExactCount (-1 density), BorderDensityPerKm, radii, intrusion fraction, spacing, overlap permission, policy, vertical center offset and horizontal/vertical balloon envelope dimensions. All prototype values need tuning; envelope defaults zero for geometry preview, not approved physical dimensions.
+- BalloonBorderPlanner.h/.cpp: pure Build, RightAt, ProjectedRadius, CrossSection and UnsafeWidth. Build consumes M2 geometry, creates stationary spheres with deterministic per-item Border/v1 streams, exact alternating side count, variable radii and bounded spacing rejection. Failure leaves no partial border descriptors. Combined-edge density, maximum 10000 count and 5000000 diagnostic pairs, otherwise explicit failure.
+- BalloonBorderThreat.h/.cpp: non-ticking Blueprintable sphere proxy, InitializeInfluence before BeginPlay only, GetInfluence, OnInfluenceInitialized and OnBalloonInfluenceEntered extension events. Blocked blocks Pawn/WorldDynamic; Damaging/Pushback overlap, VisualOnly disables collision. Actual balloon primitives use BlockAllDynamic and flight sweeps each primitive. Blueprint effect handler must filter overlaps to intended balloon. No damage numbers/pushback force invented. Generator does not spawn proxy actors yet (M8).
+- BalloonLevelGenerator: GenerateLevel integrates border planning; GetBorderInfluences and DrawBorderDebug(Duration). Debug draws sampled boundaries, world spheres, flight-plane projected discs and ID/side/radius/intrusion labels; no tick or global debug flush.
+- Tests/BalloonLevelM3Test.cpp and Scripts/Verify-BalloonLevelM3.ps1 provide source-isolated engine compilation and M1/M2/M3 automation.
+- API.md documents configuration, units, initialization lifecycle and geometry contracts. DESIGN_DECISIONS.md records M3 choices.
 
-## Geometry and progress contract
+## Geometry and safety
 
-Geometry/v1 seed is uint32(Seed) XOR 0x47454F31, independent of other subsystems. Smooth sinusoidal heading field sampled into the canonical linear USplineComponent. Exact chord arc length equals requested LengthMeters; segments partition cumulative arc distance, with [start,end) ownership except final inclusive. First edge matches StartTransform yaw. Pitch, roll, scale and transform Z never alter authored dimensions/flight height.
+Meters convert once into centimeter descriptors. Spheres intersect the fixed flight envelope Z slab; only the intersecting spherical slice becomes a horizontal influence disc. Horizontal balloon radius inflates this disc conservatively. VisualOnly is excluded from occupancy; every other policy is unsafe. Exact lateral line/disc intersections are clipped to current corridor width and unioned, so overlapping threats cannot double-count unsafe width. Curved borders use the local M2 polyline right vector and exact snapshotted width query.
 
-Max heading is limited to 45 degrees about the start heading; strict positive forward projection rules out centerline crossings and hairpins by construction. Heading derivative is bounded by authored minimum radius; sampling step is at most radius/20. This is a sampled smooth curve, not a continuously differentiable UE cubic spline; discrete turn bounds are tested. No rejection retries/fallback needed within this restricted path family. Ribbon overlap, actual collider clearance, terrain intersection, inertia/wind safety and start/finish clearance belong to M5, not M2. No collision safety claim.
+Per-item stream: uint32(seed) XOR 0x424F5231 XOR (uint32(index)*0x9E3779B9). Radius drawn once per item, longitudinal positions retried at most 128 times; sides alternate left-first. Same geometry/config produces the same descriptors; no catalog or geometry RNG is consumed. Overlap permission is explicit. Intrusion diagnostics are local fixed-height influence/corridor intersection without horizontal balloon inflation; UnsafeWidth accepts inflation explicitly. Sampled closures at geometry stations and threat centers are diagnostics only, not a connectivity proof.
 
-WidthAt(s) evaluates max(MinWidth, BaseWidth * snapshotted WidthProfile(s/Length)); empty curve means multiplier 1. SampleWidths are cached descriptors, not the authoritative width query. Bounds use a conservative global curve control-hull/extrapolation allowance, deliberately broader than individual segment widths. External curve edits after generation do not mutate the plan. All prototype geometry numbers require tuning with the actual balloon envelope.
+M5 must bind/tune the envelope against the actual multi-primitive balloon and validate world collision sweeps, safe start/finish, turning/inertia and horizontal reachability. Default zero envelope must never be accepted as a physical proof. Radius expansion/animation is intentionally unavailable until current-player-to-finish validation exists. Out-of-bounds consequences remain an existing design open question; M3 invents none.
 
-Call UpdateProgress for the balloon explicitly; the generator does not tick or take control of a Pawn. Each tracker stores CurrentS, monotonic MaxReachedS and previous edge. Normal updates search the previous logical segment and neighbors; pass Teleported=true for a global search after teleport/large discontinuity. First update searches globally. Current progress can decrease on backtracking; maximum cannot. Clear and regenerate reset generator progress; independent C++ trackers must be reset by their owner. No event triggers or finish completion side effects until later milestones.
+## Verification and remaining limits
 
-## Verification and limits
+See TEST_REPORT.md for commands, logs, final build/test results and failed intermediate attempts. Harness compiles exact feature copies; it cannot certify project asset integration. No BP subclass asset, visual PIE/debug inspection or profiling is claimed. Existing .claude/ and docs/temp/ untouched. No commit.
 
-Commands/results are in TEST_REPORT.md. Logs: Saved/Logs/M2-Build.log, M2-IsolatedBuild.log, M2-Automation.log; report Saved/M2Verification/TestReport. Isolation compiles exact source copies against UE but cannot certify project asset integration. No native config/BP assets or visual PIE checks were authored or claimed. Existing .claude/ and docs/temp/ untracked content left intact. No commits.
-
-Next milestone, only when requested: M3 border influence geometry, after reading its specification and resolving the full-project integration blocker. Preserve exact asset row schema, deterministic stream separation, fixed flight Z, fixed lighting and plan -> validate -> realize architecture. Actual horizontal route proof is required in M5 before any playable generation claim.
+Next milestone only when requested: M4 biome catalog and six placement rules, preserving exact row schema and independent RNG streams. Resolve the unrelated Pawn merge conflict for full-project integration. Full route proof remains M5; realization M8.

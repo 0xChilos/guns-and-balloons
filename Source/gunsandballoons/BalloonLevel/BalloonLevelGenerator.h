@@ -15,7 +15,7 @@ public:
 	ABalloonLevelGenerator();
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<UBalloonLevelConfig> LevelConfig;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<USplineComponent> Spline;
-	/** M2 succeeds at Ready (abstract geometry/catalog only), never Complete/playable. */
+	/** M3 succeeds at Ready (abstract geometry/catalog only), never Complete/playable. */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") bool GenerateLevel();
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") void ClearGeneratedLevel();
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") bool RegenerateLevel();
@@ -29,7 +29,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Balloon Level") FTransform GetStartTransform() const { return Plan.Start; }
 	UFUNCTION(BlueprintPure, Category="Balloon Level") FTransform GetFinishTransform() const { return Plan.Finish; }
 	UFUNCTION(BlueprintPure, Category="Balloon Level") float GetWidthAtDistanceCm(float DistanceCm) const { return BalloonSplinePlanning::WidthAt(Plan, DistanceCm); }
-	const FBalloonLevelPlan& GetPlan() const { return Plan; }
+	UFUNCTION(BlueprintPure, Category="Balloon Level") TArray<FBalloonBorderInfluence> GetBorderInfluences() const;
+ UFUNCTION(BlueprintCallable, Category="Balloon Level") void DrawBorderDebug(float Duration = 10.f) const;
+ const FBalloonLevelPlan& GetPlan() const { return Plan; }
 private:
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") EBalloonLevelGenerationStatus Status = EBalloonLevelGenerationStatus::NotStarted;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") TArray<FString> Diagnostics;

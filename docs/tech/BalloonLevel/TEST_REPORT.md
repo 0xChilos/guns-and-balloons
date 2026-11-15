@@ -65,3 +65,30 @@ Coverage: seed reproducibility/independence, metric arc length, fixed Z despite 
 Final result: PASSED. The final harness command exited 0. Build reported `Result: Succeeded` (local actions 88.43s); automation logged both `Result={Success} Name={M1}` and `Result={Success} Name={M2}` and `Automation Test Queue Empty 2 tests performed` at 2026-11-15 07:19:21 UTC. Byte comparison verified all eleven implementation/test files exactly match harness copies. Startup still reports the unrelated engine MCP listener port 8000 bind conflict; tests completed successfully.
 
 Final `git diff --check` passed. All four new code/test/script files also passed `git diff --no-index --check -- NUL <path>` with no whitespace diagnostics (exit 1 is the expected new-file diff status). Reviewed scoped diff and planner/test files; unrelated .claude/ and docs/temp/ remain untouched. No commit. M2 gate passed in isolation; main-project integration is BLOCKED, not claimed successful.
+
+
+# M3 verification ? 2026-11-15
+
+Scope: stationary border influence geometry, optional exact count/density, variable radii, spacing/overlap policy, fixed-height balloon envelope intersection, Blueprint proxy extension points and debug draw API. No actor realization or full route proof is claimed.
+
+Environment: installed UE 5.9.0 at G:/UE/UE_5.9, VS 14.44.35229, Windows SDK 10.0.26100.0. Full-project command:
+
+```powershell
+& G:/UE/UE_5.9/Engine/Build/BatchFiles/Build.bat gunsandballoonsEditor Win64 Development G:/UE/gunsandballoons/gunsandballoons.uproject -WaitMutex -NoHotReloadFromIDE -NoUBA -nocache -Log=G:/UE/gunsandballoons/Saved/Logs/M3-ProjectBuild.log
+```
+
+Result: FAILED, existing FirstPersonCameraPawn.h:335 UHT `Member variable declaration: Expected name`; existing committed merge markers remain at lines 37/91/221/324. No unrelated repair attempted. Full integration is blocked.
+
+Isolated verification:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM3.ps1 -EngineRoot G:/UE/UE_5.9
+```
+
+Harness copies exact feature source/test files, performs a clean `M3VerificationEditor Win64 Development -Rebuild -NoUBA -nocache` build, then runs UnrealEditor-Cmd with NullRHI, `Automation RunTests GunsAndBalloons.BalloonLevel` and `TestExit=Automation Test Queue Empty`. Final logs: Saved/Logs/M3-IsolatedBuild.log, M3-Automation.log. JSON report: Saved/M3Verification/TestReport/index.json. SHA256 comparisons verified all 16 feature/test files byte-identical to harness copies. No native Blueprint asset, visual PIE inspection or profiling claim.
+
+Intermediate attempts: direct script invocation was rejected by host execution policy; process-local Bypass works. Sandboxed UBT stalled before log creation and was stopped; approved engine/toolchain access reached compiler. First isolated build and original 3 tests passed. After header/config refinements, incremental build succeeded but one editor process exited during test discovery (-1073740791) and another at M1 startup (exit 1), without a test-result failure or useful fatal stack in the automation log. Logs preserved as M3-Automation-StartupFailure.log and M3-Automation-IncrementalFailure.log. A full clean build (M3-CleanBuild.log, 65.50s local actions) followed by automation passed all three tests at 07:30:35 UTC. Cause of incremental process exits is not established; harness now forces clean rebuild. Final run additionally verifies the actual balloon WorldDynamic collision response.
+
+Coverage: existing M1/M2 regressions; exact odd count and side balance, disabled/exact-zero/density modes, variable radius bounds, repeat seed and independent catalog/count streams, exact clipped intrusion, overlap union without double counting, radius expansion reducing horizontal safe width, balloon horizontal inflation, fixed-height slab/sphere overlap and vertical misses, VisualOnly exclusion, curved variable-width border placement, geometry independence, bounded impossible spacing and disallowed overlap failures, proxy initialization and four collision policies including actual balloon WorldDynamic response. Debug rendering is compiled but not visually inspected. Actual multi-primitive world sweeps, envelope tuning and connected route proof remain M5.
+
+Final result: PASSED. Final clean build reported Result: Succeeded (58.28s local actions); automation exited 0 and logged Result={Success} for M1, M2 and M3, with 3 tests performed at 2026-11-15 07:32:23 UTC. The final run includes the actual balloon WorldDynamic collision-channel regression. All 16 implementation/test files match harness copies. git diff --check and checks of all new source/script/API files reported no whitespace errors. M3 gate passes in isolation; full project integration remains BLOCKED by the unrelated Pawn conflict. Stop before M4.

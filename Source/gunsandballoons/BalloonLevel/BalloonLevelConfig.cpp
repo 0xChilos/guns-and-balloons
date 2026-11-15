@@ -3,6 +3,13 @@
 bool UBalloonLevelConfig::Validate(TArray<FString>& Errors) const
 {
 	const int32 Before = Errors.Num();
+ const float Nonnegative[] = {BorderDensityPerKm, BorderRadiusMinMeters, BorderRadiusMaxMeters, BorderMinSpacingMeters, BalloonRadiusMeters, BalloonHalfHeightMeters};
+ for (float Value : Nonnegative) if (!FMath::IsFinite(Value) || Value < 0.f) { Errors.Add(TEXT("Border density/radii/spacing/envelope must be finite and nonnegative")); break; }
+ if (BorderExactCount < -1 || BorderExactCount > 10000) Errors.Add(TEXT("BorderExactCount must be -1 or [0,10000]"));
+ if (BorderRadiusMinMeters <= 0.f || BorderRadiusMaxMeters < BorderRadiusMinMeters) Errors.Add(TEXT("Border radii must be positive and ordered"));
+ if (!FMath::IsFinite(BorderIntrusionFraction) || BorderIntrusionFraction < 0.f || BorderIntrusionFraction > 1.f) Errors.Add(TEXT("BorderIntrusionFraction must be [0,1]"));
+ if (!FMath::IsFinite(BorderHeightOffsetMeters)) Errors.Add(TEXT("BorderHeightOffsetMeters must be finite"));
+ if (static_cast<uint8>(BorderPolicy) > static_cast<uint8>(EBalloonBorderInfluencePolicy::VisualOnly)) Errors.Add(TEXT("Invalid BorderPolicy"));
 	if (!FMath::IsFinite(LengthMeters) || LengthMeters <= 0.f) Errors.Add(TEXT("LengthMeters must be finite and positive"));
 	if (!FMath::IsFinite(BaseWidthMeters) || BaseWidthMeters <= 0.f) Errors.Add(TEXT("BaseWidthMeters must be finite and positive"));
 	if (!FMath::IsFinite(SegmentTargetMeters) || SegmentTargetMeters <= 0.f) Errors.Add(TEXT("SegmentTargetMeters must be finite and positive"));

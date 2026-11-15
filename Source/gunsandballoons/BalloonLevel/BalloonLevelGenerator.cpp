@@ -1,5 +1,7 @@
 #include "BalloonLevelGenerator.h"
 #include "BalloonAssetCatalog.h"
+#include "BalloonBorderPlanner.h"
+#include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
 
 ABalloonLevelGenerator::ABalloonLevelGenerator()
@@ -43,7 +45,12 @@ bool ABalloonLevelGenerator::GenerateLevel()
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
 	}
-	Plan = MoveTemp(Candidate);
+	if (!BalloonBorderPlanning::Build(*LevelConfig, Candidate, Diagnostics))
+ {
+  Status = EBalloonLevelGenerationStatus::InsufficientSpace;
+  return false;
+ }
+ Plan = MoveTemp(Candidate);
 	for (const FVector& Point : Plan.SplineSamples)
 	{
 		const int32 Index = Spline->GetNumberOfSplinePoints();
@@ -52,7 +59,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
 	}
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
-	Diagnostics.Add(TEXT("M2 Ready: curved XY geometry/width/progress only; horizontal reachability is NOT validated and no gameplay content is realized."));
+	Diagnostics.Add(TEXT("M3 Ready: XY geometry and border descriptors only; horizontal reachability is NOT validated and no gameplay content is realized."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
 }
@@ -65,4 +72,28 @@ float ABalloonLevelGenerator::GetNormalizedProgress(const FVector& WorldPosition
 void ABalloonLevelGenerator::UpdateProgress(const FVector& WorldPosition, bool Teleported)
 {
  Progress.Update(Plan,WorldPosition,Teleported);
+}
+
+TArray<FBalloonBorderInfluence> ABalloonLevelGenerator::GetBorderInfluences() const { return Plan.Borders; }
+
+void ABalloonLevelGenerator::DrawBorderDebug(float Duration) const
+{
+ if(!GetWorld() || Plan.SplineSamples.Num()<2 || !FMath::IsFinite(Duration) || Duration<0.f) return;
+ for(int32 I=1;I<Plan.LeftBoundary.Num();++I)
+ {
+  DrawDebugLine(GetWorld(),Plan.LeftBoundary[I-1],Plan.LeftBoundary[I],FColor::Cyan,false,Duration);
+  DrawDebugLine(GetWorld(),Plan.RightBoundary[I-1],Plan.RightBoundary[I],FColor::Cyan,false,Duration);
+ }
+ for(const auto& T:Plan.Borders)
+ {
+  const double Radius=BalloonBorderPlanning::ProjectedRadius(T,Plan.Start.GetLocation().Z,Plan.BalloonHalfHeightCm);
+  const FColor Color=T.Policy==EBalloonBorderInfluencePolicy::VisualOnly?FColor::Silver:FColor::Red;
+  DrawDebugSphere(GetWorld(),T.Center,T.RadiusCm,24,Color,false,Duration);
+  if(Radius>=0.)
+  {
+   const FVector Center(T.Center.X,T.Center.Y,Plan.Start.GetLocation().Z);
+   DrawDebugCircle(GetWorld(),Center,Radius,48,Color,false,Duration,0,2.f,FVector::ForwardVector,FVector::RightVector,false);
+   DrawDebugString(GetWorld(),Center,FString::Printf(TEXT("Border %d side %d R=%.1fm intrusion=%.1fm"),T.InstanceId,T.Side,T.RadiusCm/100.,T.IntrusionCm/100.),nullptr,Color,Duration);
+  }
+ }
 }
