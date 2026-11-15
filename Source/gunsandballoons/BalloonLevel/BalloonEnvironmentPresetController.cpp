@@ -158,9 +158,8 @@ bool ABalloonEnvironmentPresetController::ApplyEnvironment(FName BiomeId, EBallo
 		for (int32 Slot = 0; Slot < FMath::Max(1, Mesh->GetNumMaterials()); ++Slot) Mesh->SetMaterial(Slot, GroundMaterial);
 	}
 	const FBalloonLightingPresetValues& Values = Preset == EBalloonLightingPreset::Day ? Day : Night;
-	if (SunActor && SunActor->GetComponent())
+	if (ULightComponent* Light = SunActor ? SunActor->GetLightComponent() : nullptr)
 	{
-		UDirectionalLightComponent* Light = SunActor->GetComponent();
 		if (!Play) { SunActor->Modify(); Light->Modify(); }
 		if (Play && Light->Mobility != EComponentMobility::Movable)
 			Diagnostics.Add(TEXT("Warning: sun is not Movable; rotation/intensity may not change during play"));
