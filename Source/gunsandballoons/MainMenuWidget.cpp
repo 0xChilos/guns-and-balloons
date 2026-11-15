@@ -1,6 +1,7 @@
 #include "MainMenuWidget.h"
 
 #include "BalloonPlayerController.h"
+#include "BalloonRunSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/AudioComponent.h"
 #include "Components/Button.h"
@@ -520,6 +521,11 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 		}
 		else
 		{
+			// Fresh gold and gear for the run (docs/features/safe-zone.md).
+			if (UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this))
+			{
+				Run->StartNewRun();
+			}
 			UGameplayStatics::OpenLevelBySoftObjectPtr(this, NewRunLevel);
 		}
 		break;
