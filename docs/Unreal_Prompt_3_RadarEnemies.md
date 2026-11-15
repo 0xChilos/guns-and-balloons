@@ -17,6 +17,7 @@ Create MPC_Radar in /Game/Assets/Balloon with:
   - z = kind: 0 = empty slot, 1 = small dot (rocket, mine), 2 = plane, 3 = zeppelin.
   - w = the enemy's heading relative to the balloon's forward direction, in radians, clockwise (only used to turn the zeppelin oval).
 - Scalar RadarRangeM, default 300. Gameplay reads it; the material doesn't use it.
+- Scalar RadarJam, default 0: jammer strength at the balloon (0 = clear, 1 = right next to a jammer). BP_JammerTower writes the strongest jammer's value (docs/Unreal_Prompt_4_Locations.md); the material turns it into the jammed state.
 
 ## 2. M_Display: replace the radar Custom node
 Keep the material Unlit, with Emissive Color driven by one Custom node, Output Type CMOT Float3. Custom node inputs:
@@ -29,6 +30,7 @@ Keep the material Unlit, with Emissive Color driven by one Custom node, Output T
 | SweepSpeed | scalar parameter | 0.5 turns per second |
 | Brightness | scalar parameter | 1.6 |
 | BlipAfterglow | scalar parameter | 0.35 (0 = constant brightness, 1 = only lit after the sweep) |
+| Jam | CollectionParameter node reading MPC_Radar RadarJam | |
 | E0 … E15 | CollectionParameter nodes reading MPC_Radar Enemy0 … Enemy15 | |
 
 Custom node code:
@@ -37,9 +39,16 @@ float2 uv = (floor(UV * 256.0) + 0.5) / 256.0;                 // snap to the ra
 float2 p = uv * 2.0 - 1.0; p.y = -p.y;                         // -1..1, +y = forward (flip if the balloon icon is upside down)
 float r = length(p);
 float a = frac(atan2(p.x, p.y) / 6.2831853 + 1.0);              // 0..1 clockwise from forward
-float sweep = frac(Time * SweepSpeed);
-float beam = (r < 0.97) ? pow(saturate(1.0 - frac(sweep - a) * 4.0), 3.0) : 0.0;
-float3 c = Base * (0.75 + 0.25 * beam) + float3(0.10, 0.45, 0.15) * beam;
+
+// jammed state: 0 = clear, 1 = full static (reached at 25 % jammer strength)
+float J = saturate(Jam * 4.0);
+float tick = floor(Time * 18.0);                                // the static refreshes ~18 times a second
+float n = frac(sin(dot(floor(uv * 128.0) + tick * float2(17.0, 31.0), float2(12.9898, 78.233))) * 43758.5453);
+float row = frac(sin(dot(float2(floor(uv.y * 48.0), tick), float2(39.346, 11.135))) * 43758.5453);
+
+float sweep = frac(Time * SweepSpeed + J * (row - 0.5) * 0.15);  // jammed: the sweep tears and stutters
+float beam = (r < 0.97) ? pow(saturate(1.0 - frac(sweep - a) * 4.0), 3.0) * (1.0 - 0.6 * J) : 0.0;
+float3 c = Base * (0.75 + 0.25 * beam) * (1.0 - J * (0.6 - 0.4 * row)) + float3(0.10, 0.45, 0.15) * beam;
 
 float4 E[16] = {E0, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12, E13, E14, E15};
 float blip = 0.0;
@@ -68,7 +77,25 @@ for (int i = 0; i < 16; i++) {
     float flash = 1.0 + 0.6 * saturate(1.0 - frac(sweep - ea) * 8.0);   // brighter just as the sweep passes
     blip = max(blip, inside * edge * glow * flash);
 }
+blip *= saturate(1.0 - J * 1.25);                               // real targets vanish while jammed
+
+// ghost targets: look exactly like real blips, jump to new random places every ~0.7 s and flicker
+float ghost = 0.0;
+float gt = floor(Time * 1.5);
+for (int g = 0; g < 6; g++) {
+    float h1 = frac(sin(g * 91.7 + gt * 13.3) * 43758.5453);
+    float h2 = frac(sin(g * 47.3 + gt * 7.1) * 24634.6345);
+    float h3 = frac(sin(g * 12.9 + gt * 3.7) * 15731.7431);
+    float2 gp = float2(sin(h1 * 6.2831853), cos(h1 * 6.2831853)) * sqrt(h2) * 0.85;
+    float on = step(0.35, frac(h3 * 7.0 + Time * 2.3));
+    ghost = max(ghost, step(length(p - gp), lerp(0.028, 0.06, h3)) * on);
+}
+float snow = step(1.0 - 0.45 * J, n) * (0.4 + 0.6 * n);         // sparkling static grain
+float band = step(0.93, row);                                    // bright interference rows
+float noise = saturate(snow + 0.5 * band) * J * step(r, 0.97);
+blip = max(blip, ghost * J * step(r, 0.97));
 c = lerp(c, float3(0.22, 1.0, 0.28), saturate(blip)) + float3(0.05, 0.25, 0.06) * saturate(blip - 1.0);   // bright phosphor green
+c += float3(0.12, 0.55, 0.16) * noise;
 c *= 0.92 + 0.08 * step(0.5, frac(UV.y * 64.0));                // CRT scanlines
 return c * Brightness;
 ```

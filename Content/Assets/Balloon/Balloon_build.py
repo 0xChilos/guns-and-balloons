@@ -7,6 +7,9 @@ Interactive / animatable pieces (origin placed at their pivot):
   AB_FurnaceDoor   - furnace door, hinge on its local Z axis (closed = 0 deg)
   AB_WingL/AB_WingR - side air-brake stoppers, hinge on local Z (children follow)
   AB_PropPivot     - propeller, spins around its local Y axis
+Fuel: 3 buckets (bones fuel_bucket = wood, fuel_bucket_coal, fuel_bucket_crystal), each with 6 slot bones
+  fuel_<kind>_1..6 holding one piece; RIG["items"] lists the loose hand items exported as SM_Fuel_*.
+Damage: 10 bullet holes on the stove, bones stove_damage_1..10 (show 1..N, N = missing HP / 10).
 """
 import bpy, bmesh, math, random
 from mathutils import Vector, Matrix
@@ -160,6 +163,12 @@ mk("Fire", None, None, emit=((1.0, 0.33, 0.04), 30.0))
 mk("Lamp", None, None, emit=((1.0, 0.75, 0.35), 12.0))
 mk("Display", None, None, emit=((0.12, 0.30, 0.16), 2.0))
 mk("WarnLamp", (0.42, 0.36, 0.30), (0.30, 0.25, 0.21), rough=0.2, snap=0.01, nscale=20)   # glass, unlit = "off"
+mk("Bark", (0.22, 0.13, 0.06), (0.08, 0.05, 0.025), rough=0.95, snap=0.015, nscale=16)
+mk("WoodEnd", (0.72, 0.55, 0.32), (0.52, 0.37, 0.18), rough=0.8, snap=0.01, nscale=30)
+mk("CoalLump", (0.17, 0.165, 0.16), (0.035, 0.035, 0.035), metal=0.3, rough=0.35, snap=0.012, nscale=22, ramp=(0.35, 0.6))
+mk("Crystal", None, None, emit=((0.25, 0.85, 1.0), 8.0))            # glows in game (M_Glow)
+mk("Ember", None, None, emit=((1.0, 0.10, 0.02), 20.0))            # bullet-hole cores, glow in game (M_Glow)
+mk("BareMetal", (0.52, 0.48, 0.42), (0.30, 0.28, 0.25), metal=0.9, rough=0.35, snap=0.01, nscale=20)   # torn edges
 
 # ---------------------------------------------------------------- helpers
 def finish(name, bm, mat, loc=(0, 0, 0), rot=(0, 0, 0)):
@@ -490,24 +499,279 @@ fobj("BurnArrow", FB, b_prism2d([(0.045, BURN_V0), (0.068, BURN_V0 - 0.014), (0.
 fobj("BurnSlider", FB, b_box((0.074, BURN_V0, 0.022), (0.016, 0.028, 0.012)), "Brass")
 PART = "stove"
 
-# coal scuttle on the floor beside the furnace
-CB = Vector((0.47, -0.27, 0))                # clear of the stove and the walls
-PART = "fuel_bucket"
-bone("fuel_bucket", (CB.x, CB.y, Z0), "basket")
-solid(prism("CoalScuttle", 8, 0.13, 0.16, Z0, Z0 + 0.22, "Iron", loc=CB, top=False), 0.012)   # empty, walls have an inside
-bar("CoalScuttleHandle", CB + Vector((-0.15, 0, Z0 + 0.24)), CB + Vector((0.15, 0, Z0 + 0.24)), 0.012, "Brass")
+# ---------------- damage: 10 bullet holes on the stove (engine body = balloon health, 100 HP)
+# Each hole is its own part / bone stove_damage_1 .. _10 (child of "stove"): Unreal shows one more hole per 10 HP
+# missing (in a random order) and hides them again as the engine is repaired. A hole = black soot blot, torn bright metal
+# petals curled outward and a glowing red core (we see into the firebox; the core glows through M_Glow).
+def bullet_hole(name, F, S=1.4):
+    """S scales the hole; at 1.4 it reads as a bullet hole from the player's standing height."""
+    k = 9
+    soot = [(r_ * math.cos(2 * math.pi * i / k + 0.3), r_ * math.sin(2 * math.pi * i / k + 0.3))
+            for i, r_ in enumerate(S * random.uniform(0.028, 0.04) for _ in range(k))]
+    fobj(name + "Soot", F, b_prism2d(soot, 0.0, 0.002), "Coal")
+    fobj(name + "Core", F, b_disc((0, 0), 0.012 * S, 0.0032, seg=7), "Ember")
+    def petals(bm):
+        for i in range(7):
+            a = 2 * math.pi * i / 7 + random.uniform(-0.2, 0.2)
+            ln = S * random.uniform(0.024, 0.032)
+            v0 = bm.verts.new((0.012 * S * math.cos(a - 0.3), 0.012 * S * math.sin(a - 0.3), 0.0034))
+            v1 = bm.verts.new((0.012 * S * math.cos(a + 0.3), 0.012 * S * math.sin(a + 0.3), 0.0034))
+            v2 = bm.verts.new((ln * math.cos(a), ln * math.sin(a), S * random.uniform(0.006, 0.01)))
+            f = bm.faces.new((v0, v1, v2))
+            f.normal_update()
+            if f.normal.z < 0:
+                f.normal_flip()
+    fobj(name + "Petals", F, petals, "BareMetal")
 
-# chimney pipe -> into the balloon mouth
+def stove_side(deg, u, z):
+    n = Vector((math.cos(math.radians(deg)), math.sin(math.radians(deg)), 0))
+    U = Vector((0, 0, 1)).cross(n)                 # right as seen from outside the face
+    o = Vector((SX, SY, 0)) + n * SAPO + U * u + Vector((0, 0, z))
+    return frame(o, U, (0, 0, 1), n)
+
+def stove_lid(deg):
+    """Frame on the middle of the sloped lid (dome) face whose outward direction is deg."""
+    rot = Matrix.Rotation(math.radians(deg - 90), 3, 'Z')
+    d0 = rot @ Vector((0, 0.32 * math.cos(math.pi / 8), 0.95)); d1 = rot @ Vector((0, 0.15 * math.cos(math.pi / 8), 1.09))
+    V = (d1 - d0).normalized()
+    N = (rot @ Vector((0, 1, 0))) * V.z - Vector((0, 0, 1)) * (rot @ Vector((0, 1, 0))).dot(V)
+    N.normalize()
+    return frame(Vector((SX, SY, 0)) + (d0 + d1) / 2, V.cross(N), V, N)
+
+# all on the faces the player sees: the two front-diagonal faces (the front itself is furnace + burn scale) and the
+# lid beside the thermometer. Unreal picks the order they appear in at random.
+DAMAGE = [stove_side(45, 0.02, 0.68), stove_side(135, -0.03, 0.70), stove_side(45, -0.05, 0.36), stove_side(135, 0.04, 0.40),
+          stove_lid(45), stove_side(45, 0.04, 0.25), stove_side(135, -0.05, 0.29), stove_side(45, -0.04, 0.78),
+          stove_side(135, 0.05, 0.79), stove_lid(135)]
+for i, F in enumerate(DAMAGE):
+    PART = f"stove_damage_{i + 1}"
+    bone(PART, F @ Vector((0, 0, 0)), "stove", tail=F @ Vector((0, 0, 0.05)))   # bone axis = out of the surface
+    bullet_hole(f"Damage{i + 1}", F)
 PART = "stove"
-P = [Vector((SX, SY, 1.21)), Vector((SX, SY, 1.80)), Vector((0, -0.18, 2.50)), Vector((0, 0, MOUTH_Z + 0.25))]
+
+# ---------------- fuel: 3 stores (wood crate, coal sack, crystal bucket), up to 6 pieces each
+# Each store looks like its fuel and is open / low toward the basket centre, so the player sees every piece from
+# where they stand. Sized so six pieces fill it edge to edge (it looks packed when full). Each piece has its own
+# fixed slot and bone (fuel_<kind>_1 .. _6, filled in that order): Unreal shows pieces 1..N and hides the rest,
+# so the count reads at a glance.
+FUEL_MAX = 6
+BK_RB, BK_RT, BK_HB, BK_HF, BK_FLOOR = 0.145, 0.16, 0.29, 0.17, 0.14   # radius bottom/top, back/front height, false floor
+FUEL_ITEMS = {}                                                       # kind -> builder(name, F), item axis = local Z
+
+def many(*fs):
+    return lambda bm: [f(bm) for f in fs]
+
+def b_cone6(r0, r1, z0, z1, M_=Matrix(), seg=6):
+    return lambda bm: bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r0, radius2=r1, depth=z1 - z0,
+                                            matrix=M_ @ Matrix.Translation((0, 0, (z0 + z1) / 2)))
+
+def log_item(name, F, rr=0.034, ln=0.15):
+    """Split log: 7-sided bark, light end grain with a dark heart at both ends."""
+    fobj(name + "Bark", F, b_cyl((0, 0), rr, -ln / 2, ln / 2, seg=7), "Bark")
+    for k, Fk in enumerate((F, F @ Matrix.Rotation(math.pi, 4, 'X'))):
+        fobj(f"{name}End{k}", Fk, b_disc((0, 0), rr * 0.88, ln / 2 + 0.0015, seg=7), "WoodEnd")
+        fobj(f"{name}Heart{k}", Fk, b_disc((0, 0), rr * 0.25, ln / 2 + 0.003, seg=5), "Bark")
+
+def coal_item(name, F, rr=0.04):
+    """Glossy faceted lump; origin = centre, rests 0.75 * rr above the floor."""
+    def build(bm):
+        bmesh.ops.create_icosphere(bm, subdivisions=1, radius=rr)
+        for v in bm.verts:
+            v.co *= 1.0 + random.uniform(-0.22, 0.22)
+            v.co.z *= 0.75
+    fobj(name, F, build, "CoalLump")
+
+def crystal_item(name, F):
+    """Glowing hexagonal shard with a small side shard; origin = base, grows along local Z."""
+    side = Matrix.Translation((0.016, 0, 0.004)) @ Matrix.Rotation(math.radians(28), 4, 'Y')
+    fobj(name, F, many(b_cone6(0.022, 0.022, 0.0, 0.095), b_cone6(0.022, 0.0, 0.095, 0.14),
+                       b_cone6(0.012, 0.012, 0.0, 0.055, side), b_cone6(0.012, 0.0, 0.055, 0.08, side)), "Crystal")
+
+FUEL_ITEMS.update(wood=log_item, coal=coal_item, crystal=crystal_item)
+
+CR_FLOOR, SK_FLOOR = 0.035, 0.115                          # inner floor height: wood crate, coal sack
+
+def crystal_bucket(tag, c, fwd):
+    """Iron scuttle: high back, low front facing the player, brass rim, false floor at BK_FLOOR."""
+    ac = math.atan2(fwd.y, fwd.x)
+    phase = ac - math.pi / 8                               # a flat face points at the player
+    rad = lambda z: BK_RB + (BK_RT - BK_RB) * z / BK_HB
+    hgt = lambda ang: BK_HF + (BK_HB - BK_HF) * (1 - math.cos(ang - ac)) / 2
+    ang = [phase + 2 * math.pi * i / 8 for i in range(8)]
+    bm = bmesh.new()
+    lo = [bm.verts.new((BK_RB * math.cos(t), BK_RB * math.sin(t), Z0)) for t in ang]
+    hi = [bm.verts.new((rad(hgt(t)) * math.cos(t), rad(hgt(t)) * math.sin(t), Z0 + hgt(t))) for t in ang]
+    for i in range(8):
+        j = (i + 1) % 8
+        bm.faces.new((lo[i], lo[j], hi[j], hi[i]))
+    bm.faces.new(list(reversed(lo)))
+    solid(finish(f"Bucket{tag}", bm, "Iron", loc=c), 0.012)
+    bm = bmesh.new()
+    r0 = [bm.verts.new(((rad(hgt(t)) + 0.005) * math.cos(t), (rad(hgt(t)) + 0.005) * math.sin(t), Z0 + hgt(t) - 0.028)) for t in ang]
+    r1 = [bm.verts.new(((rad(hgt(t)) + 0.005) * math.cos(t), (rad(hgt(t)) + 0.005) * math.sin(t), Z0 + hgt(t) + 0.004)) for t in ang]
+    for i in range(8):
+        j = (i + 1) % 8
+        bm.faces.new((r0[i], r0[j], r1[j], r1[i]))
+    solid(finish(f"Bucket{tag}Rim", bm, "Brass", loc=c), 0.012)
+    prism(f"Bucket{tag}Foot", 8, BK_RB + 0.006, BK_RB + 0.006, Z0, Z0 + 0.025, "Iron", phase=phase, loc=c)
+    rf = rad(BK_FLOOR) - 0.016                             # false floor: lifts the shards over the low front
+    prism(f"Bucket{tag}Floor", 8, rf, rf, Z0 + BK_FLOOR - 0.012, Z0 + BK_FLOOR, "Barnwood", phase=phase, loc=c)
+    return BK_FLOOR
+
+def wood_crate(tag, c, fwd, right):
+    """Plank crate, open top, a single low plank at the front so the log ends show."""
+    W, D, T = 0.23, 0.17, 0.016                            # inner width (across), inner depth (along the logs), plank
+    Fc = frame(c + Vector((0, 0, Z0)), right, fwd, (0, 0, 1))     # local x = right, y = toward the player, z = up
+    def plank(nm, x0, x1, y0, y1, z0, z1, mat="Barnwood"):
+        fobj(f"{tag}{nm}", Fc, b_box(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0)), mat)
+    xo, yo = W / 2 + T, D / 2 + T
+    for k, x in enumerate((-0.07, 0.07)):                  # two battens under the floor
+        plank(f"Batten{k}", x - 0.02, x + 0.02, -yo, yo, 0.0, 0.012, "PropWood")
+    for k in range(3):                                     # floor boards along the logs
+        plank(f"Floor{k}", -W / 2 + k * W / 3 + 0.002, -W / 2 + (k + 1) * W / 3 - 0.002, -D / 2, D / 2, 0.012, CR_FLOOR, "PropWood")
+    rows = ((0.012, 0.081), (0.089, 0.158), (0.166, 0.235))  # three planks per wall with gaps between them
+    for k, (z0, z1) in enumerate(rows):
+        plank(f"SideL{k}", -xo, -W / 2, -yo, yo, z0, z1)
+        plank(f"SideR{k}", W / 2, xo, -yo, yo, z0, z1)
+        plank(f"Back{k}", -W / 2, W / 2, -yo, -D / 2, z0, z1)
+    plank("Front", -W / 2, W / 2, D / 2, yo, 0.012, 0.062)        # low front lip
+    for sx in (-1, 1):                                     # corner posts outside the walls, iron strap round each side
+        for sy in (-1, 1):
+            px, py = sx * (xo + 0.011), sy * (yo - 0.011)
+            plank(f"Post{sx}{sy}", px - 0.011, px + 0.011, py - 0.011, py + 0.011, 0.0, 0.235 if sy < 0 else 0.062, "PropWood")
+        x0, x1 = (xo + 0.022, xo + 0.026) if sx > 0 else (-xo - 0.026, -xo - 0.022)
+        plank(f"Strap{sx}", x0, x1, -yo, yo, 0.11, 0.13, "Iron")
+    return CR_FLOOR
+
+def coal_sack(tag, c, fwd):
+    """Open burlap sack, sides slumped, mouth rolled down; coal heaped on the stuffing."""
+    n = 10
+    prof = ((0.0, 0.115), (0.025, 0.148), (0.08, 0.158), (0.13, 0.152), (0.165, 0.145))
+    bm = bmesh.new()
+    rings = []
+    for k, (z, r) in enumerate(prof):
+        ring = []
+        for i in range(n):
+            t = 2 * math.pi * (i + 0.5 * (k % 2)) / n
+            rr = r + (random.uniform(-0.008, 0.008) if 0 < k < len(prof) - 1 else 0)
+            ring.append(bm.verts.new((rr * math.cos(t), rr * math.sin(t), Z0 + z + (random.uniform(-0.006, 0.006) if k else 0))))
+        rings.append(ring)
+    for a_, b_ in zip(rings[:-1], rings[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((a_[i], a_[j], b_[j], b_[i]))
+    bm.faces.new(list(reversed(rings[0])))
+    solid(finish(tag, bm, "Burlap", loc=c), 0.008)
+    # rolled-down mouth: a fat lumpy burlap roll around the top
+    bm = bmesh.new()
+    cross = 5
+    grid = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        R_ = 0.148 + random.uniform(-0.004, 0.004)
+        grid.append([bm.verts.new(((R_ + 0.018 * math.cos(2 * math.pi * k / cross)) * math.cos(t),
+                                   (R_ + 0.018 * math.cos(2 * math.pi * k / cross)) * math.sin(t),
+                                   Z0 + 0.158 + 0.016 * math.sin(2 * math.pi * k / cross))) for k in range(cross)])
+    for i in range(n):
+        j = (i + 1) % n
+        for k in range(cross):
+            l = (k + 1) % cross
+            bm.faces.new((grid[i][k], grid[j][k], grid[j][l], grid[i][l]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    finish(f"{tag}Roll", bm, "Burlap", loc=c)
+    prism(f"{tag}Stuffing", n, 0.14, 0.14, Z0 + SK_FLOOR - 0.03, Z0 + SK_FLOOR, "Burlap", loc=c)   # what the coal lies on
+    return SK_FLOOR
+
+def fuel_bucket(kind, bone_name, cx, cy):
+    """Fuel store standing at (cx, cy) on the floor, its open / low side facing the basket centre.
+    wood = plank crate, coal = open sack, crystal = iron scuttle; then the 6 slot bones and pieces."""
+    global PART
+    c = Vector((cx, cy, 0))
+    fwd = -c.normalized()                                  # toward the basket centre (the player)
+    right = Vector((0, 0, 1)).cross(fwd)                   # right as seen by the player facing the store
+    PART = bone_name
+    bone(bone_name, (c.x, c.y, Z0), "basket")
+    tag = kind.capitalize()
+    if kind == "wood":
+        floor = wood_crate("WoodCrate", c, fwd, right)
+    elif kind == "coal":
+        floor = coal_sack("CoalSack", c, fwd)
+    else:
+        floor = crystal_bucket(tag, c, fwd)
+    # slots: frame on the inner floor, x = right, y = toward the player, z = up
+    base = c + Vector((0, 0, Z0 + floor))
+    L = lambda x, y, z: base + right * x + fwd * y + Vector((0, 0, z))
+    slots = []
+    if kind == "wood":                     # end-on pyramid 3-2-1: the player looks at six end-grain circles
+        rr, s_ = 0.034, 0.071                # logs touching
+        dv = math.sqrt(s_ ** 2 - (s_ / 2) ** 2)
+        for x, z in ((-s_, rr), (0, rr), (s_, rr), (-s_ / 2, rr + dv), (s_ / 2, rr + dv), (0, rr + 2 * dv)):
+            slots.append(frame(L(x, 0, z), right, Vector((0, 0, 1)), fwd) @ Matrix.Rotation(random.uniform(0, 6.3), 4, 'Z'))
+    else:                                  # ring of six, slot 1 at the front-left, then clockwise
+        rr = 0.08 if kind == "coal" else 0.075    # coal lumps touch their neighbours
+        for i in range(FUEL_MAX):
+            t = math.radians(-120 - 60 * i)
+            x, y = rr * math.cos(t), rr * math.sin(t)
+            if kind == "coal":                # dark mark under each lump: an empty slot reads as a gap
+                fobj(f"CoalSackMark{i + 1}", Matrix.Translation(L(x, y, 0)), b_disc((0, 0), 0.034, 0.0015, seg=8), "Coal")
+                slots.append(Matrix.Translation(L(x, y, 0.034)) @ Matrix.Rotation(random.uniform(0, 6.3), 4, 'Z'))
+            else:                             # iron collar per shard: an empty collar reads as a gap
+                Fc = Matrix.Translation(L(x, y, 0))
+                fobj(f"Bucket{tag}Collar{i + 1}", Fc, b_ring((0, 0), 0.024, 0.032, 0.0, 0.024, seg=8), "Iron")
+                out_ = (right * x + fwd * y).normalized()
+                tilt = Matrix.Rotation(math.radians(9), 4, Vector((-out_.y, out_.x, 0)))     # lean outward
+                slots.append(Fc @ Matrix.Translation((0, 0, 0.004)) @ tilt @ Matrix.Rotation(random.uniform(0, 6.3), 4, 'Z'))
+    for i, F in enumerate(slots):
+        PART = f"fuel_{kind}_{i + 1}"
+        head = F @ Vector((0, 0, 0)); tail = F @ Vector((0, 0, 0.12))
+        bone(PART, head, bone_name, tail=tail)
+        FUEL_ITEMS[kind](f"Fuel{tag}{i + 1}", F)
+    PART = "basket"
+
+# wood and coal right beside the stove (1 cm from its plinth); crystal in front of the wood, 1 cm from the side wall.
+# Seen by the player facing the stove: wood and crystal on the right (-X), coal on the left (+X).
+fuel_bucket("wood", "fuel_bucket", -0.505, -0.39)        # keeps the old bone name: BP_Balloon / WoodFuelSupply use it
+fuel_bucket("coal", "fuel_bucket_coal", 0.505, -0.39)
+fuel_bucket("crystal", "fuel_bucket_crystal", -0.652, -0.076)
+
+# loose items for the player's hand (exported as SM_Fuel_*), laid out far from the basket so they don't touch its bakes
+RIG["items"] = {}
+for k, (kind, nm) in enumerate((("wood", "SM_Fuel_Wood"), ("coal", "SM_Fuel_Coal"), ("crystal", "SM_Fuel_Crystal"))):
+    PART = "item_" + kind
+    o_ = Vector((8.0 + 0.5 * k, 0, 0))
+    F = Matrix.Translation(o_) @ (Matrix.Rotation(math.pi / 2, 4, 'Y') if kind == "wood" else Matrix())   # log along X
+    FUEL_ITEMS[kind]("Item" + kind.capitalize(), F)
+    RIG["items"][nm] = {"part": PART, "origin": list(o_)}
+PART = "basket"
+
+# chimney pipe: short rise from the collar, horizontal run to the back-right wall, up along that wall (~4 cm off it,
+# away from where the player stands), a short bend inward through the rope load ring, then up the narrowing skirt
+# to end just inside the balloon's mouth
+PART = "stove"
+PR = 0.05                                          # pipe radius
+pa = math.radians(-45)                             # middle of the back-right wall
+ZH, ZB, ZT = 1.30, 2.05, MOUTH_Z + 0.06            # horizontal run, start of the inward bend, pipe top (in the mouth)
+WALL = Vector(polar(INNER - 0.015 - 0.04 - PR, pa, 0))      # 4 cm from the wall's inner face
+TOP = Vector(polar(0.55, pa, 0))                   # inside the load ring (inner face ~0.63)
+MOUTH = Vector(polar(0.35, pa, 0))                 # inside the mouth ring (inner face ~0.55)
+P = [Vector((SX, SY, 1.21)), Vector((SX, SY, ZH)), WALL + Vector((0, 0, ZH)), WALL + Vector((0, 0, ZB)),
+     TOP + Vector((0, 0, LOAD_Z - 0.07)), TOP + Vector((0, 0, LOAD_Z + 0.07)),
+     MOUTH + Vector((0, 0, MOUTH_Z - 0.10)), MOUTH + Vector((0, 0, ZT))]
 for i in range(len(P) - 1):
-    bar(f"Pipe{i}", P[i], P[i + 1], 0.08, "Iron", n=8)
-    mid = (P[i] + P[i + 1]) / 2
-    dd = (P[i + 1] - P[i]).normalized()
-    bar(f"PipeCollar{i}", mid - dd * 0.04, mid + dd * 0.04, 0.10, "Brass", n=8)
-for i in (1, 2):
-    ball(f"Elbow{i}", 0.105, P[i], "Iron", u=8, v=6)
-prism("Nozzle", 8, 0.08, 0.17, MOUTH_Z + 0.25, MOUTH_Z + 0.45, "Brass", top=False)
+    bar(f"Pipe{i}", P[i], P[i + 1], PR, "Iron", n=8)
+    if i in (1, 2):
+        mid = (P[i] + P[i + 1]) / 2
+        dd = (P[i + 1] - P[i]).normalized()
+        bar(f"PipeCollar{i}", mid - dd * 0.03, mid + dd * 0.03, PR + 0.015, "Brass", n=8)
+for i in range(1, len(P) - 1):
+    ball(f"Elbow{i}", PR + 0.015, P[i], "Iron", u=8, v=6)
+prism("Nozzle", 8, PR, PR + 0.035, ZT, ZT + 0.06, "Brass", top=False, loc=(MOUTH.x, MOUTH.y, 0))
+bar("PipeBrace", TOP + Vector((0, 0, LOAD_Z)), Vector(polar(0.66, pa, LOAD_Z)), 0.014, "Iron", n=6)   # to the load ring
+prism("PipeBraceClamp", 8, PR + 0.012, PR + 0.012, LOAD_Z - 0.025, LOAD_Z + 0.025, "Brass", top=False, bottom=False,
+      loc=(TOP.x, TOP.y, 0))
+prism("PipeWallClamp", 8, PR + 0.012, PR + 0.012, 1.62, 1.67, "Brass", top=False, bottom=False, loc=(WALL.x, WALL.y, 0))
+bar("PipeWallStay", WALL + Vector((0, 0, 1.645)), Vector(polar(0.89, pa, 1.09)), 0.012, "Iron", n=6)   # down to the rim top
+box("PipeWallStayFoot", 0.05, 0.05, 0.015, "Iron", loc=polar(0.89, pa, 1.095), rot=(0, 0, pa))
 
 # ================================================================ PROPELLER (outside, behind the back wall)
 PZ = 0.34
@@ -591,7 +855,7 @@ def lever(side, rest_deg=-25):
     """Lever pivots around world X at the rim. rest_deg tilts the handle (negative = toward the back)."""
     global PART
     tag = "L" if side < 0 else "R"
-    piv = Vector((side * ((R + 0.07) * math.cos(math.pi / 8) - 0.075), 0.05, 1.13))
+    piv = Vector((side * ((R + 0.07) * math.cos(math.pi / 8) - 0.075), 0.0, 1.13))   # centre of the side wall, mid-rim
     PART = "basket"
     # notched quadrant plate bolted to the rim
     arc = [(0.0, 0.0)] + [(0.15 * math.sin(math.radians(a)), 0.15 * math.cos(math.radians(a)))
@@ -713,9 +977,6 @@ FH = frame(FR[0], (0, 0, 1), FR[2], FR[1])        # local (z, n, u): cylinders l
 
 def wbox(name, u0, u1, z0, z1, n0, n1, mat):
     return fobj(name, FW, b_box(((u0 + u1) / 2, (z0 + z1) / 2, (n0 + n1) / 2), (u1 - u0, z1 - z0, n1 - n0)), mat)
-
-def many(*fs):
-    return lambda bm: [f(bm) for f in fs]
 
 def hull(name, pts, mat):
     bm = bmesh.new()
