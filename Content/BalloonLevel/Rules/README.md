@@ -17,13 +17,28 @@ with single-item obstacle clusters. Forest mountain rings use 3/km2 per row with
 reduced maximum scales to stay outside the corridor. City uses 60 m street cells,
 12 m roads and 24 m lots. These values require gameplay/visual tuning.
 
-Catalogs currently cover static meshes. Skeletal windmills, birds and functional
-hazard Blueprints require separate actor integration; static factories/towers are
-geometry only, without smoke, weapons, jamming or loot components. Zero-density
-legacy fence/hedge and assembly-part rows stay inactive. Existing legacy tables
-and CSVs are unchanged. All eight biome/preset combinations passed nonvisual
-generation, correct shared/biome mesh checks and obstacle checks; results are in
-`Saved/BiomeAssetCatalogChecks.json`. Visual acceptance remains with the user.
+Catalogs cover static meshes plus the two tall skeletal landmarks as Blueprint Actor
+rows: `SK_Windmill` (`BP_Windmill_C`, Field) and `SK_Lighthouse` (`BP_Lighthouse_C`,
+Desert). Actor rows cannot be measured from a mesh, so their unscaled `SizeMeters` is
+authored in `Scripts/Editor/setup_biome_asset_catalogs.py`; loot comes from their
+`loot_01`/`loot_02` sockets, which must exist on the Skeleton; a Skeleton socket and a
+mesh socket with the same name are one spot. Collision bounds come
+from the components the Blueprint constructs (native components and
+`SimpleConstructionScript` templates), so at least one of them must have a query
+collision profile. Birds and other functional hazard Blueprints still require
+separate actor integration; static factories/towers are geometry only, without smoke,
+weapons, jamming or loot components. Zero-density legacy fence/hedge and assembly-part
+rows stay inactive.
+Both Blueprints already carry `AC_LootSpots`; on generated instances the realizer
+zeroes its chance on the class templates for the spawn and then destroys the instance
+component before its first drop timer, so catalog loot comes only from the generator's
+`AHookPickup` spots (`Item Density` applies). Manually placed Blueprints keep their own
+component.
+Existing legacy tables and CSVs are unchanged. All eight biome/preset combinations
+passed nonvisual generation, correct shared/biome mesh checks and obstacle checks
+before these two rows were added; reimport the catalogs and run a generation pass
+for the new rows. Results are in `Saved/BiomeAssetCatalogChecks.json`. Visual
+acceptance remains with the user.
 
 CSV first column is the stable row name. Exactly twelve data columns follow:
 
@@ -68,7 +83,7 @@ Length, flight height and target segment length defaults are prototype authoring
 
 ## M4 planning contract (2026-11-15)
 
-`BalloonPlacementPlanning::Resolve` validates assets on the game thread, measures mesh bounds, and copies technical annotations from `LevelConfig.PlacementMetadata` by stable row name. Blueprint Actor rows need positive authored `SizeMeters`; zero mesh dimensions use measured bounds. `Build` consumes resolved rows and M2 geometry without UObject loads or world mutations. It accepts an optional ground sampler (world Z cm, upward normal), plus optional field-border polylines (world cm). Without these inputs, ground is the configured flat `PlacementGroundZMeters` and field borders are the two sampled corridor edges. The generator currently uses these preview fallbacks; terrain tracing and realization remain later work.
+`BalloonPlacementPlanning::Resolve` validates assets on the game thread, measures mesh bounds, and copies technical annotations from `LevelConfig.PlacementMetadata` by stable row name. Blueprint Actor rows need positive authored `SizeMeters` and derive collision bounds from the components the class constructs; zero mesh dimensions use measured bounds. `Build` consumes resolved rows and M2 geometry without UObject loads or world mutations. It accepts an optional ground sampler (world Z cm, upward normal), plus optional field-border polylines (world cm). Without these inputs, ground is the configured flat `PlacementGroundZMeters` and field borders are the two sampled corridor edges. The generator currently uses these preview fallbacks; terrain tracing and realization remain later work.
 
 The twelve row columns above are unchanged. Technical metadata supplies `InteriorEnemy`, `StreetLamp`, unscaled XYZ `SizeMeters` and `CullEndCm`. Enemy rows must be Hazard Blueprint Actors; other gameplay rows belong to the obstacle budget. Notes are never parsed. New biome IDs work with generic scatter; specialized rules activate only in their named biome.
 

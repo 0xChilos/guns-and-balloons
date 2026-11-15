@@ -140,7 +140,7 @@ DataAsset. Every numeric value is a **prototype tuning input** (TBD) except the 
 | Terrain | `TerrainMode` `Generated`/`Flat`/`WorldCollision`, `TerrainHeightVariationMeters` 15, `TerrainWavelengthMeters` 200, `TerrainCellMeters` 20, `TerrainPaddingMeters` 100, `TerrainMaterial`, `TerrainActorTag` (`Terrain`), `TerrainTraceTopMeters` 1000, `TerrainTraceBottomMeters` -1000 |
 | Route | `RouteCellMeters` 10, `RouteSafetyMeters` 1, `RouteWindMeters` 0, `RouteAttempts` 12 ([1,12]) |
 
-`FBalloonPlacementMetadata`: `InteriorEnemy`, `StreetLamp`, `SizeMeters` (unscaled; zero = measure from the mesh), `CullEndCm` (15000 clutter, 30000 short trees, 80000 buildings/dunes, 0 never culled).
+`FBalloonPlacementMetadata`: `InteriorEnemy`, `StreetLamp`, `SizeMeters` (unscaled; zero = measured from a StaticMesh; Blueprint Actor rows require an authored value), `CullEndCm` (15000 clutter, 30000 short trees, 80000 buildings/dunes, 0 never culled).
 
 **Terrain.** `Generated` builds a seeded two-frequency Perlin grid over the corridor bounds plus padding (≤ 250000 vertices) with horizon rings, as a transient `ProceduralMeshComponent` actor with `BlockAll` complex collision. `Flat` is the same grid without relief. `WorldCollision` samples actors tagged `TerrainActorTag`. Generated terrain is staged before the route proof, so it can block routes. It transfers to the realizer on success.
 
@@ -156,7 +156,7 @@ DataAsset. Every numeric value is a **prototype tuning input** (TBD) except the 
 | `wind_aligned` | Desert | one seeded level yaw ± 10° |
 | `flock` | Field | one 3–6 Actor budget shared by all active flock rows |
 
-Rows of a gated rule in another biome are skipped silently. Placement representation: static meshes without collision → one HISM per mesh (`NoCollision`); static meshes in Obstacle/Hazard → `AStaticMeshActor` (`BlockAllDynamic`); Blueprint classes → spawned Actors.
+Rows of a gated rule in another biome are skipped silently. Placement representation: static meshes without collision → one HISM per mesh (`NoCollision`); static meshes in Obstacle/Hazard → `AStaticMeshActor` (`BlockAllDynamic`); Blueprint classes → spawned Actors. Colliding placements are certified by `CollisionBounds`: StaticMesh mesh bounds plus simple collision, or for Blueprint Actors the union of the primitive components the class will construct (native CDO components plus `SimpleConstructionScript` templates with an SCS parent chain) that have a query collision profile. A colliding Blueprint that constructs no query-colliding primitive fails the route proof with "colliding placement lacks certified 3D bounds".
 
 ## `UBalloonLevelEventManager`
 ActorComponent on the generator. It ticks itself, samples `RoutePawn` through `Generator->UpdateProgress`, and drives the clock. Disable its tick before driving the update methods manually.
@@ -205,9 +205,9 @@ Component that turns the plan into world objects, transactionally on the game th
 | Output | Details |
 | --- | --- |
 | Scenery | One `UHierarchicalInstancedStaticMeshComponent` per mesh, `NoCollision`, no overlaps/navigation, cull start 0, end from the descriptor. Same mesh with conflicting cull profiles fails. |
-| Gameplay actors | `AStaticMeshActor` (`BlockAllDynamic`) or spawned Blueprint classes. A colliding actor must have query collision. Only `flock` may be a decorative actor. Tag `BalloonLevel.Generated`. |
+| Gameplay actors | `AStaticMeshActor` (`BlockAllDynamic`) or spawned Blueprint classes. A colliding actor must have query collision; for a Blueprint, the class must construct a query-colliding primitive (native component or `SimpleConstructionScript` template) and the row needs authored `SizeMeters`. Only `flock` may be a decorative actor. Tag `BalloonLevel.Generated`. |
 | Border proxies | One `ABalloonBorderThreat` per descriptor, plus optional rocket balloons. |
-| Loot | Every mesh socket named `loot_*` (HISM instances, actor meshes, skinned bones) gets an `AHookPickup` attached to it. `ItemDensity` keeps the fraction of spots whose roll is below it; item type and roll use separate seeded streams, so lowering density keeps a nested subset with stable item types. Pickups are tagged `BalloonLevel.Loot`. |
+| Loot | Every mesh socket named `loot_*` (HISM instances, actor meshes, skinned bones) gets one `AHookPickup` attached to it; a Skeleton socket and a mesh socket with the same name are the same spot, so names are deduplicated per component. Skinned assets take loot from Skeleton sockets, not bone names: `SK_Windmill` and `SK_Lighthouse` need `loot_01`/`loot_02` sockets on their Skeleton. Blueprint Actors carrying their own `AC_LootSpots` spawner keep it only for manual placements: on generated instances the realizer zeroes `SpawnChance` on its class templates for the synchronous spawn, then clears the instance component right after construction (its drops are timer-delayed) and destroys anything it already dropped, so the generator stays the single loot source (`ItemDensity`, seeded item types). `ItemDensity` keeps the fraction of spots whose roll is below it; item type and roll use separate seeded streams, so lowering density keeps a nested subset with stable item types. Pickups are tagged `BalloonLevel.Loot`. |
 | Terrain | The generator hands over its staged terrain actor (tag `BalloonLevel.Terrain`). |
 | Enemies | `SpawnLevelEnemies` adds `ANemesisAirship`, edge `ANemesisFlak` (skipped when the border rocket class already populates the edges), and per biome: Field `ANemesisBirdFlock`, Desert `ANemesisTowerCannon` and `ANemesisBeacon` (ground-snapped; skipped with a diagnostic when no tagged terrain is hit). Tags `BalloonLevel.Generated` and `BalloonLevel.Enemy`. They are not part of the route proof. |
 
@@ -237,7 +237,7 @@ Headers in `Source/gunsandballoons/BalloonLevel/`. All are free of UObject owner
 | `FBalloonLevelProgress::Update(Plan, Pos, Teleported)` | Tracked and monotonic progress. |
 | `BalloonAssetCatalog::ValidateRow`, `Merge(Shared, Biome, Out, Diag)` | Row validation and shared + biome merge. |
 | `BalloonBorderPlanning::Build`, `RightAt`, `ProjectedRadius`, `CrossSection`, `UnsafeWidth` | Border spheres, slab projection, unsafe-width union. |
-| `BalloonPlacementPlanning::Resolve(Config, Catalog, Rows, Diag)` | **Game thread**; loads assets and measures mesh bounds. |
+| `BalloonPlacementPlanning::Resolve(Config, Catalog, Rows, Diag)` | **Game thread**; loads assets, measures StaticMesh bounds and derives Blueprint Actor bounds from the class's native components and `SimpleConstructionScript` templates. |
 | `BalloonPlacementPlanning::Build(Config, Plan, Rows, Diag, GroundSampler?, FieldBorders?)` | The six rules → descriptors. Deterministic per `Seed` and `PlacementAttempt`. |
 | `BalloonTerrain::Build(Config, Plan, Mesh, Diag)`, `Spawn(Owner, Config, Mesh, Component, Diag)` | Terrain mesh and transient actor. |
 | `BalloonHorizontalRoute::InspectPawn(Pawn, Envelope, Error)` | Collision envelope (cylinder → box over every query shape) and `BalloonFlightComponent` limits read by reflected names `MaxSpeed`, `MaxTurnRate`, `TurnAcceleration`, `TurnDeceleration`, `Acceleration`, `Deceleration`. Renaming or retyping these floats makes them read as 0 and generation fails. |

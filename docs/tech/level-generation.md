@@ -35,7 +35,7 @@
 2. **Pawn inspection and spline** (`BalloonSplinePlanning::Build`). The planner uses the same effective turning radius as the prover (max of pawn and config), with a configurable curvature reserve (`RouteCurvatureMargin`, default 3, tuning TBD). Config invalid → `InvalidConfig`.
 3. **Catalog merge**, then **borders** (`InsufficientSpace` on failure).
 4. **Envelope settings.** `RoutePawn` supplies the collision envelope and movement limits in step 2. Missing pawn → `Unreachable`.
-5. **Placement resolve** (loads assets, measures bounds), then **terrain staging** (generated terrain is spawned before the proof so it can block routes).
+5. **Placement resolve** (loads assets, measures StaticMesh bounds and Blueprint bounds from the class's native components and `SimpleConstructionScript` templates), then **terrain staging** (generated terrain is spawned before the proof so it can block routes).
 6. **Up to `RouteAttempts` (1–12) tries:** build placements (salted by attempt) and prove the fixed-Z route against the world, obstacles, borders and the corridor. The first reachable attempt wins; otherwise `Unreachable`. Geometry and borders are **not** re-rolled between placement attempts. An empty-placement preflight against staged terrain, world collision and borders must pass first; failure skips all placement attempts.
 7. **Commit** the plan and spline, then **move the balloon** to the route start (position and yaw; scale and attached riders preserved).
 8. **Realize.** HISM scenery, colliding actors, border proxies and rockets, loot pickups. Any failure restores the balloon, removes staged objects and keeps the old level.

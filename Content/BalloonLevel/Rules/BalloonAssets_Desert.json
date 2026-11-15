@@ -238,5 +238,20 @@
     "ClusterSize": 1,
     "Rule": "scatter",
     "Notes": "Twin cannons: pivot = trunnion (SOCKET_guns of the head), elevate around X. Muzzles at SOCKET_muzzle_1 / _2. Own collision | Native catalog; preview density/spacing require tuning."
+  },
+  {
+    "Name": "SK_Lighthouse",
+    "Asset": "/Game/Assets/Locations/Blueprints/BP_Lighthouse.BP_Lighthouse_C",
+    "Category": "Hazard",
+    "Collision": true,
+    "DensityPerKm2": 4.0,
+    "ScaleMin": 1.0,
+    "ScaleMax": 1.0,
+    "MinSpacingM": 20.0,
+    "RandomYaw": true,
+    "AlignToSlope": true,
+    "ClusterSize": 1,
+    "Rule": "scatter",
+    "Notes": "38 m lighthouse (BP with skeletal SK_Lighthouse); rotating head, lamp can be destroyed. Loot spots loot_01/02 on the gallery, fixed to the root so they do not turn with the head. The manifest has no collision hulls or physics bodies: BP_Lighthouse_C must supply query collision or generation fails. Blueprint Actor row; unscaled SizeMeters authored in setup_biome_asset_catalogs.py. Preview tuning: 4/km2 with 20 m spacing so the short preview corridor places one; Desert_Placement.csv targets full-size levels."
   }
 ]

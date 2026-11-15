@@ -148,5 +148,20 @@
     "ClusterSize": 1,
     "Rule": "scatter",
     "Notes": " | Native catalog; preview density/spacing require tuning."
+  },
+  {
+    "Name": "SK_Windmill",
+    "Asset": "/Game/Assets/Locations/Blueprints/BP_Windmill.BP_Windmill_C",
+    "Category": "Obstacle",
+    "Collision": true,
+    "DensityPerKm2": 4.0,
+    "ScaleMin": 0.9,
+    "ScaleMax": 1.1,
+    "MinSpacingM": 20.0,
+    "RandomYaw": true,
+    "AlignToSlope": true,
+    "ClusterSize": 1,
+    "Rule": "scatter",
+    "Notes": "39.8 m tower windmill (BP with skeletal SK_Windmill); collides. Sails on bone 'blades' spin with the looping A_Windmill_Spin. Loot spots: roof lookout (loot_01) and gallery (loot_02). Blueprint Actor row; unscaled SizeMeters authored in setup_biome_asset_catalogs.py. Preview tuning: 4/km2 with 20 m spacing so the short preview corridor places one; Field_Placement.csv targets full-size levels."
   }
 ]

@@ -1,8 +1,13 @@
 #include "BalloonLevelRealizer.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/ActorComponent.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/SCS_Node.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "HAL/PlatformTime.h"
 #include "BalloonBorderThreat.h"
 #include "../HookPickup.h"
@@ -10,6 +15,7 @@
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {
@@ -116,12 +122,56 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    UClass* Class=D.Representation==EBalloonPlacementRepresentation::MeshActor ? AStaticMeshActor::StaticClass() : Cast<UClass>(Asset);
    if(!Class || !Class->IsChildOf(AActor::StaticClass()) || (D.Representation==EBalloonPlacementRepresentation::MeshActor && !Cast<UStaticMesh>(Asset))) return Fail(TEXT("M8: Actor descriptor asset has wrong type"));
    if(!D.Collision && D.Rule!=TEXT("flock")) return Fail(TEXT("M8: only flock may be a decorative Actor"));
+   // Generated levels own their loot: the realizer spawns AHookPickup on every loot_* socket.
+   // Blueprint structures may carry AC_LootSpots, which would spawn a second item per socket.
+   // Zero its SpawnChance on the class templates for this synchronous spawn, then shut the
+   // instance component down right after construction, before its first drop timer fires.
+   auto IsLootSpawner=[](const UActorComponent* C) { return C && C->GetClass()->GetName().StartsWith(TEXT("AC_LootSpots")); };
+   auto ChanceProperty=[](const UActorComponent* C) { return FindFProperty<FNumericProperty>(C->GetClass(),TEXT("SpawnChance")); };
+   TArray<TPair<UActorComponent*,double>> Suppressed;
+   if (D.Representation==EBalloonPlacementRepresentation::BlueprintActor)
+    if (UBlueprintGeneratedClass* BP=Cast<UBlueprintGeneratedClass>(Class))
+     for (UClass* C=BP; C; C=C->GetSuperClass())
+      if (UBlueprintGeneratedClass* Base=Cast<UBlueprintGeneratedClass>(C))
+       if (Base->SimpleConstructionScript)
+        for (USCS_Node* Node: Base->SimpleConstructionScript->GetAllNodes())
+         if (UActorComponent* Template=Node ? Node->GetActualComponentTemplate(BP) : nullptr)
+          if (IsLootSpawner(Template))
+           if (FNumericProperty* Chance=ChanceProperty(Template))
+           {
+            void* Value=Chance->ContainerPtrToValuePtr<void>(Template);
+            Suppressed.Emplace(Template,Chance->GetFloatingPointPropertyValue(Value));
+            Chance->SetFloatingPointPropertyValue(Value,0.);
+           }
+   auto RestoreTemplates=[&]
+   {
+    for(const auto& S:Suppressed) if(FNumericProperty* Chance=ChanceProperty(S.Key))
+     Chance->SetFloatingPointPropertyValue(Chance->ContainerPtrToValuePtr<void>(S.Key),S.Value);
+    Suppressed.Reset();
+   };
    auto* A=GetWorld()->SpawnActorDeferred<AActor>(Class,D.Transform,GetOwner(),nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-   if(!A) return Fail(TEXT("M8: Actor spawn failed"));
+   if(!A) { RestoreTemplates(); return Fail(TEXT("M8: Actor spawn failed")); }
    NewActors.Add(A); A->SetFlags(RF_Transient | RF_DuplicateTransient); A->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
    if(auto* M=Cast<AStaticMeshActor>(A)) { M->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable); M->GetStaticMeshComponent()->SetStaticMesh(Cast<UStaticMesh>(Asset)); M->GetStaticMeshComponent()->SetCollisionProfileName(TEXT("BlockAllDynamic")); }
    A->FinishSpawning(D.Transform);
+   RestoreTemplates();
    if(!IsValid(A)) return Fail(TEXT("M8: Actor destroyed during construction"));
+   TInlineComponentArray<UActorComponent*> Owned(A);
+   for(UActorComponent* C:Owned) if(IsLootSpawner(C))
+   {
+    if(FNumericProperty* Chance=ChanceProperty(C)) Chance->SetFloatingPointPropertyValue(Chance->ContainerPtrToValuePtr<void>(C),0.);
+    if(FBoolProperty* Respawn=FindFProperty<FBoolProperty>(C->GetClass(),TEXT("bRespawn"))) Respawn->SetPropertyValue_InContainer(C,false);
+    if(FArrayProperty* Array=FindFProperty<FArrayProperty>(C->GetClass(),TEXT("LootActors")))
+     if(FObjectProperty* Entry=CastField<FObjectProperty>(Array->Inner))
+     {
+      TArray<AActor*> Dropped;
+      FScriptArrayHelper Loot(Array,Array->ContainerPtrToValuePtr<void>(C));
+      for(int32 I=0; I<Loot.Num(); ++I)
+       if(AActor* Spawned=Cast<AActor>(Entry->GetObjectPropertyValue(Loot.GetRawPtr(I)))) Dropped.AddUnique(Spawned);
+      for(AActor* Spawned:Dropped) Spawned->Destroy();
+     }
+    C->DestroyComponent();
+   }
    if (A->GetRootComponent() && A->GetRootComponent()->Mobility == EComponentMobility::Movable)
     A->AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
    A->SetActorEnableCollision(D.Collision);
@@ -138,10 +188,15 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    for (auto* C:Components)
    {
     if (!Cast<UStaticMeshComponent>(C) && !Cast<USkinnedMeshComponent>(C)) continue;
+    // A Skeleton socket and a mesh socket may share a name: one pickup per spot.
+    TSet<FName> Spots;
     for (FName Socket:C->GetAllSocketNames())
-     if (Socket.ToString().StartsWith(TEXT("loot_")))
+     if (Socket.ToString().StartsWith(TEXT("loot_")) && !Spots.Contains(Socket))
+     {
+      Spots.Add(Socket);
       if (!SpawnLoot(C->GetSocketTransform(Socket),C,Socket))
        return Fail(TEXT("Loot: failed to spawn socket pickup"));
+     }
    }
   }
  }

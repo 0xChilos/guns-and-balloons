@@ -8,6 +8,13 @@ import json
 import os
 import unreal
 
+# Blueprint Actor rows cannot be measured like meshes, so their unscaled size is authored
+# here (meters). Only rows whose Asset resolves to a Blueprint-generated class belong here.
+BLUEPRINT_SIZE_M = {
+    'SK_Windmill': unreal.Vector(24.81, 11.05, 39.8),
+    'SK_Lighthouse': unreal.Vector(11.09, 11.09, 38.0),
+}
+
 editor = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem)
 assert not editor.get_game_world(), 'Stop PIE before configuring catalogs'
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
@@ -56,6 +63,8 @@ for config in configs:
         meta = unreal.BalloonPlacementMetadata()
         name = row['Name']
         meta.set_editor_property('street_lamp', name == 'SM_Lamppost')
+        if name in BLUEPRINT_SIZE_M:
+            meta.set_editor_property('size_meters', BLUEPRINT_SIZE_M[name])
         cull = 0 if row['Rule'] == 'ring' or row['Collision'] else (
             30000 if name.startswith('SM_Pine_Small') or name.startswith('SM_Tree_') else
             80000 if row['Rule'] in ('street', 'wind_aligned') else 15000)
