@@ -1,5 +1,6 @@
 #include "BalloonPlayerController.h"
 
+#include "Components/AudioComponent.h"
 #include "BalloonRunSubsystem.h"
 #include "Components/InputComponent.h"
 #include "FirstPersonCameraPawn.h"
@@ -10,6 +11,7 @@
 #include "NemesisFx.h"
 #include "NemesisTargetSubsystem.h"
 #include "PauseMenuScreen.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 void ABalloonPlayerController::BeginPlay()
@@ -25,6 +27,95 @@ void ABalloonPlayerController::BeginPlay()
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		const TSubclassOf<APauseHintScreen> HintClass = PauseHintClass ? PauseHintClass : TSubclassOf<APauseHintScreen>(APauseHintScreen::StaticClass());
 		PauseHint = GetWorld()->SpawnActor<APauseHintScreen>(HintClass, FTransform::Identity, Params);
+	}
+
+	// Same guard: no music in automation worlds without a viewport.
+	if (GetLocalPlayer() && GetWorld() && GetWorld()->IsGameWorld())
+	{
+		if (USoundBase* Sound = Music.LoadSynchronous())
+		{
+			// 2D and kept between plays (no auto destroy). CreateSound2D makes it a UI sound, which
+			// keeps playing while the world is paused, so the menus pause it explicitly.
+			MusicAudio = UGameplayStatics::CreateSound2D(this, Sound, MusicVolume, 1.f, 0.f, nullptr, false, false);
+			if (MusicAudio)
+			{
+				MusicAudio->OnAudioFinished.AddDynamic(this, &ABalloonPlayerController::OnMusicFinished);
+			}
+		}
+		OptionChangedHandle = UGameOptions::OnChanged().AddUObject(this, &ABalloonPlayerController::OnOptionChanged);
+		RestartMusic();
+	}
+}
+
+void ABalloonPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UGameOptions::OnChanged().Remove(OptionChangedHandle);
+	OptionChangedHandle.Reset();
+	if (MusicAudio)
+	{
+		MusicAudio->OnAudioFinished.RemoveAll(this);
+		MusicAudio->Stop();
+		MusicAudio = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void ABalloonPlayerController::RestartMusic()
+{
+	if (!MusicAudio) return;
+	bMusicStarted = false;
+	bMusicPaused = false;
+	MusicAudio->SetPaused(false);
+	MusicAudio->Stop();
+	UpdateMusic();
+}
+
+bool ABalloonPlayerController::ShouldMusicPlay() const
+{
+	return bGameplayInputEnabled && !PauseMenu && !bDead && UGameOptions::IsOn(EGameOption::Music);
+}
+
+void ABalloonPlayerController::UpdateMusic()
+{
+	if (!MusicAudio || bDead) return; // after death only the fade-out in ShowDeath touches it
+
+	if (ShouldMusicPlay())
+	{
+		if (!bMusicStarted)
+		{
+			bMusicStarted = true;
+			bMusicPaused = false;
+			MusicAudio->SetVolumeMultiplier(MusicVolume);
+			MusicAudio->FadeIn(MusicFadeIn, 1.f, 0.f);
+		}
+		else if (bMusicPaused)
+		{
+			bMusicPaused = false;
+			MusicAudio->SetPaused(false);
+		}
+	}
+	else if (bMusicStarted && !bMusicPaused)
+	{
+		bMusicPaused = true;
+		MusicAudio->SetPaused(true);
+	}
+}
+
+void ABalloonPlayerController::OnOptionChanged(EGameOption Option, bool bOn)
+{
+	if (Option == EGameOption::Music)
+	{
+		UpdateMusic();
+	}
+}
+
+void ABalloonPlayerController::OnMusicFinished()
+{
+	// Also fires when the death fade-out stops it; only loop while the level is being played.
+	if (MusicAudio && bMusicStarted && !bDead)
+	{
+		MusicAudio->Play(0.f);
 	}
 }
 
@@ -53,6 +144,7 @@ void ABalloonPlayerController::UseGameplayInput()
 		SetInputMode(FInputModeGameOnly());
 		bShowMouseCursor = false;
 	}
+	UpdateMusic();
 }
 
 void ABalloonPlayerController::UseMenuInput()
@@ -67,6 +159,7 @@ void ABalloonPlayerController::UseMenuInput()
 		SetInputMode(FInputModeUIOnly());
 		bShowMouseCursor = true;
 	}
+	UpdateMusic(); // any menu (pause, shop) pauses the music
 }
 
 void ABalloonPlayerController::TogglePause()
@@ -180,6 +273,19 @@ void ABalloonPlayerController::ShowDeath(const FText& Cause)
 		PlayerPawn->ReleaseGameplayInput();
 	}
 	if (PauseHint) PauseHint->SetActorHiddenInGame(true);
+
+	// The music dies with the engine; TRY AGAIN reloads the level, which starts it from the top.
+	if (MusicAudio)
+	{
+		if (bMusicPaused || !MusicAudio->IsPlaying())
+		{
+			MusicAudio->Stop();
+		}
+		else
+		{
+			MusicAudio->FadeOut(MusicFadeOut, 0.f);
+		}
+	}
 
 	// The stove goes up in a big blast and the world slows down for a moment.
 	if (UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this))

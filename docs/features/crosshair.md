@@ -1,6 +1,6 @@
 # Crosshair
 
-> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-15
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-16
 
 ## Why
 A simple dynamic crosshair: it shows where the shot will go and how accurate it is right now, and feels "alive": it reacts to the balloon, sway, recoil, weapon switches and camera turns.
@@ -17,7 +17,8 @@ A simple dynamic crosshair: it shows where the shot will go and how accurate it 
   - from the balloon's speed and jolts;
   - on a weapon switch: they spread and fade while the weapon is lowered, and close in with the new one.
 - **Inertia:** the ticks hang on a spring. When the camera turns they lag behind; when the turn stops they overshoot and settle. The balloon's acceleration (speeding up, braking, climbing, descending) throws them the opposite way.
-- Empty hand: just the dot. Over something you can interact with (and while dragging a lever), the dot opens smoothly into **four corner brackets**: it swells into a small square, the sides open in the middle as it grows, and the brackets snap a little past their size and settle. The dot stays in the middle. Looking away closes them back into the dot.
+- Empty hand: just the dot. Over something you can interact with or grab (a balloon lever, an item on the basket's racks), and while dragging a lever, the dot opens smoothly into **four corner brackets**: it swells into a small square, the sides open in the middle as it grows, and the brackets snap a little past their size and settle. The dot stays in the middle. Looking away closes them back into the dot.
+- Item in hand over a rack where a click would put it back or swap it: the same brackets open around the ticks. A rack shows them only when the click would do something (an empty rack with an empty hand doesn't).
 - A weapon with no round loaded (or the hook below 100): the ticks are translucent; also while reloading.
 
 ## Parameters

@@ -1,6 +1,6 @@
 # UI, menus and the navigation panel
 
-> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE) · **Owner:** Rostik · **Updated:** 2026-11-16
+> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE; gameplay music: built and compiled, not yet heard in game) · **Owner:** Rostik · **Updated:** 2026-11-16
 
 ## Why
 As little non-diegetic interface as possible. During play, information comes from the gauges in the basket.
@@ -20,8 +20,9 @@ Level launch is a reusable Blueprint/C++ `StartLevel` method on the game-instanc
 - **Layout:** top left, the game's name **GUNS AND BALLOONS** (large, on two lines) with **DIRECTOR'S CUT** under it, in the items' font and muted colours (the title is the items' parchment, the subtitle a dim brass), so it reads without being bright; the item list sits below it on the left, with no box: the items float on a soft dark haze from the left edge; a small `V1.0 RELEASE` sits bottom right (from the project version).
 - **Feel:** a hovered item eases right, warms to the stove/searchlight colour, and gets a small marker and an underline that draws itself; nothing snaps. The menu fades in when the level opens.
 - **Sounds:** from one steampunk-clock recording (`Main_Menu_Button_Click`): a click plays its high tick, moving the cursor onto a row plays its lower, quieter tock (once per row entered; not on the disabled Continue). Silent while SFX is off.
+- **Music:** `Main_Menu_OST` plays quietly in a loop for as long as the menu is open, fading in when the level opens. Switching Music off fades it out; switching it on starts it again from the top.
 - **Mouse only:** hovering an item selects it, LMB confirms. No keyboard navigation. The cursor is drawn inside the menu so it is filtered too.
-- **Options:** three switches, each flipped by a click and saved for the player at once: **Music** ON/OFF, **SFX** ON/OFF, **Tutorial** YES/NO (all on by default). SFX already mutes the menu click; there is no music or tutorial yet, and when they are added they must honour these switches.
+- **Options:** three switches, each flipped by a click and saved for the player at once: **Music** ON/OFF, **SFX** ON/OFF, **Tutorial** YES/NO (all on by default). SFX already mutes the menu click and Music the menu and gameplay music; there is no tutorial yet, and when it is added it must honour its switch.
 - **Returning to the menu** (Quit to Menu, end of run) reloads the `MainMenu` level; the run's state is lost unless it was saved.
 - **Level setup:** the New Run setup page was removed (2026-11-15); runs use `UBalloonRunSubsystem::LevelOptions` with the run's biome. The launch settings remain: Biome (Forest/Field/City/Desert), Cycle (fixed Day/Night), Flight Height (m), Level Width (m), and Distance to Nemesis (m behind the route start). The same setup is available under the Level Generator's **Start Options** (enable **Use Start Options**). A menu launch takes precedence over editor settings and is consumed once. Numeric defaults and UI ranges are prototype tuning: height 100 m (0-1000), width 600 m (1-2000), nemesis distance 250 m (0-5000). Enemy, obstacle, item and fog densities use authored config/environment settings and are not launch controls. Existing spawn switches still apply.
 
@@ -37,6 +38,7 @@ Level launch is a reusable Blueprint/C++ `StartLevel` method on the game-instanc
 | Title | name: Bold 92 from (136, 72) px; subtitle: Bold 34, wide letter spacing | `UMainMenuWidget` GameTitle…, GameSubtitle…. TBD, tune by eye |
 | Menu colours | `AMainMenuScreen` Brightness 0.45 | Balances the unlit menu against the scene's exposure. TBD |
 | Click / hover sound | high tick: from 0.09 s, 0.34 s long; low tock: from 1.12 s, 0.24 s long; 0.04 s fade each | `UMainMenuWidget` ClickSound / HoverSound. TBD, tune by ear |
+| Menu music | volume 0.25 (the track is mastered at about −14 LUFS), 2 s fade-in, 0.75 s fade-out | `AMainMenuPlayerController` MusicVolume, MusicFadeIn, MusicFadeOut. TBD, tune by ear |
 | Balloon bob | 15 cm, 8 s period | TBD |
 | Balloon roll / yaw sway | 1.5° / 12 s, 3° / 24 s | TBD |
 
@@ -85,6 +87,15 @@ Shown when the engine is destroyed (`UEngineHealthComponent`: enemy hits, the ai
 | Blast | `NemesisFx::FineExplosion` × 2.5 at the stove | TBD |
 | Click delay | 1 s | `UDeathScreenWidget` InputDelay. TBD |
 | Film | grain 0.18, 6 frames/s, sepia wash | GrainOpacity, FilmFrameRate, SepiaColor. TBD |
+
+## Gameplay music
+- `Gameplay_OST` plays while the player is on the balloon: from its start on every new level (a new run, TRY AGAIN, the next level), then in a loop.
+- **Silent in menus:** the main menu has its own music; the pause menu (and the shop, when it exists: any menu that takes the input) pauses it, and closing the menu resumes it where it stopped. On the engine's death it fades out and stays off over the death screen.
+- Honours the Music switch.
+
+| Parameter | Value | Note |
+| --- | --- | --- |
+| Gameplay music | volume 0.25, 1.5 s fade-in at level start, 1 s fade-out on death | `ABalloonPlayerController` MusicVolume, MusicFadeIn, MusicFadeOut. TBD, tune by ear |
 
 ## Navigation panel (in the basket)
 The panel in front of the player, through which the [balloon is controlled](balloon-controls.md).

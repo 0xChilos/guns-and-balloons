@@ -111,6 +111,25 @@ public:
 	AActor* GetAimedInteractable() const;
 
 	/**
+	 * True when the crosshair should show its interact brackets. One trace. Read by the crosshair.
+	 * - A weapon rack: when LMB would draw, put back or swap there (with an item in hand too).
+	 * - Empty hand only: an IInteractable, an ammo supply, an IGrabbable control that would take a grab
+	 *   now (a balloon lever), or a component tagged GetCrosshairHighlightTag().
+	 */
+	bool IsAimingAtUsable() const;
+
+	/**
+	 * Component tag "CrosshairHighlight": decor that opens the crosshair's brackets with an empty hand but
+	 * does nothing on a click (the box over the basket's gun stand in BP_Balloon). It has to block InteractTraceChannel.
+	 */
+	static FName GetCrosshairHighlightTag() { return FName(TEXT("CrosshairHighlight")); }
+
+	/** Whether DrawWeapon / HolsterWeapon / SwapWeapon would start on this rack now. */
+	bool CanDrawWeapon(const UWeaponRackComponent* Rack) const;
+	bool CanHolsterWeapon(const UWeaponRackComponent* Rack) const;
+	bool CanSwapWeapon(const UWeaponRackComponent* Rack) const;
+
+	/**
 	 * Interact with the IInteractable under the crosshair, unless it is an ammo supply (those are RMB).
 	 * Called on LMB. Returns true if the click was used, so the gun does not fire.
 	 */
@@ -205,6 +224,9 @@ protected:
 
 	/** The interaction trace from the eye along the view. */
 	bool TraceAimed(FHitResult& OutHit, bool bDebugDraw) const;
+
+	/** The first IGrabbable on the hit actor (its components, then the actor) whose CanGrab accepts the hit, or null. */
+	UObject* FindGrabTarget(const FHitResult& Hit) const;
 
 	/** Applies mouse look to the control rotation. */
 	void UpdateLook(APlayerController* PC);

@@ -728,6 +728,45 @@ bool AFirstPersonCameraPawn::TraceAimed(FHitResult& Hit, bool bDebugDraw) const
 		InteractRange, InteractTraceChannel, bDebugDraw);
 }
 
+bool AFirstPersonCameraPawn::IsAimingAtUsable() const
+{
+	FHitResult Hit;
+	if (!TraceAimed(Hit, bDebugInteractTrace))
+	{
+		return false;
+	}
+
+	// A weapon rack: only when the click would draw, put back or swap (with an item in hand too).
+	if (AActor* HitActor = Hit.GetActor())
+	{
+		TInlineComponentArray<UWeaponRackComponent*> Racks(HitActor);
+		for (const UWeaponRackComponent* Rack : Racks)
+		{
+			if (IInteractable::Execute_AcceptsHit(Rack, Hit))
+			{
+				if (!IsHandEmpty() && ActiveGun && ActiveGun->ShouldUseInsteadOfInteract(Hit))
+				{
+					return false; // the item in hand takes this click (the wrench on its nut)
+				}
+				return CanDrawWeapon(Rack) || CanHolsterWeapon(Rack) || CanSwapWeapon(Rack);
+			}
+		}
+	}
+
+	// Everything else opens the brackets for an empty hand only.
+	if (!IsHandEmpty())
+	{
+		return false;
+	}
+	// Decor marked to read as usable (the basket's gun stand); clicking it does nothing.
+	const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+	if (HitComponent && HitComponent->ComponentHasTag(GetCrosshairHighlightTag()))
+	{
+		return true;
+	}
+	return Interaction->FindAimedActor(Hit) != nullptr || FindGrabTarget(Hit) != nullptr;
+}
+
 AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 {
 	FHitResult Hit;
@@ -786,32 +825,39 @@ bool AFirstPersonCameraPawn::TryBeginGrab()
 	{
 		return false;
 	}
-	AActor* Actor = Hit.GetActor();
-	if (!Actor)
+	UObject* Target = FindGrabTarget(Hit);
+	if (!Target)
 	{
 		return false;
 	}
+	GrabTarget = Target;
+	IGrabbable::Execute_BeginGrab(Target, this, Hit);
+	// A valid grab attempt consumes the click, even if the target immediately releases it.
+	return true;
+}
 
-	auto TryTarget = [this, &Hit](UObject* Target)
+UObject* AFirstPersonCameraPawn::FindGrabTarget(const FHitResult& Hit) const
+{
+	AActor* Actor = Hit.GetActor();
+	if (!Actor)
 	{
-		if (!IsValid(Target) || !Target->Implements<UGrabbable>() || !IGrabbable::Execute_CanGrab(Target, this, Hit))
-		{
-			return false;
-		}
-		GrabTarget = Target;
-		IGrabbable::Execute_BeginGrab(Target, this, Hit);
-		// A valid grab attempt consumes the click, even if the target immediately releases it.
-		return true;
+		return nullptr;
+	}
+	// CanGrab takes a non-const pawn; it only reads it.
+	APawn* Self = const_cast<AFirstPersonCameraPawn*>(this);
+	auto Accepts = [Self, &Hit](UObject* Target)
+	{
+		return IsValid(Target) && Target->Implements<UGrabbable>() && IGrabbable::Execute_CanGrab(Target, Self, Hit);
 	};
 	TInlineComponentArray<UActorComponent*> Components(Actor);
 	for (UActorComponent* Component : Components)
 	{
-		if (TryTarget(Component))
+		if (Accepts(Component))
 		{
-			return true;
+			return Component;
 		}
 	}
-	return TryTarget(Actor);
+	return Accepts(Actor) ? Actor : nullptr;
 }
 
 void AFirstPersonCameraPawn::UpdateHeldGrab(APlayerController* PC)
@@ -937,11 +983,30 @@ bool AFirstPersonCameraPawn::TakeHandItem(UGunComponent* Item)
 	return true;
 }
 
-bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
+bool AFirstPersonCameraPawn::CanHolsterWeapon(const UWeaponRackComponent* Rack) const
 {
 	// A rack takes its own kind of item only; nothing is put away while open for loading or mid-swap.
-	if ((!HeldItemRack.IsValid() && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon()
-		|| !ActiveGun || ActiveGun != FindGun(Rack->ItemClass) || PendingGun || ActiveGun->IsReloading())
+	return !((!HeldItemRack.IsValid() && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon()
+		|| !ActiveGun || ActiveGun != FindGun(Rack->ItemClass) || PendingGun || ActiveGun->IsReloading());
+}
+
+bool AFirstPersonCameraPawn::CanDrawWeapon(const UWeaponRackComponent* Rack) const
+{
+	return IsHandEmpty() && IsValid(Rack) && Rack->HasWeapon() && FindGun(Rack->ItemClass);
+}
+
+bool AFirstPersonCameraPawn::CanSwapWeapon(const UWeaponRackComponent* Rack) const
+{
+	const UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
+	const UWeaponRackComponent* HomeRack = HeldItemRack.Get();
+	// The item in hand goes back where it was taken from, so that rack has to be there and free.
+	return !((!HomeRack && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
+		|| ActiveGun->IsReloading() || !HomeRack || HomeRack->HasWeapon());
+}
+
+bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
+{
+	if (!CanHolsterWeapon(Rack))
 	{
 		return false;
 	}
@@ -955,11 +1020,11 @@ bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
 
 bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 {
-	UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
-	if (!IsHandEmpty() || !Gun)
+	if (!CanDrawWeapon(Rack))
 	{
 		return false;
 	}
+	UGunComponent* Gun = FindGun(Rack->ItemClass);
 	Rack->SetHasWeapon(false);
 	RaiseHandItem(Gun, Rack);
 	return true;
@@ -984,16 +1049,12 @@ void AFirstPersonCameraPawn::RaiseHandItem(UGunComponent* Gun, UWeaponRackCompon
 
 bool AFirstPersonCameraPawn::SwapWeapon(UWeaponRackComponent* Rack)
 {
-	UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
-	const UWeaponRackComponent* HomeRack = HeldItemRack.Get();
-	// The item in hand goes back where it was taken from, so that rack has to be there and free.
-	if ((!HomeRack && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
-		|| ActiveGun->IsReloading() || !HomeRack || HomeRack->HasWeapon())
+	if (!CanSwapWeapon(Rack))
 	{
 		return false;
 	}
 	TransitionRack = Rack;
-	PendingGun = Gun;
+	PendingGun = FindGun(Rack->ItemClass);
 	ActiveGun->PrepareToHolster();
 	return true;
 }
