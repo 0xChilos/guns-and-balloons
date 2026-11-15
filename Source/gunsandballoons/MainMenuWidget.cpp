@@ -17,6 +17,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/WidgetSwitcher.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "GeneralProjectSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"

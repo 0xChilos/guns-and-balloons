@@ -3,6 +3,19 @@
 bool UBalloonLevelConfig::Validate(TArray<FString>& Errors) const
 {
 	const int32 Before = Errors.Num();
+ if (TerrainMode != EBalloonTerrainMode::Flat && TerrainMode != EBalloonTerrainMode::WorldCollision && TerrainMode != EBalloonTerrainMode::Generated) Errors.Add(TEXT("Invalid TerrainMode"));
+ if (!FMath::IsFinite(TerrainHeightVariationMeters) || TerrainHeightVariationMeters < 0.f ||
+     !FMath::IsFinite(TerrainWavelengthMeters) || TerrainWavelengthMeters < 1.f ||
+     !FMath::IsFinite(TerrainCellMeters) || TerrainCellMeters < 1.f ||
+     !FMath::IsFinite(TerrainPaddingMeters) || TerrainPaddingMeters < 0.f)
+  Errors.Add(TEXT("Terrain requires finite nonnegative height/padding and wavelength/cell size >= 1m"));
+ if (!FMath::IsFinite(PlacementGroundZMeters)) Errors.Add(TEXT("PlacementGroundZMeters must be finite"));
+ if (TerrainMode == EBalloonTerrainMode::WorldCollision)
+ {
+  if (TerrainActorTag.IsNone()) Errors.Add(TEXT("WorldCollision terrain requires TerrainActorTag"));
+  if (!FMath::IsFinite(TerrainTraceTopMeters) || !FMath::IsFinite(TerrainTraceBottomMeters) || TerrainTraceTopMeters <= TerrainTraceBottomMeters)
+   Errors.Add(TEXT("Terrain trace bounds must be finite with top above bottom"));
+ }
  const float Nonnegative[] = {BorderDensityPerKm, BorderRadiusMinMeters, BorderRadiusMaxMeters, BorderMinSpacingMeters, BalloonRadiusMeters, BalloonHalfHeightMeters};
  for (float Value : Nonnegative) if (!FMath::IsFinite(Value) || Value < 0.f) { Errors.Add(TEXT("Border density/radii/spacing/envelope must be finite and nonnegative")); break; }
  if (BorderExactCount < -1 || BorderExactCount > 10000) Errors.Add(TEXT("BorderExactCount must be -1 or [0,10000]"));

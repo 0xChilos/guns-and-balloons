@@ -41,6 +41,7 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    {
     C=NewObject<UHierarchicalInstancedStaticMeshComponent>(GetOwner(),NAME_None,RF_Transient | RF_DuplicateTransient);
     NewGroups.Add(C); GetOwner()->AddInstanceComponent(C);
+    C->SetupAttachment(GetOwner()->GetRootComponent());
     C->SetStaticMesh(Mesh); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     C->SetGenerateOverlapEvents(false); C->SetCanEverAffectNavigation(false);
     C->bAllowCullDistanceVolume=false; C->SetCullDistances(0,D.CullEndCm);
@@ -60,6 +61,8 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
    if(auto* M=Cast<AStaticMeshActor>(A)) { M->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable); M->GetStaticMeshComponent()->SetStaticMesh(Cast<UStaticMesh>(Asset)); M->GetStaticMeshComponent()->SetCollisionProfileName(TEXT("BlockAllDynamic")); }
    A->FinishSpawning(D.Transform);
    if(!IsValid(A)) return Fail(TEXT("M8: Actor destroyed during construction"));
+   if (A->GetRootComponent() && A->GetRootComponent()->Mobility == EComponentMobility::Movable)
+    A->AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
    A->SetActorEnableCollision(D.Collision);
    TInlineComponentArray<UPrimitiveComponent*> Primitives(A);
    bool HasCollision=false;
