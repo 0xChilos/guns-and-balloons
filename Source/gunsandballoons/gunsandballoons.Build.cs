@@ -15,6 +15,9 @@ public class gunsandballoons : ModuleRules
 
 		// UMG: the main menu widget and its in-world panel. EngineSettings: the project version label.
 		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "EngineSettings" });
+
+		// Niagara: the hook pickups' sparkle (AHookPickup::Sparkle).
+		PrivateDependencyModuleNames.Add("Niagara");
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AnimGraph", "BlueprintGraph", "AnimGraphRuntime" });

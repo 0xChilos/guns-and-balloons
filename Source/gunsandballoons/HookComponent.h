@@ -8,6 +8,7 @@
 class AHookPickup;
 class UAnimSequenceBase;
 class UMeshComponent;
+class UNiagaraSystem;
 class UStaticMeshComponent;
 class UTexture;
 
@@ -124,7 +125,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Hook")
 	FOnHookPickup OnPickupGrabbed;
 
-	/** A pickup was brought in and let go in front of the player. */
+	/**
+	 * A pickup reached the player and was let go in front of them (or, with bConsumeOnDelivery, is about to be
+	 * destroyed). Not called for one dropped on the way (the hook put away mid-reel).
+	 */
 	UPROPERTY(BlueprintAssignable, Category = "Hook")
 	FOnHookPickup OnPickupDelivered;
 
@@ -242,13 +246,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hook|Look")
 	FName RopeMaterialSlot = TEXT("M_Rope");
 
+	/** Burst at the hook head when the claws close on a pickup (the pickup also plays its own GrabSound). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hook|Look")
+	TObjectPtr<UNiagaraSystem> GrabEffect;
+
+	/** Puff where a pickup with bConsumeOnDelivery disappears in front of the player. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Hook|Look")
+	TObjectPtr<UNiagaraSystem> ArrivalEffect;
+
 private:
 	void SetAction(EHookAction NewAction, UAnimSequenceBase* Anim, float Rate);
 	void SetHeadClip(UAnimSequenceBase* Anim);
 	void Launch();
 	void StartReturning();
 	void StowHead();
-	void DeliverPickup();
+	/**
+	 * Lets go of the carried pickup. bArrived: it reached the catch point in front of the player (OnPickupDelivered,
+	 * consumed if it says so). Otherwise (the hook was put away mid-reel, or play ended) it just drops where it is.
+	 */
+	void DeliverPickup(bool bArrived);
+	/** GrabEffect at the head and the pickup's own GrabSound. */
+	void PlayGrabFeedback(AHookPickup* Pickup);
 	void UpdateFlight(float DeltaTime);
 	void UpdatePose();
 	void UpdateHeadAndRope();
