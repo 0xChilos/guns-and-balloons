@@ -10,7 +10,7 @@ class GUNSANDBALLOONS_API UBalloonLevelRealizer : public UActorComponent
 {
  GENERATED_BODY()
 public:
- bool Realize(const FBalloonLevelPlan& Plan, TArray<FString>& Diagnostics);
+ bool Realize(const FBalloonLevelPlan& Plan, TArray<FString>& Diagnostics, UClass* BorderActorClass = nullptr);
  void Clear();
  virtual void EndPlay(const EEndPlayReason::Type Reason) override;
  virtual void OnComponentDestroyed(bool DestroyingHierarchy) override;
