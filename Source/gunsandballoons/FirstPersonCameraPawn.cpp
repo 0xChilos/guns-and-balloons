@@ -129,7 +129,6 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Extinguisher = CreateDefaultSubobject<UExtinguisherComponent>(TEXT("Extinguisher"));
 
-<<<<<<< HEAD
 	// --- Wrench ---
 	WrenchMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WrenchMesh"));
 	SetupViewmodelMesh(WrenchMesh, Camera);
@@ -144,12 +143,10 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	WrenchMesh->AnimClass = UGunAnimInstance::StaticClass();
 
 	Wrench = CreateDefaultSubobject<UWrenchComponent>(TEXT("Wrench"));
-=======
+
 	FuelHandMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FuelHandMesh"));
 	SetupViewmodelMesh(FuelHandMesh, Camera);
 	FuelHand = CreateDefaultSubobject<UFuelHandComponent>(TEXT("FuelHand"));
-	FuelHand->SetupWeapon(FuelHandMesh, Camera);
->>>>>>> 17da491 (feat: added stove, fuel)
 
 	// The hand is empty by default: every item is hidden until it is taken (OnConstruction, BeginPlay).
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
@@ -173,20 +170,12 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 TArray<UGunComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGuns() const
 {
-<<<<<<< HEAD
-	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), Wrench.Get() };
-=======
-	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), FuelHand.Get() };
->>>>>>> 17da491 (feat: added stove, fuel)
+	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), Wrench.Get(), FuelHand.Get() };
 }
 
 TArray<USkeletalMeshComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGunMeshes() const
 {
-<<<<<<< HEAD
-	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), WrenchMesh.Get() };
-=======
-	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), FuelHandMesh.Get() };
->>>>>>> 17da491 (feat: added stove, fuel)
+	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), WrenchMesh.Get(), FuelHandMesh.Get() };
 }
 
 UGunComponent* AFirstPersonCameraPawn::FindGun(TSubclassOf<UGunComponent> GunClass) const
@@ -218,11 +207,7 @@ void AFirstPersonCameraPawn::OnConstruction(const FTransform& Transform)
 	// (none with an empty hand).
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
 	const TArray<USkeletalMeshComponent*, TInlineAllocator<6>> Meshes = GetGunMeshes();
-<<<<<<< HEAD
-	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1);
-=======
-	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, 4);
->>>>>>> 17da491 (feat: added stove, fuel)
+	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 2);
 	for (int32 i = 0; i < Guns.Num(); ++i)
 	{
 		if (USkeletalMeshComponent* Mesh = Meshes[i])
@@ -241,11 +226,8 @@ void AFirstPersonCameraPawn::BeginPlay()
 	Shotgun->SetupWeapon(ShotgunMesh, Camera);
 	Hook->SetupWeapon(HookMesh, Camera);
 	Extinguisher->SetupWeapon(ExtinguisherMesh, Camera);
-<<<<<<< HEAD
 	Wrench->SetupWeapon(WrenchMesh, Camera);
-=======
 	FuelHand->SetupWeapon(FuelHandMesh, Camera);
->>>>>>> 17da491 (feat: added stove, fuel)
 
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
 	for (UGunComponent* Gun : Guns)
@@ -263,7 +245,7 @@ void AFirstPersonCameraPawn::BeginPlay()
 
 	// An empty hand still keeps a hidden item as ActiveGun, until the first one is taken from its rack.
 	const bool bStartEmpty = InitialHandState == EPlayerHandState::Empty;
-	ActiveGun = bStartEmpty ? Revolver.Get() : Guns[FMath::Clamp(StartingGunIndex, 0, 4)];
+	ActiveGun = bStartEmpty ? Revolver.Get() : Guns[FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 2)];
 	PendingGun = nullptr;
 	for (UGunComponent* Gun : Guns)
 	{

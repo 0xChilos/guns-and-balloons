@@ -6,6 +6,16 @@
 `UStoveComponent` simulates temperature, ignition, burn time and an animated door on `BP_Balloon`. Three `UFuelSupplyComponent` buckets supply one piece of wood, coal or crystal to the pawn's `UFuelHandComponent`. Door clicks toggle the door; an open firebox accepts fuel and consumes the held piece only on success. Fuel raises the pending heat target and adds burn time; crystal heats instantly. Temperature publishes the named flight modifier `Stove`, and overheating damages the balloon's shared `UHealthComponent`. `ABP_Balloon` reads the door, gauge and burn-arrow outputs; `UStoveVfxComponent` reacts to fuel and overheat events.
 
 ## Files
+
+Asset repair (2026-11-15): the checked-in balloon lacked the stove components and
+animation wiring. `Scripts/Editor/repair_balloon_interactions.py` restores that
+authoring, shared health and the existing X-axis lever setting in both
+`BalloonFlight_Test` and `LevelGeneration_Test`, preserving fuel assets and
+existing lever states. `Scripts/Editor/test_balloon_interactions_pie.py` checks
+the saved balloon in the currently open map: fuel pickup/return through the
+player trace, door click, heat/burn/speed outputs, animation and lever drags
+(including screen-right opening of the left lever).
+
 | File | Role |
 | --- | --- |
 | `Source/gunsandballoons/StoveComponent.h/.cpp` | Simulation, door/firebox interaction, flight outputs, overheat |
@@ -55,7 +65,7 @@ How to read the **Edit** column:
 | `GaugeMaxTemperature` | TBD 100 deg | Details + BP rw | Temperature at full dial; the gauge can saturate before the cap |
 | `SpeedMultAt90` / `SpeedMultOverheat` | TBD 1.6 / TBD 2 | Details + BP rw | Flight multiplier: x1 at 0, linear to `SpeedMultAt90` at the threshold, then `SpeedMultOverheat` |
 | `DoorOpenDecayMultiplier` | TBD 2 | Details + BP rw | Faster cooling with the door open; also leaks heat during the decay pause |
-| `DoorOpenAngle` / `DoorSpeed` | TBD +100 deg / TBD 300 deg/s | Details + BP rw | +100 is the approved direction in C++ and `BP_Balloon`; do not flip the sign |
+| `DoorOpenAngle` / `DoorSpeed` | C++ +100 deg; BP -100 deg / TBD 300 deg/s | Details + BP rw | BP and both test maps use -100 deg, reversing the opening direction at the user's request on 2026-11-15 |
 | `FlightModifierEpsilon` | 0.001 | Details + BP rw | Minimum multiplier change that republishes the flight modifier |
 | `DoorBone` | `furnace_door` | Details + BP rw | Hit bone that toggles the door |
 | `FireboxShape` / `FireboxComponentName` | none / `StoveFirebox` | Details + BP rw | Firebox click target; BeginPlay resolves the live component by name and forces query-only collision |
