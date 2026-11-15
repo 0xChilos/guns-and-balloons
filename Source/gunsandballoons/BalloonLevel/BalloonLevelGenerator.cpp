@@ -70,7 +70,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
 
 bool ABalloonLevelGenerator::BuildAndRealizeLevel()
 {
- Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); Spline->ClearSplinePoints();
+ Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); ActiveConfig=nullptr; Spline->ClearSplinePoints();
 	Status = EBalloonLevelGenerationStatus::Planning;
  UBalloonLevelConfig* SelectedConfig = LevelConfig;
  if (BiomeSelection == EBalloonBiomeSelection::Random)
