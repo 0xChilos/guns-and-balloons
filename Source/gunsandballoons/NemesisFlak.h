@@ -9,12 +9,14 @@ class USpotLightComponent;
 class UStaticMeshComponent;
 
 /**
- * AA gun (ППО). Placeholder cubes. Stands near the map edges and guards a radius around itself.
+ * AA gun (ППО): a small flying balloon (placeholder sphere + cubes) with a turret and a searchlight
+ * hanging under its gondola. Placed near the map edges; it keeps its X/Y and hovers at the player's
+ * altitude (basket height + AltitudeOffset, ClimbSpeed, a slight bob). Guards a radius around itself.
  * Outside EngageRadius its searchlight shines YELLOW and slowly circles the sky.
  * When the basket comes within EngageRadius (and in line of sight) the light turns RED, the turret
  * and the light track the basket and, after WarmUp, fire bursts of bullets (aimed with lead).
  * Leaving the radius (+ ReleaseMargin) or breaking line of sight returns it to searching.
- * Indestructible for now (TBD).
+ * Indestructible (decided 2026-11-15).
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisFlak : public AActor
@@ -43,8 +45,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
 	TObjectPtr<USceneComponent> Root;
 
+	/** The balloon's envelope. */
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
-	TObjectPtr<UStaticMeshComponent> Base;
+	TObjectPtr<UStaticMeshComponent> Envelope;
+
+	/** Gondola (the actor's origin); the turret hangs under it. */
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TObjectPtr<UStaticMeshComponent> Gondola;
+
+	UPROPERTY(VisibleAnywhere, Category = "Flak")
+	TArray<TObjectPtr<UStaticMeshComponent>> Ropes;
 
 	/** Turns the turret (yaw). */
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
@@ -69,9 +79,31 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Flak")
 	TObjectPtr<UStaticMeshComponent> BeamCone;
 
-	/** The gun opens fire when the basket is this close, cm (120 m). TBD */
+	/** Hover at the player's altitude (basket height + AltitudeOffset). Off = stays where placed. */
+	UPROPERTY(EditAnywhere, Category = "Flak")
+	bool bMatchPlayerAltitude = true;
+
+	/** Gondola height relative to the basket, cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "Flak")
+	float AltitudeOffset = 0.f;
+
+	/** Vertical speed when following the player's altitude, cm/s. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float EngageRadius = 12000.f;
+	float ClimbSpeed = 300.f;
+
+	/** Gentle up/down bob: amplitude cm, period s. */
+	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
+	float BobAmplitude = 40.f;
+
+	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0.1"))
+	float BobPeriod = 4.f;
+
+	/**
+	 * The gun opens fire when the basket is this close, cm (50 m). Small on purpose: AA guns along the
+	 * map edges mark the line the player must not cross, they are not a constant threat. TBD
+	 */
+	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
+	float EngageRadius = 5000.f;
 
 	/** Stops engaging beyond EngageRadius + this, cm (no flicker at the edge). */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
@@ -81,15 +113,16 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "1", ClampMax = "90"))
 	float BeamAngle = 10.f;
 
+	/** 0 = EngageRadius: the circling beam shows how far the gun reaches. */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float BeamLength = 15000.f;
+	float BeamLength = 0.f;
 
 	/** Searching: the light circles the sky at this speed (deg/s) and pitch (deg). TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
 	float SearchSpeed = 25.f;
 
-	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0", ClampMax = "89"))
-	float SearchPitch = 35.f;
+	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "-30", ClampMax = "60"))
+	float SearchPitch = 10.f;
 
 	/** Turret turn speed while tracking, degrees/s. */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
@@ -115,7 +148,7 @@ protected:
 
 	/** Balloon damage per bullet that crosses the basket. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float Damage = 4.f;
+	float Damage = 5.f; // 4 full bursts (20 bullets) destroy a 100 HP engine. TBD
 
 	/** Random cone half-angle per shot, degrees. TBD */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
@@ -132,7 +165,11 @@ private:
 	bool CanSeeBasket() const;
 	void SetEngaged(bool bNow);
 	void FireShot(const FVector& AimPoint);
+	void UpdateAltitude(float DeltaSeconds);
 
+	float HoverZ = 0.f;
+	float BobTime = 0.f;
+	bool bAltitudeSnapped = false;
 	float Yaw = 0.f;
 	float Pitch = 0.f;
 	float EngagedTime = 0.f;

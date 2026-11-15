@@ -65,7 +65,7 @@ void ANemesisBeacon::BeginPlay()
 	Super::BeginPlay();
 	OnTakePointDamage.AddUniqueDynamic(this, &ANemesisBeacon::HandlePointDamage);
 	BeamPitch = SearchPitch;
-	NemesisSearchlight::SetColor(Beam, BeamCone, NemesisSearchlight::Searching);
+	NemesisSearchlight::SetLockedState(Beam, BeamCone, false);
 }
 
 void ANemesisBeacon::SetLocked(bool bLocked)
@@ -73,7 +73,7 @@ void ANemesisBeacon::SetLocked(bool bLocked)
 	if (bLocked == bLit) return;
 	bLit = bLocked;
 	LitTime = 0.f;
-	if (!bBroken) NemesisSearchlight::SetColor(Beam, BeamCone, bLit ? NemesisSearchlight::Locked : NemesisSearchlight::Searching);
+	if (!bBroken) NemesisSearchlight::SetLockedState(Beam, BeamCone, bLit);
 	UE_LOG(LogTemp, Log, TEXT("%s: %s"), *GetName(), bLit ? TEXT("locked on the balloon") : TEXT("lock lost"));
 	OnLitChanged(bLit);
 }

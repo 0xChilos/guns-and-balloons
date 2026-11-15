@@ -13,8 +13,12 @@
  */
 namespace NemesisSearchlight
 {
-	const FLinearColor Searching(1.f, 0.78f, 0.25f);
+	const FLinearColor Searching(1.f, 0.42f, 0.04f); // orange: plain yellow was lost against the bright sky
 	const FLinearColor Locked(1.f, 0.08f, 0.04f);
+	/** Visible cone brightness. Searching is seen from outside, so it is brighter; the locked beam
+	 * points at the player's camera and stays dimmer so it doesn't wash the screen red. */
+	constexpr float SearchingIntensity = 0.18f;
+	constexpr float LockedIntensity = 0.1f;
 
 	/** Cone mesh along the parent's +X. Returns null if the asset is missing. */
 	inline UStaticMeshComponent* CreateBeam(UObject* Owner, USceneComponent* Parent, UStaticMesh* BeamMesh, const TCHAR* Name)
@@ -44,7 +48,7 @@ namespace NemesisSearchlight
 		}
 	}
 
-	inline void SetColor(USpotLightComponent* Spot, UStaticMeshComponent* Beam, const FLinearColor& Color, float BeamIntensity = 0.1f)
+	inline void SetColor(USpotLightComponent* Spot, UStaticMeshComponent* Beam, const FLinearColor& Color, float BeamIntensity)
 	{
 		if (Spot) Spot->SetLightColor(Color);
 		if (Beam && Beam->GetStaticMesh())
@@ -57,5 +61,14 @@ namespace NemesisSearchlight
 				M->SetScalarParameterValue(TEXT("Intensity"), BeamIntensity);
 			}
 		}
+	}
+}
+
+namespace NemesisSearchlight
+{
+	/** Orange searching or red locked, with the matching cone brightness. */
+	inline void SetLockedState(USpotLightComponent* Spot, UStaticMeshComponent* Beam, bool bLocked)
+	{
+		SetColor(Spot, Beam, bLocked ? Locked : Searching, bLocked ? LockedIntensity : SearchingIntensity);
 	}
 }
