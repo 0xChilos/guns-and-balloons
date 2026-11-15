@@ -42,6 +42,14 @@ public:
 	int32 MaxMines = 3;
 	int32 MaxActiveFlocks = 1;
 	int32 MaxEngagedPatrols = 2;
+	/** Most crop dusters attacking at once, whoever sent them (airship, beacons, patrols). Team
+	 *  decision 2026-11-15. TBD */
+	int32 MaxAttackingCropDusters = 3;
+
+	/** Crop dusters attacking now: flying, not shot down, not flying a patrol route. */
+	int32 CountAttackingCropDusters();
+	/** Room for Count more attacking crop dusters under MaxAttackingCropDusters. */
+	bool CanAddCropDusters(int32 Count = 1) { return CountAttackingCropDusters() + Count <= MaxAttackingCropDusters; }
 
 	bool CanSpawnMine();
 	void RegisterMine(AActor* Mine);

@@ -1,6 +1,7 @@
 #include "NemesisCropDuster.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
 #include "NemesisTargetSubsystem.h"
 #include "NemesisBullet.h"
@@ -49,7 +50,15 @@ FVector ANemesisCropDuster::GetSlotLocation() const
 	if (!B) return GetActorLocation();
 	const FVector Fwd = GetBalloonForward();
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Fwd);
-	return B->GetActorLocation() + Fwd * AheadDistance + Right * (SideDistance * Side);
+	// Rank among the flying crop dusters on this side (older first): 0 takes the normal slot,
+	// the next ones sit behind it, ahead of it, further behind...
+	int32 Rank = 0;
+	for (TActorIterator<ANemesisCropDuster> It(GetWorld()); It; ++It)
+	{
+		if (*It != this && !It->IsDown() && It->GetSide() == Side && It->GetUniqueID() < GetUniqueID()) ++Rank;
+	}
+	const float Step = Rank == 0 ? 0.f : ((Rank % 2 == 1) ? -1.f : 1.f) * ((Rank + 1) / 2);
+	return B->GetActorLocation() + Fwd * (AheadDistance + Step * SlotSpacing) + Right * (SideDistance * Side);
 }
 
 void ANemesisCropDuster::Tick(float DeltaSeconds)

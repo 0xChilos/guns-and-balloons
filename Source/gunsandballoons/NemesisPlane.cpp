@@ -1,10 +1,14 @@
 #include "NemesisPlane.h"
 
 #include "Components/PointLightComponent.h"
+#include "EngineUtils.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "FirstPersonCameraPawn.h"
 #include "NemesisAirship.h"
+#include "NemesisBeacon.h"
+#include "NemesisFlak.h"
+#include "NemesisTowerCannon.h"
 #include "NemesisPlaceholder.h"
 #include "NemesisTargetSubsystem.h"
 #include "RevolverComponent.h"
@@ -76,6 +80,18 @@ void ANemesisPlane::Launch(ANemesisAirship* InAirship)
 	EngineHealth = 1.f;
 	FuselageHealth = 1.f;
 	Velocity = GetBalloonForward() * MaxSpeed * 0.5f; // leaves the hangar already moving
+	// Size for avoidance: a circle around all parts about the actor's origin (whatever the yaw),
+	// and the half height around its altitude.
+	const FBox Local = CalculateComponentsBoundingBoxInLocalSpace(true);
+	double R = 100.0, H = 50.0;
+	for (const double X : { Local.Min.X, Local.Max.X })
+	{
+		for (const double Y : { Local.Min.Y, Local.Max.Y }) R = FMath::Max(R, FMath::Sqrt(X * X + Y * Y));
+	}
+	H = FMath::Max3(H, FMath::Abs(Local.Min.Z), FMath::Abs(Local.Max.Z));
+	BodyRadius = static_cast<float>(R);
+	BodyHalfHeight = static_cast<float>(H);
+	bClearOfAirship = InAirship == nullptr; // a plane from the hangar starts inside the airship
 	OnTakePointDamage.AddUniqueDynamic(this, &ANemesisPlane::HandlePointDamage);
 }
 
@@ -159,11 +175,27 @@ void ANemesisPlane::Fly(float DeltaSeconds)
 		DesiredVel.Z = 0.f;
 		DesiredVel = DesiredVel.GetClampedToMaxSize(MaxSpeed);
 	}
+	if (!bClearOfAirship)
+	{
+		// Out of the hangar yet? Until then the airship is not an obstacle (it would throw it out).
+		FVector Centre, Extent;
+		ANemesisAirship* Air = Airship.Get();
+		if (!Air) bClearOfAirship = true;
+		else
+		{
+			Air->GetActorBounds(true, Centre, Extent);
+			const bool bInside = FMath::Abs(Pos.X - Centre.X) < Extent.X + BodyRadius && FMath::Abs(Pos.Y - Centre.Y) < Extent.Y + BodyRadius
+				&& FMath::Abs(Pos.Z - Centre.Z) < Extent.Z + BodyHalfHeight;
+			bClearOfAirship = !bInside;
+		}
+	}
+	DesiredVel = Avoid(Pos, DesiredVel);
 	Velocity = FMath::VInterpConstantTo(Velocity, DesiredVel, DeltaSeconds, Acceleration);
 	Velocity.Z = 0.f;
 
 	FVector NewPos = Pos + Velocity * DeltaSeconds;
 	NewPos.Z = FixedZ;
+	NewPos = KeepClear(NewPos);
 
 	// Nose follows the flight direction; when hovering in the slot, the balloon's heading.
 	// Planes never turn around (design): drifting back or sideways keeps the nose forward.
@@ -173,6 +205,131 @@ void ANemesisPlane::Fly(float DeltaSeconds)
 	else if (!bLeaving && FVector::DotProduct(Face.GetSafeNormal(), Fwd) < 0.5f) Face = Fwd;
 	const FRotator Rot = FMath::RInterpTo(GetActorRotation(), FRotator(0.f, Face.Rotation().Yaw, 0.f), DeltaSeconds, 2.f);
 	SetActorLocationAndRotation(NewPos, Rot);
+}
+
+namespace
+{
+	/** XY distance from P to a bounds box grown by Margin: > 0 outside, < 0 inside (depth to the
+	 *  nearest side). OutAway points out of the box. */
+	float PlaneBoxDistanceXY(const FVector& P, const FVector& Centre, const FVector& Extent, float Margin, FVector& OutAway)
+	{
+		const double Dx = P.X - Centre.X, Dy = P.Y - Centre.Y;
+		const double Qx = FMath::Abs(Dx) - (Extent.X + Margin), Qy = FMath::Abs(Dy) - (Extent.Y + Margin);
+		const double Sx = Dx >= 0.0 ? 1.0 : -1.0, Sy = Dy >= 0.0 ? 1.0 : -1.0;
+		if (Qx > 0.0 || Qy > 0.0)
+		{
+			const FVector Out(FMath::Max(Qx, 0.0) * Sx, FMath::Max(Qy, 0.0) * Sy, 0.0);
+			const double Len = Out.Size();
+			OutAway = Out / Len;
+			return static_cast<float>(Len);
+		}
+		OutAway = Qx > Qy ? FVector(Sx, 0.0, 0.0) : FVector(0.0, Sy, 0.0);
+		return static_cast<float>(FMath::Max(Qx, Qy));
+	}
+
+	void AddPlaneObstacle(const AActor* A, TArray<TPair<FVector, FVector>>& Out)
+	{
+		if (!A) return;
+		FVector Centre, Extent;
+		A->GetActorBounds(true, Centre, Extent); // colliding parts: skips searchlight beams and the like
+		if (Extent.IsNearlyZero()) A->GetActorBounds(false, Centre, Extent);
+		if (!Extent.IsNearlyZero()) Out.Emplace(Centre, Extent);
+	}
+}
+
+void ANemesisPlane::GetObstacles(TArray<TPair<FVector, FVector>>& Out) const
+{
+	if (UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this))
+	{
+		if (const AActor* B = T->GetBalloon())
+		{
+			FVector Centre, Extent;
+			B->GetActorBounds(false, Centre, Extent);
+			Out.Emplace(Centre, Extent);
+		}
+	}
+	UWorld* World = GetWorld();
+	for (TActorIterator<ANemesisAirship> It(World); It; ++It)
+	{
+		if (bClearOfAirship || *It != Airship.Get()) AddPlaneObstacle(*It, Out);
+	}
+	for (TActorIterator<ANemesisTowerCannon> It(World); It; ++It) AddPlaneObstacle(*It, Out);
+	for (TActorIterator<ANemesisBeacon> It(World); It; ++It) AddPlaneObstacle(*It, Out);
+	for (TActorIterator<ANemesisFlak> It(World); It; ++It) AddPlaneObstacle(*It, Out);
+}
+
+FVector ANemesisPlane::Avoid(const FVector& Pos, FVector DesiredVel) const
+{
+	// Around obstacles: only when the plane's altitude overlaps them (bombers fly above the balloon).
+	TArray<TPair<FVector, FVector>> Obstacles;
+	GetObstacles(Obstacles);
+	for (const TPair<FVector, FVector>& O : Obstacles)
+	{
+		const FVector& Centre = O.Key;
+		const FVector& Extent = O.Value;
+		if (FMath::Abs(Pos.Z - Centre.Z) >= Extent.Z + BodyHalfHeight + ObstacleClearance) continue;
+		FVector Away;
+		const float Dist = PlaneBoxDistanceXY(Pos, Centre, Extent, BodyRadius + ObstacleClearance, Away);
+		if (Dist >= ObstacleAvoidDistance) continue;
+		const float Inward = FVector::DotProduct(DesiredVel, Away);
+		if (Inward < 0.f)
+		{
+			// Drop the part of the course that goes into the obstacle and slide round it instead,
+			// on the side the plane was already heading for, keeping its speed.
+			DesiredVel -= Away * Inward;
+			FVector Tangent = FVector::CrossProduct(FVector::UpVector, Away);
+			if (FVector::DotProduct(Tangent, DesiredVel) < 0.f) Tangent = -Tangent;
+			DesiredVel += Tangent * -Inward;
+		}
+		if (Dist < 0.f) DesiredVel += Away * AvoidGain * -Dist;
+	}
+	// Away from other flying planes at a similar altitude.
+	for (TActorIterator<ANemesisPlane> It(GetWorld()); It; ++It)
+	{
+		const ANemesisPlane* Other = *It;
+		if (Other == this || Other->IsDown()) continue;
+		const FVector OtherPos = Other->GetActorLocation();
+		if (FMath::Abs(Pos.Z - OtherPos.Z) > BodyHalfHeight + Other->BodyHalfHeight + PlaneClearance) continue;
+		FVector Away(Pos.X - OtherPos.X, Pos.Y - OtherPos.Y, 0.f);
+		const float Dist = Away.Size();
+		const float Keep = BodyRadius + Other->BodyRadius + PlaneClearance;
+		if (Dist >= Keep) continue;
+		// Exactly on top of each other: split sideways, by id so the two pick opposite sides.
+		Away = Dist > 1.f ? Away / Dist
+			: FVector::CrossProduct(FVector::UpVector, GetBalloonForward()) * (GetUniqueID() < Other->GetUniqueID() ? 1.f : -1.f);
+		DesiredVel += Away * AvoidGain * (Keep - Dist);
+	}
+	return DesiredVel.GetClampedToMaxSize(MaxSpeed);
+}
+
+FVector ANemesisPlane::KeepClear(FVector NewPos) const
+{
+	// Never inside an obstacle, whatever the steering did: out to its edge.
+	TArray<TPair<FVector, FVector>> Obstacles;
+	GetObstacles(Obstacles);
+	for (const TPair<FVector, FVector>& O : Obstacles)
+	{
+		if (FMath::Abs(NewPos.Z - O.Key.Z) >= O.Value.Z + BodyHalfHeight) continue;
+		FVector Away;
+		const float Dist = PlaneBoxDistanceXY(NewPos, O.Key, O.Value, BodyRadius, Away);
+		if (Dist < 0.f) NewPos += Away * -Dist;
+	}
+	for (TActorIterator<ANemesisPlane> It(GetWorld()); It; ++It)
+	{
+		const ANemesisPlane* Other = *It;
+		if (Other == this || Other->IsDown()) continue;
+		const FVector OtherPos = Other->GetActorLocation();
+		if (FMath::Abs(NewPos.Z - OtherPos.Z) > BodyHalfHeight + Other->BodyHalfHeight) continue;
+		FVector Away(NewPos.X - OtherPos.X, NewPos.Y - OtherPos.Y, 0.f);
+		const float Dist = Away.Size();
+		const float Touch = BodyRadius + Other->BodyRadius;
+		if (Dist >= Touch) continue;
+		// Each of the two moves half the overlap.
+		Away = Dist > 1.f ? Away / Dist
+			: FVector::CrossProduct(FVector::UpVector, GetBalloonForward()) * (GetUniqueID() < Other->GetUniqueID() ? 1.f : -1.f);
+		NewPos += Away * (Touch - Dist) * 0.5f;
+	}
+	return NewPos;
 }
 
 void ANemesisPlane::Fall(float DeltaSeconds)

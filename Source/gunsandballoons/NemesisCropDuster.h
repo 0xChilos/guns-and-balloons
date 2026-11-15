@@ -45,6 +45,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "CropDuster")
 	float AheadDistance = 1000.f;
 
+	/** Crop dusters on the same side take slots this far apart along the course (ahead, behind,
+	 *  further ahead...), so they don't sit in each other, cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "CropDuster", meta = (ClampMin = "0"))
+	float SlotSpacing = 1500.f;
+
 	/** Shoots only when this close to its slot, cm. */
 	UPROPERTY(EditAnywhere, Category = "CropDuster", meta = (ClampMin = "0"))
 	float SlotTolerance = 800.f;

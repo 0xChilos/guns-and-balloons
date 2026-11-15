@@ -1,6 +1,9 @@
 #include "NemesisBirdFlock.h"
 
+#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "FirstPersonCameraPawn.h"
 #include "GunComponent.h"
@@ -17,6 +20,10 @@ ANemesisBirdFlock::ANemesisBirdFlock()
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Canvas(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Dark.MI_Nemesis_Dark"));
 	BirdMesh = Cube.Object;
 	BirdMaterial = Canvas.Object;
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> BirdSk(TEXT("/Game/Assets/Locations/Field/SK_Bird.SK_Bird"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Flap(TEXT("/Game/Assets/Locations/Field/A_Bird_Flap.A_Bird_Flap"));
+	BirdModel = BirdSk.Object;
+	BirdFlapAnim = Flap.Object;
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -73,15 +80,42 @@ void ANemesisBirdFlock::StartCrossing()
 	const int32 Num = FMath::RandRange(MinBirds, FMath::Max(MinBirds, MaxBirds));
 	for (int32 i = 0; i < Num; ++i)
 	{
-		UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(this, *FString::Printf(TEXT("Bird_%d"), i));
-		M->SetStaticMesh(BirdMesh);
-		M->SetMaterial(0, BirdMaterial);
+		UPrimitiveComponent* M = nullptr;
+		if (BirdModel)
+		{
+			USkeletalMeshComponent* S = NewObject<USkeletalMeshComponent>(this, *FString::Printf(TEXT("Bird_%d"), i));
+			S->SetSkeletalMesh(BirdModel);
+			S->SetupAttachment(Root);
+			S->RegisterComponent();
+			// SK_Bird's root bone carries a ×100 import scale in the reference pose, but A_Bird_Flap
+			// keys the root at ×1, so a flapping bird would be 100× too small. Make up for it on the
+			// component (read from the model, so a fixed re-import just works).
+			const float RootScale = BirdFlapAnim
+				? static_cast<float>(S->GetSocketTransform(S->GetBoneName(0), RTS_Component).GetScale3D().X) : 1.f;
+			if (BirdFlapAnim)
+			{
+				// Each bird flaps at its own pace and phase, so the flock doesn't beat in step.
+				S->PlayAnimation(BirdFlapAnim, true);
+				S->SetPlayRate(FMath::FRandRange(0.85f, 1.2f));
+				S->SetPosition(FMath::FRandRange(0.f, BirdFlapAnim->GetPlayLength()), false);
+			}
+			const FVector Ext = BirdModel->GetBounds().BoxExtent; // the mesh is ~1 m across
+			S->SetWorldScale3D(FVector(RootScale * BirdWingspan / FMath::Max(0.001, 2.0 * FMath::Max(Ext.X, Ext.Y))));
+			M = S;
+		}
+		else
+		{
+			UStaticMeshComponent* S = NewObject<UStaticMeshComponent>(this, *FString::Printf(TEXT("Bird_%d"), i));
+			S->SetStaticMesh(BirdMesh);
+			S->SetMaterial(0, BirdMaterial);
+			S->SetupAttachment(Root);
+			S->RegisterComponent();
+			S->SetWorldScale3D(FVector(0.6f, 0.3f, 0.15f)); // placeholder bird ~60 cm
+			M = S;
+		}
 		M->SetCastShadow(false);
 		NemesisCollision::Shootable(M);
-		M->SetupAttachment(Root);
-		M->RegisterComponent();
 		AddInstanceComponent(M);
-		M->SetWorldScale3D(FVector(0.6f, 0.3f, 0.15f)); // placeholder bird ~60 cm
 		M->SetWorldLocation(Start + FMath::VRand() * FMath::FRandRange(0.f, 300.f));
 
 		FBird Bird;
@@ -166,7 +200,9 @@ void ANemesisBirdFlock::TickBirds(float DeltaSeconds)
 		const FVector Desired = Steer.GetSafeNormal() * BirdSpeed;
 		B.Velocity = FMath::VInterpTo(B.Velocity, Desired, DeltaSeconds, TurnRate);
 		const FVector NewP = P + B.Velocity * DeltaSeconds;
-		B.Mesh->SetWorldLocationAndRotation(NewP, B.Velocity.Rotation());
+		// The model faces −Y: turn it 90° so it flies nose first.
+		const FRotator Face = B.Velocity.Rotation();
+		B.Mesh->SetWorldLocationAndRotation(NewP, BirdModel ? (Face.Quaternion() * FRotator(0.f, 90.f, 0.f).Quaternion()).Rotator() : Face);
 
 		// Bird strike on the basket (a scared flock never strikes).
 		if (!bScared && FVector::DistSquared(NewP, Basket) <= FMath::Square(BirdHitRadius))
@@ -205,6 +241,7 @@ void ANemesisBirdFlock::HandlePointDamage(AActor* DamagedActor, float InDamage, 
 			UE_LOG(LogTemp, Log, TEXT("%s: bird shot"), *GetName());
 			B.Velocity *= 0.3f;
 			NemesisCollision::None(B.Mesh);
+			if (USkeletalMeshComponent* S = Cast<USkeletalMeshComponent>(B.Mesh)) S->Stop(); // limp wings as it falls
 			Scatter(HitLocation);
 			return;
 		}

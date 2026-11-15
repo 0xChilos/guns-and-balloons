@@ -296,7 +296,7 @@ void ANemesisAirship::UpdateAttacks(float DeltaSeconds)
 	{
 		if (RocketTimer <= 0.f && ActiveRockets.Num() < MaxRockets) { LaunchRocket(); RocketTimer = RocketCooldown; }
 		if (BomberTimer <= 0.f && ActiveBombers.Num() < MaxBombers) { LaunchBomber(); BomberTimer = BomberCooldown; }
-		if (CropDusterTimer <= 0.f && ActiveCropDusters.Num() < MaxCropDusters) { LaunchCropDuster(); CropDusterTimer = CropDusterCooldown; }
+		if (CropDusterTimer <= 0.f && CanLaunchOwnCropDuster()) { LaunchCropDuster(); CropDusterTimer = CropDusterCooldown; }
 		return;
 	}
 
@@ -318,7 +318,7 @@ void ANemesisAirship::UpdateAttacks(float DeltaSeconds)
 		}
 		break;
 	case ENemesisBand::CropDusters:
-		if (CropDusterTimer <= 0.f && ActiveCropDusters.Num() < MaxCropDusters)
+		if (CropDusterTimer <= 0.f && CanLaunchOwnCropDuster())
 		{
 			LaunchCropDuster();
 			CropDusterTimer = CropDusterCooldown;
@@ -345,7 +345,7 @@ void ANemesisAirship::LaunchBomber()
 	}
 }
 
-void ANemesisAirship::LaunchCropDuster()
+void ANemesisAirship::LaunchCropDuster(bool bOwn)
 {
 	if (!CropDusterClass || !Balloon.IsValid()) return;
 	// Take the free side: right if nobody holds it, else left.
@@ -357,41 +357,34 @@ void ANemesisAirship::LaunchCropDuster()
 		Duster->SetSide(Side);
 		Duster->FinishSpawning(FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), At));
 		Duster->Launch(this);
-		ActiveCropDusters.Add(Duster);
-		UE_LOG(LogTemp, Log, TEXT("NemesisAirship: crop duster launched (%s)"), Side > 0 ? TEXT("right") : TEXT("left"));
+		if (bOwn) ActiveCropDusters.Add(Duster);
+		UE_LOG(LogTemp, Log, TEXT("NemesisAirship: crop duster launched (%s, %s)"), Side > 0 ? TEXT("right") : TEXT("left"), bOwn ? TEXT("own") : TEXT("for a beacon"));
 	}
 }
 
 bool ANemesisAirship::IsCropDusterSideTaken(int32 Side, const ANemesisCropDuster* Except) const
 {
-	for (const TWeakObjectPtr<ANemesisCropDuster>& D : ActiveCropDusters)
+	// Every attacking crop duster counts (the airship's, beacons', patrols'): the free side is the emptier one.
+	for (TActorIterator<ANemesisCropDuster> It(GetWorld()); It; ++It)
 	{
-		if (D.IsValid() && D.Get() != Except && !D->IsDown() && D->GetSide() == Side) return true;
+		if (*It != Except && !It->IsDown() && !It->IsOnRoute() && It->GetSide() == Side) return true;
 	}
 	return false;
 }
 
-int32 ANemesisAirship::RequestCropDusters(int32 Count, int32 MinCount)
+bool ANemesisAirship::CanLaunchOwnCropDuster()
 {
-	if (bKilled || !CropDusterClass) return 0;
-	ActiveCropDusters.RemoveAll([](const TWeakObjectPtr<ANemesisCropDuster>& D) { return !D.IsValid(); });
-	int32 Launched = 0;
-	for (int32 i = 0; i < Count; ++i)
-	{
-		if (i >= MinCount && ActiveCropDusters.Num() >= MaxCropDusters) break;
-		const int32 Before = ActiveCropDusters.Num();
-		LaunchCropDuster();
-		if (ActiveCropDusters.Num() > Before) ++Launched;
-	}
-	return Launched;
+	ActiveCropDusters.RemoveAll([](const TWeakObjectPtr<ANemesisCropDuster>& D) { return !D.IsValid() || D->IsDown(); });
+	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+	return ActiveCropDusters.Num() < MaxCropDusters && (!T || T->CanAddCropDusters());
 }
 
 bool ANemesisAirship::RequestCropDuster()
 {
 	if (bKilled || !CropDusterClass) return false;
-	ActiveCropDusters.RemoveAll([](const TWeakObjectPtr<ANemesisCropDuster>& D) { return !D.IsValid(); });
-	if (ActiveCropDusters.Num() >= MaxCropDusters) return false;
-	LaunchCropDuster();
+	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+	if (T && !T->CanAddCropDusters()) return false;
+	LaunchCropDuster(false);
 	return true;
 }
 

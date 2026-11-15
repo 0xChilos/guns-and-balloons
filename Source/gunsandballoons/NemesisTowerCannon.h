@@ -27,8 +27,11 @@ enum class ETowerCannonState : uint8
  * The tower is solid level geometry. With the basket inside Range and in line of sight (a sandstorm
  * blocks it) the cannon turns to the basket and aims for AimTime (a glow at the muzzle warns the
  * player), fires one shell straight at the basket (no drop), then reloads for ReloadTime.
- * A fuel tank sits on the platform: one hit from any weapon blows it up together with the cannon;
- * the tower stays standing with an empty, smoking deck. The cannon and the tower ignore shots.
+ * Two ways to destroy it (team decision 2026-11-15): one hit from any weapon on the fuel tank, which
+ * with our model hangs under the deck where it can be seen from every side; or enough hits on the
+ * cannon itself (revolver 4, shotgun 3, rifle 2, like a plane's fuselage). Either way the tank and
+ * the cannon blow up and the tower stays standing with an empty, smoking deck. Shots pass through
+ * the lattice tower (it ignores the Visibility channel) so the tank under the deck can be hit.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisTowerCannon : public AActor
@@ -135,6 +138,24 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Tower")
 	TSubclassOf<ANemesisBullet> ShellClass;
 
+	// Hits on the cannon (mount or barrel) that destroy it, per weapon. One shotgun shot is one hit. TBD
+	UPROPERTY(EditAnywhere, Category = "Tower|Damage", meta = (ClampMin = "1"))
+	int32 RevolverCannonHits = 4;
+
+	UPROPERTY(EditAnywhere, Category = "Tower|Damage", meta = (ClampMin = "1"))
+	int32 ShotgunCannonHits = 3;
+
+	UPROPERTY(EditAnywhere, Category = "Tower|Damage", meta = (ClampMin = "1"))
+	int32 RifleCannonHits = 2;
+
+	/** Anything else that deals point damage. TBD */
+	UPROPERTY(EditAnywhere, Category = "Tower|Damage", meta = (ClampMin = "1"))
+	int32 OtherCannonHits = 3;
+
+	/** Pellets of one shotgun shot landing within this time count as one hit, s. */
+	UPROPERTY(EditAnywhere, Category = "Tower|Damage", meta = (ClampMin = "0"))
+	float ShotgunPelletWindow = 0.15f;
+
 	/** The empty deck keeps smoking this long after the blast, s. */
 	UPROPERTY(EditAnywhere, Category = "Tower", meta = (ClampMin = "0"))
 	float WreckSmokeTime = 8.f;
@@ -149,6 +170,8 @@ private:
 	void Fire(const FVector& Basket);
 	void BlowUp();
 	void TickWreck(float DeltaSeconds);
+	/** Cannon hits the weapon behind this damage needs; 0 = another pellet of the same shotgun shot. */
+	int32 CannonHitsFor(AActor* DamageCauser);
 	void ApplyLayout();
 	FVector DeckLocation() const;
 
@@ -164,6 +187,10 @@ private:
 	float DeckHeight = 0.f;
 	/** The model tower's vertical stretch (bDeckAtPlayerHeight). */
 	float TowerZScale = 1.f;
+	/** 1 = intact; each cannon hit takes 1 / (hits for that weapon). */
+	float CannonHealth = 1.f;
+	double LastShotgunHitTime = -1.0;
+
 	/** Alternates the two muzzles of the model's twin guns. */
 	bool bSecondMuzzle = false;
 

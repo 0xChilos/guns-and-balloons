@@ -7,13 +7,15 @@ Style is steampunk PS1, like the airship rocket.
   It turns around Z: a riveted iron turntable, two carriage cheeks, an armoured shield, a gauge, a steam pipe.
 - SM_TowerGun_Barrel: one heavy cannon, pivot at the trunnion; it elevates around Y.
   Muzzle at +X 4.3 m from the pivot; the C++ uses those numbers (TowerGun* constants).
-- SM_TowerGun_FuelTank: the weak spot, pivot at its base centre (goes on the tower's engine socket).
-  A riveted red-painted tank lying across on a cradle, raised on an iron stand (a gravity-fed tank,
-  LIFT above the deck, so the gun shield never hides it), with a hazard band, a filler cap, a valve and
-  a feed pipe down to the deck.
+- SM_TowerGun_FuelTank: the weak spot, pivot at the top of its hangers. It hangs under the tower's
+  deck below the tower's centre (team decision 2026-11-15): there nothing on the deck hides it, so it
+  can be seen and shot from every side. A big riveted red-painted tank (2 m across, 3.9 m long) lying
+  across, in two iron straps on hangers bolted to the deck's underside, with a hazard band, a filler
+  cap, a valve, a fuel gauge and a feed pipe up into the deck.
 
-+X = the gun's forward, Z up, metres. In this file the tank stands where it sits on the tower:
-3.65 m behind the mount. New pixel textures are generated (64 px, nearest) and written to
++X = the gun's forward, Z up, metres. In this file the deck's top is z = 0 and the tank hangs where it
+does on the tower: under the deck (0.7 m thick), 0.9 m behind the mount (the head socket is 0.9 m in
+front of the tower's centre). New pixel textures are generated (64 px, nearest) and written to
 Content/Assets/Nemesis/Textures: T_Nemesis_FuelPaint, T_Nemesis_Hazard.
 Usage: Blender -b --factory-startup --python build_tower_gun.py [-- preview.png]"""
 import bpy, bmesh, math, sys, random
@@ -26,9 +28,9 @@ PREVIEW = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else None
 
 TRUNNION = Vector((0.15, 0.0, 1.35))   # barrel pivot in mount space
 MUZZLE = 4.3                           # muzzle distance from the trunnion along +X
-TANK_AT = Vector((-3.65, 0.0, 0.0))    # tank base centre relative to the mount (tower: engine - head socket)
-LIFT = 1.6                             # the tank stands this high on its stand: above the gun shield, at the
-                                       # player's eye level, so it can be hit from any side
+TANK_AT = Vector((-0.9, 0.0, -0.7))    # top of the tank's hangers: the deck's underside below the tower's centre
+TANK_R = 1.0                           # tank radius
+TANK_DROP = 0.25                       # hanger length from the deck to the top of the tank
 
 for o in list(bpy.data.objects):
     bpy.data.objects.remove(o)
@@ -232,59 +234,49 @@ finish(bm, "SM_TowerGun_Recoil", col, root, "MI_Nemesis_Copper", origin=T)
 
 # ================================================================= fuel tank (the weak spot)
 K = TANK_AT
+C = Vector((K.x, 0.0, K.z - TANK_DROP - TANK_R))                        # tank centre
+R = TANK_R
 bm = bmesh.new()
-# Lies across the deck (axis along Y), domed riveted ends.
-rs = loft(bm, [(-1.45, 0.25, 0.25), (-1.38, 0.62, 0.62), (-1.28, 0.8, 0.8), (1.28, 0.8, 0.8),
-               (1.38, 0.62, 0.62), (1.45, 0.25, 0.25)], sides=12, axis="Y")
-moved(bm.verts, (K.x, K.y, K.z + LIFT + 1.05))
+# Lies across (axis along Y), domed riveted ends.
+loft(bm, [(-1.95, 0.3, 0.3), (-1.88, 0.78, 0.78), (-1.75, R, R), (1.75, R, R),
+          (1.88, 0.78, 0.78), (1.95, 0.3, 0.3)], sides=12, axis="Y")
+moved(bm.verts, C)
 finish(bm, "SM_TowerGun_TankShell", col, root, "MI_Nemesis_FuelPaint", origin=K)
 bm = bmesh.new()                                                     # hazard band around the middle
-loft(bm, [(-0.3, 0.815, 0.815), (0.3, 0.815, 0.815)], sides=12, axis="Y", cap=False)
-moved(bm.verts, (K.x, K.y, K.z + LIFT + 1.05))
+loft(bm, [(-0.35, R + 0.015, R + 0.015), (0.35, R + 0.015, R + 0.015)], sides=12, axis="Y", cap=False)
+moved(bm.verts, C)
 finish(bm, "SM_TowerGun_TankHazard", col, root, "MI_Nemesis_Hazard", origin=K)
-bm = bmesh.new()                                                     # iron cradle and straps
-for y in (-0.95, 0.95):
-    box(bm, (K.x, y, K.z + LIFT + 0.18), (1.5, 0.22, 0.36))
-    for s in (-1, 1):
-        box(bm, (K.x + s * 0.55, y, K.z + LIFT + 0.5), (0.18, 0.22, 0.5))
-    loft_strap = loft(bm, [(y - 0.06, 0.83, 0.83), (y + 0.06, 0.83, 0.83)], sides=12, axis="Y", cap=False)
-    for ring in loft_strap:
+bm = bmesh.new()                                                     # iron straps, hangers, deck plates
+for y in (-1.15, 1.15):
+    for ring in loft(bm, [(y - 0.07, R + 0.04, R + 0.04), (y + 0.07, R + 0.04, R + 0.04)], sides=12, axis="Y", cap=False):
         for v in ring:
-            v.co += Vector((K.x, 0, K.z + LIFT + 1.05))
-# The stand: four iron legs with cross braces from the deck up to the cradle.
-for sx in (-1, 1):
-    for sy in (-1, 1):
-        box(bm, (K.x + sx * 0.6, sy * 0.95, K.z + LIFT / 2), (0.16, 0.16, LIFT))
-for sy in (-1, 1):
-    tube(bm, [(K.x - 0.6, sy * 0.95, K.z + 0.1), (K.x + 0.6, sy * 0.95, K.z + LIFT - 0.05)], 0.04, sides=4)
-    tube(bm, [(K.x + 0.6, sy * 0.95, K.z + 0.1), (K.x - 0.6, sy * 0.95, K.z + LIFT - 0.05)], 0.04, sides=4)
-for sx in (-1, 1):
-    tube(bm, [(K.x + sx * 0.6, -0.95, K.z + 0.5), (K.x + sx * 0.6, 0.95, K.z + 0.5)], 0.045, sides=4)
+            v.co += C
+    for sx in (-1, 1):
+        box(bm, (K.x + sx * 0.45, y, K.z - TANK_DROP / 2 - 0.05), (0.14, 0.14, TANK_DROP + 0.12))
+    box(bm, (K.x, y, K.z - 0.03), (1.4, 0.3, 0.06))
 finish(bm, "SM_TowerGun_TankCradle", col, root, "MI_Nemesis_Iron", origin=K)
 bm = bmesh.new()                                                     # brass filler cap, valve, fuel gauge
-cyl(bm, (K.x, 0.75, K.z + LIFT + 1.88), 0.16, 0.12, sides=8, axis="Z")
-cyl(bm, (K.x, 0.75, K.z + LIFT + 1.97), 0.1, 0.06, sides=8, axis="Z")
-cyl(bm, (K.x + 0.81, -0.55, K.z + LIFT + 1.15), 0.15, 0.06, sides=8, axis="X")
-wheel(bm, (K.x + 0.9, 0.5, K.z + LIFT + 0.95), (1, 0, 0), 0.18, 0.025)
+cyl(bm, (C.x, 0.85, C.z + R + 0.04), 0.16, 0.1, sides=8, axis="Z")
+cyl(bm, (C.x + R + 0.02, -0.6, C.z), 0.17, 0.06, sides=8, axis="X")
+wheel(bm, (C.x + R + 0.12, 0.6, C.z), (1, 0, 0), 0.2, 0.025)
 finish(bm, "SM_TowerGun_TankBrass", col, root, "MI_Nemesis_Brass", origin=K)
 bm = bmesh.new()
-cyl(bm, (K.x + 0.845, -0.55, K.z + LIFT + 1.15), 0.11, 0.01, sides=8, axis="X")
+cyl(bm, (C.x + R + 0.055, -0.6, C.z), 0.13, 0.01, sides=8, axis="X")
 finish(bm, "SM_TowerGun_TankGauge", col, root, "MI_Nemesis_Canvas", origin=K)
-bm = bmesh.new()                                                     # feed pipe towards the gun
-tube(bm, [(K.x + 0.85, 0.5, K.z + LIFT + 0.95), (K.x + 1.25, 0.5, K.z + LIFT + 0.95), (K.x + 1.25, 0.5, K.z + 0.12),
-          (K.x + 1.75, 0.5, K.z + 0.12)], 0.065)
+bm = bmesh.new()                                                     # feed pipe up into the deck
+tube(bm, [(C.x + R + 0.12, 0.6, C.z), (C.x + R + 0.4, 0.6, C.z), (C.x + R + 0.4, 0.6, K.z + 0.05)], 0.07)
 finish(bm, "SM_TowerGun_TankPipe", col, root, "MI_Nemesis_Copper", origin=K)
 
 # ---------------------------------------------------------------- scene
 deck = bpy.data.objects.new("Preview_Deck", bpy.data.meshes.new("Preview_Deck"))   # not exported
 bm = bmesh.new()
-box(bm, (-0.9, 0, -0.1), (8.8, 8.8, 0.2))
+box(bm, (-0.9, 0, -0.35), (8.8, 8.8, 0.7))   # the team deck: top z 0, 0.7 m thick
 bm.to_mesh(deck.data); bm.free()
 deck.data.materials.append(bpy.data.materials["MI_Nemesis_Wood"])
 col.objects.link(deck)
 cam = bpy.data.objects.new("TowerGun_Cam", bpy.data.cameras.new("TowerGun_Cam"))
-cam.location = Vector((5.0, -12.5, 6.5))
-cam.rotation_euler = (Vector((-0.4, 0, 1.4)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+cam.location = Vector((7.0, -12.0, -2.6))
+cam.rotation_euler = (Vector((-0.2, 0, -0.6)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
 sun = bpy.data.objects.new("TowerGun_Sun", bpy.data.lights.new("TowerGun_Sun", 'SUN'))
 sun.rotation_euler = (math.radians(50), 0, math.radians(30))
 sc.collection.objects.link(cam); sc.collection.objects.link(sun)

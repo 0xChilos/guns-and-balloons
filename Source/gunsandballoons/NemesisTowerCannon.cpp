@@ -5,6 +5,10 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
+#include "FirstPersonCameraPawn.h"
+#include "RevolverComponent.h"
+#include "RifleComponent.h"
+#include "ShotgunComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "NemesisBullet.h"
 #include "NemesisFx.h"
@@ -22,6 +26,9 @@ namespace
 	 *  the mount, and the muzzle's distance from it along the barrel, cm. */
 	const FVector TowerGunTrunnion(15.f, 0.f, 135.f);
 	constexpr float TowerGunMuzzle = 430.f;
+	/** The team tower's deck is 70 cm thick (its deck collision, 19.75–20.45 m); our fuel tank hangs
+	 *  from its underside below the tower's centre. Scaled with the tower's stretch. */
+	constexpr float TowerDeckThickness = 70.f;
 
 	FVector TurretSocketInMesh(const UStaticMeshComponent* C, FName Socket)
 	{
@@ -138,6 +145,9 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 			NemesisModel::Use(Carriage, OwnMount.Object);
 			NemesisModel::Use(Barrel, OwnBarrel.Object);
 			NemesisModel::Use(FuelTank, OwnTank.Object);
+			// Shots go through the lattice tower to the tank under the deck (it still blocks the
+			// balloon and the cannon's line of sight, which traces WorldStatic objects).
+			Tower->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 		}
 	}
 }
@@ -170,7 +180,9 @@ void ANemesisTowerCannon::ApplyLayout()
 			const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
 			MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
 		}
-		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
+		// Our tank hangs under the deck below the tower's centre; the team's boiler stands on its socket.
+		const FVector EngineAt = bOwnGun ? FVector(0.f, 0.f, DeckHeight - TowerDeckThickness * TowerZScale)
+			: TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
 		FuelTank->SetRelativeLocation(EngineAt);
 		// Hit box around the fuel tank, a bit bigger than it.
 		const FRotator TankRotation = bOwnGun ? FRotator::ZeroRotator : TurretModelToActor;
@@ -323,8 +335,35 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 void ANemesisTowerCannon::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,
 	UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser)
 {
-	if (State == ETowerCannonState::Destroyed || (HitComponent != TankHitBox && HitComponent != FuelTank)) return; // the cannon and tower ignore shots
-	BlowUp();
+	if (State == ETowerCannonState::Destroyed) return;
+	if (HitComponent == TankHitBox || HitComponent == FuelTank)
+	{
+		BlowUp(); // one hit on the fuel tank
+		return;
+	}
+	if (HitComponent != Carriage && HitComponent != Barrel) return; // the tower ignores shots
+	const int32 Hits = CannonHitsFor(DamageCauser);
+	if (Hits <= 0) return; // another pellet of the same shotgun shot
+	CannonHealth = FMath::Max(0.f, CannonHealth - 1.f / Hits);
+	UE_LOG(LogTemp, Log, TEXT("%s: cannon hit (1/%d), %.2f left"), *GetName(), Hits, CannonHealth);
+	if (CannonHealth <= KINDA_SMALL_NUMBER) BlowUp();
+}
+
+int32 ANemesisTowerCannon::CannonHitsFor(AActor* DamageCauser)
+{
+	// Gun bullets name the shooter as the causer; the gun is the one in the shooter's hand.
+	const AFirstPersonCameraPawn* Pawn = Cast<AFirstPersonCameraPawn>(DamageCauser);
+	const UGunComponent* Gun = Pawn ? Pawn->GetActiveGun() : nullptr;
+	if (Cast<URevolverComponent>(Gun)) return RevolverCannonHits;
+	if (Cast<URifleComponent>(Gun)) return RifleCannonHits;
+	if (Cast<UShotgunComponent>(Gun))
+	{
+		const double Now = GetWorld()->GetTimeSeconds();
+		const bool bSameShot = LastShotgunHitTime >= 0.0 && Now - LastShotgunHitTime <= ShotgunPelletWindow;
+		LastShotgunHitTime = Now;
+		return bSameShot ? 0 : ShotgunCannonHits;
+	}
+	return OtherCannonHits;
 }
 
 FVector ANemesisTowerCannon::DeckLocation() const
@@ -350,7 +389,7 @@ void ANemesisTowerCannon::BlowUp()
 	WreckTime = 0.f;
 	WreckFire.Start(World, NemesisFx::EKind::Fire, 20.f);
 	WreckSmoke.Start(World, NemesisFx::EKind::EngineSmoke, 10.f);
-	UE_LOG(LogTemp, Log, TEXT("%s: fuel tank hit, cannon destroyed"), *GetName());
+	UE_LOG(LogTemp, Log, TEXT("%s: the fuel tank and the cannon blew up"), *GetName());
 	OnTowerDestroyed();
 }
 

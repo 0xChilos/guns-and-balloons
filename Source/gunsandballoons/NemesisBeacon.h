@@ -6,6 +6,7 @@
 #include "NemesisBeacon.generated.h"
 
 class UBoxComponent;
+class UPoseableMeshComponent;
 class USpotLightComponent;
 class UStaticMeshComponent;
 
@@ -15,12 +16,17 @@ class UStaticMeshComponent;
  * angle to the basket matters (plus Range and line of sight).
  * Once the beam touches the basket it locks on: the light turns RED and follows the basket in yaw
  * and pitch, until the lamp is shot or the basket gets farther than TrackRange from the beacon (then
- * it goes back to searching). SpotTime after locking on it calls a pair of crop dusters from the
- * nemesis airship: at least one always comes, even above the airship's limit (the second one only
- * within it). A new lock calls again only after Cooldown. The beacon does no damage itself.
+ * it goes back to searching). SpotTime after locking on it calls ONE crop duster from the nemesis
+ * airship's hangar (team decision 2026-11-15). While it stays locked it calls one more every Cooldown,
+ * but only while fewer than the map-wide limit of crop dusters are attacking (3): when the map is
+ * full it waits, and Cooldown after a place frees up it calls the next one. The beacon's planes don't
+ * count toward the airship's own limit. The beacon does no damage itself.
  * One hit on the lamp breaks it for good; shooting it before it spots you prevents the call. The
  * lamp shatters (flash, sparks, smoke), goes dark and hangs askew; the tower stays standing and smokes
  * for a few seconds.
+ * Model (2026-11-15): the team's SK_Lighthouse (Content/Assets/Locations/Desert, 38 m, lamp bone at
+ * 32.6 m), scaled uniformly so its lamp is where the cube lamp would be; its head bone turns with the
+ * beam. An invisible Tower cube inside keeps the collision (the model has none). Cubes if it's missing.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisBeacon : public AActor
@@ -57,8 +63,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
 	TObjectPtr<USceneComponent> Root;
 
+	/** Collision (and the placeholder look without the model). */
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
 	TObjectPtr<UStaticMeshComponent> Tower;
+
+	/** The team's lighthouse model; head and lamp bones posed from code. */
+	UPROPERTY(VisibleAnywhere, Category = "Beacon")
+	TObjectPtr<UPoseableMeshComponent> Body;
 
 	/** Turns to sweep the beam. */
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
@@ -130,17 +141,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float TrackRange = 8000.f;
 
-	/** Crop dusters called per spotting; at least one always comes. */
-	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "1"))
-	int32 PlanesPerCall = 2;
 
 	/** Seconds locked before the planes are called. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float SpotTime = 1.f;
 
-	/** A new lock calls planes again only this long after the last call, s. TBD */
+	/** Between two crop dusters called by this beacon, and after the map stops being full, s. TBD */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
-	float Cooldown = 15.f;
+	float Cooldown = 7.f;
 
 private:
 	UFUNCTION()
@@ -152,6 +160,12 @@ private:
 	void SetLocked(bool bLocked);
 	/** Tower size and lamp position from TowerHeight. */
 	void ApplyLayout();
+
+	/** Pose the model: the head turns to SweepYaw; a broken lamp hangs askew. */
+	void UpdateModelPose();
+	bool bModel = false;
+	FTransform RefHead;
+	FTransform RefLamp;
 
 	float SweepYaw = 0.f;
 	float BeamPitch = 0.f;

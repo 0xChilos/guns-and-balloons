@@ -67,18 +67,15 @@ public:
 	/** Testing: balloon damage is logged but not applied. */
 	void SetInvulnerableBalloon(bool bInvulnerable) { bDebugInvulnerableBalloon = bInvulnerable; }
 
-	/** Beacon: launch one crop duster now, ignoring the cooldown (still within MaxCropDusters). */
+	/** Beacon: launch one crop duster for it now from the hangar. It doesn't count toward the
+	 *  airship's own MaxCropDusters; only the map-wide limit (UNemesisTargetSubsystem::
+	 *  MaxAttackingCropDusters) applies. False if there's no room or the airship is down. */
 	bool RequestCropDuster();
-
-	/**
-	 * Beacon: launch up to Count crop dusters now, ignoring the cooldown. The first MinCount launch
-	 * even above MaxCropDusters (a beacon that spotted the balloon always sends someone); the rest
-	 * respect the limit. Returns how many were launched.
-	 */
-	int32 RequestCropDusters(int32 Count, int32 MinCount);
 
 	/** Is another live crop duster (not Except) holding that side (+1 right, −1 left)? */
 	bool IsCropDusterSideTaken(int32 Side, const ANemesisCropDuster* Except) const;
+	/** Own count under MaxCropDusters and room under the map-wide limit. */
+	bool CanLaunchOwnCropDuster();
 
 	/** Turrets start turning to the balloon (inside TurretWarnDistance). Hook sound/horn here. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Nemesis")
@@ -195,7 +192,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Nemesis|Planes", meta = (ClampMin = "0"))
 	float CropDusterCooldown = 15.f;
 
-	/** One per side. */
+	/** The airship's own crop dusters in the air at once (beacons' ones don't count); one launch per
+	 *  CropDusterCooldown, and never above the map-wide limit of attacking crop dusters. */
 	UPROPERTY(EditAnywhere, Category = "Nemesis|Planes", meta = (ClampMin = "0"))
 	int32 MaxCropDusters = 2;
 
@@ -230,7 +228,8 @@ private:
 	void UpdateAttacks(float DeltaSeconds);
 	void LaunchRocket();
 	void LaunchBomber();
-	void LaunchCropDuster();
+	/** bOwn: counts toward MaxCropDusters (false: sent for a beacon). */
+	void LaunchCropDuster(bool bOwn = true);
 	float GetSpeed() const;
 
 	TWeakObjectPtr<AActor> Balloon;
