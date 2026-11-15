@@ -2,6 +2,31 @@
 
 # Balloon level generation handoff
 
+Generation integration update (2026-11-15): environment application now runs
+inside the shared successful `GenerateLevel` path, covering Blueprint calls,
+BeginPlay, Details buttons and regeneration. It reads `ActiveConfig`; failed
+generation leaves the environment untouched. Environment application failures
+are copied to generator diagnostics. Build with DLL suffix 8817 succeeded;
+the expanded nonvisual EnvironmentConfig test passed direct generation,
+random-selected config, regeneration and preservation on generation failure.
+No visual tests performed. Restart the editor to load the rebuilt module.
+
+Config-driven environment update (2026-11-15): selected-config editor preview
+reads `LevelConfig.BiomeId` and `Preset` without requiring a generated plan.
+Generate/Regenerate Details buttons refresh bound environment controllers after
+successful generation. Runtime reads the successful `ActiveConfig` snapshot
+once; Random mode waits for a successful selection. Build succeeded with DLL
+suffix 8816; nonvisual `GunsAndBalloons.BalloonLevel.EnvironmentConfig` passed.
+Restart the editor to load the new native module. No visual tests performed.
+
+M7 integration update (2026-11-15): `LevelGeneration_Test` now saves the
+environment controller, explicit ground/fog/sun/sky bindings, Movable lights,
+and Every Level Start generation. Eight editor property combinations passed;
+visual tests were explicitly deferred by the user. Manual acceptance steps and
+the repeatable setup script are documented in
+[README_LevelGeneration.md](../../../Scripts/Editor/README_LevelGeneration.md#m7-environment-integration-2026-11-15).
+This supersedes the historical M7 placement status below. No design changes.
+
 Updated: 2026-11-15. Current milestone: M8 implementation, verification incomplete. Stopped at user request. Do not start M9.
 
 ## M8 ? implemented, acceptance gate pending

@@ -6,6 +6,8 @@
 Variety between runs: each biome forces a different route and different priorities.
 
 ## How it works
+- Successful level generation also applies the bound environment from the generated config, for editor buttons, Blueprint calls and level start. Failed generation retains the previous environment.
+- Environment ground material and fog use the generation config's `BiomeId`; fixed Day/Night lighting uses its `Preset`. Editor preview reads the selected config; play uses the successfully generated config snapshot. Random selection requires generation before preview. Lighting remains fixed during play.
 - Generation: `Manual (Button)` from a button, or `Every Level Start` automatically on every BeginPlay. The plan is temporary and isn't saved in the map.
 - Biome: `Selected Config`, or `Random` from the `RandomBiomeConfigs` list with their asset tables. `RandomizeSeed` gives a new seed on every generation; otherwise the config's seed is used. The source DataAsset isn't changed.
 - A level = a flight through one biome. After it comes the [safe zone](safe-zone.md).
