@@ -17,6 +17,7 @@ Variety between runs: each biome forces a different route and different prioriti
 - A level = a flight through one biome. After it comes the [safe zone](safe-zone.md).
 - A level is a **corridor** from start to finish. Rocket balloons (`BP_RocketBalloon`) patrol both edges of the corridor: flying over the edge = getting shot at.
 - Each biome has its own obstacles and hazards.
+- Generation merges the shared asset catalog with the selected biome catalog; biome rows replace shared rows with matching names. The preview configs enable scenery and static-mesh obstacles, using shared rocks plus the biome's location meshes. Density and spacing are prototype tuning in `Content/BalloonLevel/Rules/BalloonAssets_*.json`. Animated/functional hazard actor integration remains incomplete.
 - Every level has resources for the [grappling hook](grappling-hook.md) (loot spots on tall structures).
 - The biome set matches the existing assets (`/Game/Assets/Locations/<Level>`).
 

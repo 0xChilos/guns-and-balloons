@@ -1,5 +1,17 @@
 # Level generation preview
 
+## Shared and biome mesh catalogs (2026-11-15)
+
+All nine preview configs now bind `DT_BalloonAssets_Shared` plus the matching
+Forest/Field/City/Desert native table under `/Game/BalloonLevel/Rules` and enable
+scenery and mesh obstacles. Shared rocks spawn in every biome; the biome supplies
+its own mesh palette. Setup: `Scripts/Editor/setup_biome_asset_catalogs.py`.
+Sources, tuning and remaining animated/functional actor limits are documented in
+`Content/BalloonLevel/Rules/README.md`. All eight biome/preset combinations passed
+the headless matrix check (`Scripts/Editor/test_biome_asset_catalogs.py`), including
+shared meshes, biome meshes, absence of foreign biome scenery, and mesh obstacles.
+Results: `Saved/BiomeAssetCatalogChecks.json`. Visual testing is left to the user.
+
 ## Curved route and generated borders (2026-11-15)
 
 `LevelGeneration_Test` generates eight rocket balloons on both edges of its curved
