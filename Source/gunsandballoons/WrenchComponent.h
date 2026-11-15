@@ -62,6 +62,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Wrench")
 	EWrenchAction GetAction() const { return Action; }
 
+	/**
+	 * The work spot (the nut under the jaw, the component's origin) goes onto the crosshair as the wrench is
+	 * brought onto the work: 0 at rest (Idle, Equip), easing to 1 through ToFix, 1 while turning and finishing
+	 * the turn, easing back to 0 through FromFix.
+	 */
+	virtual float GetCrosshairPin() const override;
+
 	/** On the work and turning (ToFix done, LMB held). */
 	UFUNCTION(BlueprintPure, Category = "Wrench")
 	bool IsFixing() const { return Action == EWrenchAction::Fix; }

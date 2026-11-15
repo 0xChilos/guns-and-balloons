@@ -39,23 +39,29 @@ bool FWrenchFixTest::RunTest(const FString& Parameters)
 
 	// --- LMB held: onto the work (ToFix 0.67 s), then turning.
 	TestEqual(TEXT("Starts ready"), Wrench->GetAction(), EWrenchAction::Idle);
+	TestEqual(TEXT("Ready: off the crosshair"), Wrench->GetCrosshairPin(), 0.f);
 	Wrench->SetTriggerHeld(true);
 	Tick(0.1f);
 	TestEqual(TEXT("Held: ToFix"), Wrench->GetAction(), EWrenchAction::ToFix);
+	const float PinDuringToFix = Wrench->GetCrosshairPin();
+	TestTrue(FString::Printf(TEXT("ToFix: on its way to the crosshair (pin %.2f)"), PinDuringToFix), PinDuringToFix > 0.f && PinDuringToFix < 1.f);
 	Tick(0.7f);
 	TestTrue(TEXT("Held past ToFix: turning"), Wrench->IsFixing());
+	TestEqual(TEXT("Turning: on the crosshair"), Wrench->GetCrosshairPin(), 1.f);
 
 	// Let go part-way into the first turn: it finishes the turn (to 1.25 s in Fix), then comes off the work.
 	Tick(0.3f);
 	Wrench->SetTriggerHeld(false);
 	Tick(1.f / 60.f);
 	TestEqual(TEXT("Released mid-turn: finishes the turn"), Wrench->GetAction(), EWrenchAction::FinishTurn);
+	TestEqual(TEXT("Finishing the turn: still on the crosshair"), Wrench->GetCrosshairPin(), 1.f);
 	Tick(0.4f);
 	TestEqual(TEXT("Still finishing"), Wrench->GetAction(), EWrenchAction::FinishTurn);
 	Tick(0.6f);
 	TestEqual(TEXT("Turn done: off the work"), Wrench->GetAction(), EWrenchAction::FromFix);
 	Tick(0.75f);
 	TestEqual(TEXT("Back to ready"), Wrench->GetAction(), EWrenchAction::Idle);
+	TestEqual(TEXT("Back to ready: off the crosshair"), Wrench->GetCrosshairPin(), 0.f);
 
 	// Let go during ToFix: straight back.
 	Wrench->SetTriggerHeld(true);
