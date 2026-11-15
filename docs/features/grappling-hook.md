@@ -1,47 +1,47 @@
-# Граплінг-хук і ресурси
+# Grappling hook and resources
 
-> **Статус:** In progress · **Власник:** Сокін · **Оновлено:** 2026-11-14
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-14
 
-## Навіщо
-Дає спосіб збирати ресурси на льоту, не зупиняючись, і створює ризик/вигоду: відволіктися на здобич під час погоні.
+## Why
+A way to gather resources on the fly without stopping, and a risk/reward choice: getting distracted by loot during the chase.
 
-## Як працює
-- Хук пневматичний (за принципом вогнемета з Hunt: Showdown): після пострілу **треба підкачати тиск**, щоб вистрілити знову.
-- Хук — спорядження, що лежить на своєму місці, як і [зброя](weapons.md): ЛКМ по ньому порожньою рукою — взяти, ЛКМ по його порожньому місцю — покласти назад. У руці він там само, де й зброя.
-- Тиск видно на **манометрі на самому хуку**: стрілка 0–100, зелена зона біля 100. Хук видається **повністю зарядженим** (100).
-- **Хук працює лише на 100.** ЛКМ: хук вилітає вперед за прицілом, тиск падає до 0. Нижче 100 ЛКМ лише клацає.
-- **Мотузка без фізики** — пряма лінія від дула до голови хука.
-- Влучив хуком у ресурс → кігті стискаються (анімація Grab), хук тягне ресурс назад до гравця. Ресурс відпускається перед гравцем і падає (у корзину).
-- Не влучив у ресурс (стіна або кінець дальності) → хук повертається порожнім.
-- Після повернення — підкачування насосом: кожен хід насоса (анімація Pump) додає `100 / кількість підкачувань`. На 100 — анімація Charged, хук знову готовий.
-- **На початку качати легко, після середини — важче:** важіль іде туго, кожен наступний хід повільніший, останній — найважчий. Кількість ходів до 100 від цього не змінюється.
-- Ресурси:
-  - лежать на оточенні рівнів;
-  - висять на кульках, що літають у повітрі.
+## How it works
+- The hook is pneumatic (like the flamethrower in Hunt: Showdown): after a shot **the pressure has to be pumped up** before it can fire again.
+- The hook is gear that sits in its own place, like the [weapons](weapons.md): LMB on it with an empty hand takes it; LMB on its empty place puts it back. In the hand it sits where the weapons do.
+- Pressure is shown on a **gauge on the hook itself**: a needle 0–100, a green zone near 100. The hook is issued **fully charged** (100).
+- **The hook only works at 100.** LMB: the hook flies forward along the crosshair, pressure drops to 0. Below 100, LMB just clicks.
+- **The rope has no physics:** a straight line from the muzzle to the hook's head.
+- Hit a resource with the hook → the claws close (Grab animation) and the hook pulls the resource back to the player. The resource is released in front of the player and falls (into the basket).
+- Missed a resource (a wall or the end of the range) → the hook comes back empty.
+- After it returns, pump it up: each pump stroke (Pump animation) adds `100 / number of pumps`. At 100 the Charged animation plays and the hook is ready again.
+- **Pumping is easy at first, harder after the middle:** the lever goes stiff, each stroke is slower than the last, the final one is the hardest. The number of strokes to 100 doesn't change.
+- Resources:
+  - lie on the level's surroundings;
+  - hang from small balloons flying in the air.
 
-## Взаємодія (дієгетика)
-| Дія | Результат |
+## Interaction (diegetic)
+| Action | Result |
 | --- | --- |
-| ЛКМ по хуку (порожня рука) | Взяти хук у руку |
-| Вистрілити хуком (ЛКМ, тиск 100) | Хук летить, чіпляє ресурс і тягне його до гравця |
-| Підкачати тиск (насос) | Стрілка манометра росте; на 100 хук знову готовий |
+| LMB on the hook (empty hand) | Take the hook |
+| Fire the hook (LMB, pressure 100) | The hook flies, grabs a resource and pulls it to the player |
+| Pump the pressure (pump) | The gauge needle rises; at 100 the hook is ready again |
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Дальність | TBD | `MaxRange`, зараз 2500 см (заглушка) |
-| Кількість підкачувань до пострілу | TBD | `PumpsToFullCharge`, зараз 5; налаштовується в дебаг-меню (`H`) |
-| З якого тиску насос важчає | TBD | `HardPumpFrom`, зараз 50; дебаг-меню |
-| Швидкість останнього (найважчого) ходу | TBD | `HardPumpPlayRate`, зараз 40% від легкого; дебаг-меню |
-| Швидкість польоту хука | TBD | `ThrowSpeed`, зараз 2500 см/с |
-| Швидкість притягування | TBD | `ReturnSpeed`, зараз 1500 см/с |
-| Тиск на старті | 100 | `InitialCharge` |
+| Range | TBD | `MaxRange`, currently 2500 cm (placeholder) |
+| Pumps per shot | TBD | `PumpsToFullCharge`, currently 5; adjustable in the debug menu (`H`) |
+| Pressure at which pumping gets harder | TBD | `HardPumpFrom`, currently 50; debug menu |
+| Speed of the last (hardest) stroke | TBD | `HardPumpPlayRate`, currently 40% of an easy one; debug menu |
+| Hook flight speed | TBD | `ThrowSpeed`, currently 2500 cm/s |
+| Reel-in speed | TBD | `ReturnSpeed`, currently 1500 cm/s |
+| Starting pressure | 100 | `InitialCharge` |
 
-## Залежності
-[Зброя](weapons.md), [Біоми](biomes.md), [Безпечна зона](safe-zone.md) (на що витрачаються ресурси).
+## Dependencies
+[Weapons](weapons.md), [Biomes](biomes.md), [Safe zone](safe-zone.md) (what resources are spent on).
 
-## Відкриті питання
-- [ ] Які типи ресурсів існують (паливо, б/к, валюта, матеріали ремонту)?
-- [ ] Чи можна хуком чіплятися за об'єкти для маневру?
-- [ ] Якою дією качати насос? Зараз — утримувати ПКМ (див. [decisions](../decisions.md)).
-- [ ] Куди саме потрапляє ресурс: зараз падає перед гравцем; у грі — у корзину / інвентар?
+## Open questions
+- [ ] Which resource types exist (fuel, ammo, currency, repair materials)?
+- [ ] Can the hook grab objects for manoeuvring?
+- [ ] Which action pumps the hook? Currently: hold RMB (see [decisions](../decisions.md)).
+- [ ] Where exactly does the resource go: currently it falls in front of the player; in the game, into the basket / inventory?

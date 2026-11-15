@@ -1,11 +1,12 @@
-# Інструкції для агентів
+# Instructions for agents
 
-Unreal Engine проєкт гри **Guns and Balloons** (геймджем). Структура `Content/` описана в [README.md](README.md).
+Unreal Engine project for the game **Guns and Balloons** (game jam). The `Content/` layout is described in [README.md](README.md).
 
-## Дизайн-документація
-- Джерело правди щодо дизайну — [`docs/`](docs/README.md). Почни з `docs/README.md` і `docs/overview.md`, потім читай лише потрібні сторінки з `docs/features/`.
-- Перед реалізацією фічі звір її сторінку: правила, параметри, відкриті питання. Значення `TBD` не вигадуй — винеси в константу/DataAsset і познач, що потребує тюнінгу.
-- Якщо реалізація змінює дизайн — онови відповідну сторінку (статус, дату, параметри) і додай рядок у `docs/decisions.md`.
-- `docs/features/` містить лише затверджений дизайн. Нові ідеї й зміни записуй у `docs/decisions.md` зі статусом `Запропоновано`; пропозиції не реалізовуй без підтвердження людини. Переносити на сторінку фічі — тільки після апруву.
-- Нова фіча — копія `docs/_template.md`, максимум одна сторінка тексту, і посилання в таблиці змісту `docs/README.md`.
-- `docs/source/` — сирі оригінальні нотатки, не редагувати.
+## Design documentation
+- The source of truth for design is [`docs/`](docs/README.md). Start with `docs/README.md` and `docs/overview.md`, then read only the pages you need from `docs/features/`.
+- Before implementing a feature, check its page: rules, parameters, open questions. Don't invent `TBD` values: put them in a constant/DataAsset and mark them as needing tuning.
+- If the implementation changes the design, update the page (status, date, parameters) and add a row to `docs/decisions.md`.
+- `docs/features/` holds only approved design. Write new ideas and changes to `docs/decisions.md` with the status `Proposed`; don't implement proposals without a human's confirmation. Move them to the feature page only after approval.
+- A new feature = a copy of `docs/_template.md`, at most one page of text, plus a link in the table of contents in `docs/README.md`.
+- `docs/source/` holds the original raw notes; don't change their content.
+- **All documentation is written in English.** Chat with the team may be in Ukrainian, but everything committed to the repo (docs, code comments, commit messages) is English.

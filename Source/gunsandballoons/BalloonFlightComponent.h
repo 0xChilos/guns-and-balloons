@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
 	float GetTargetSpeed() const { return TargetSpeed; }
 
+	/** Slowest forward speed (the default speed with no fuel). The nemesis airship flies at it. */
+	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
+	float GetMinSpeed() const { return MinSpeed; }
+
 	UFUNCTION(BlueprintPure, Category = "Balloon|Flight")
 	float GetCurrentTurnRate() const { return CurrentTurnRate; }
 

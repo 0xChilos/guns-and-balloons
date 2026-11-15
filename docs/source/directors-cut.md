@@ -1,48 +1,48 @@
-# Director's Cut — сирі нотатки
+# Director's Cut: raw notes
 
-> Оригінальний текст останньої версії `Director's Cut` (v2, 2026-11-13). Не редагувати вручну — замінювати новою версією; попередні версії в історії git. Структурована версія в [../README.md](../README.md).
+> The original text of the latest `Director's Cut` (v2, 2026-11-13), translated from Ukrainian to English on 2026-11-15 with the content unchanged (the Ukrainian original is in git history). Don't edit by hand: replace it with a new version; earlier versions are in git history. The structured version is in [../README.md](../README.md).
 
 ```text
-Жанр: роуглайк, роуглайт
-В стилі стімпанк
-Зробити механіки як це буде в майбутній грі, з керуванням повітряним апаратом і прискоренням з інерцією.
-Все має бути максимально дієгітічно, управління кулею зроблено за рахунок панелі перед гравцем. Швидкість кулі може регулюватись, гравець може нахилитись вправо чи вліво натискаючі на важіль в відповідному місці кулі. При натисканні з боку кулі висувається залізна панель, що тормозить об повітря, як весло на байдарці.
-Куля має 8 кутів. 
+Genre: roguelike, roguelite
+Steampunk style
+Build the mechanics the way they will be in the future game, with control of an aircraft and acceleration with inertia.
+Everything should be as diegetic as possible; the balloon is controlled through a panel in front of the player. The balloon's speed can be adjusted; the player can lean right or left by pressing a lever at the matching spot on the balloon. When pressed, an iron panel extends from that side of the balloon and brakes against the air, like a paddle on a kayak.
+The balloon has 8 corners.
 
-Гравець має постійно рухатись вперед, за ним йде в погоні великий дирижабль, який не можливо вразити (перемогли). Він стріляє по гравцю ракетами, які повільно летять за гравцем по фіксованій траєкторії і які можна збити, або ухилитись він них. Також з дирижаблю вилітають літаки-кукурузники, що слідують за гравцем з правого чи лівого боку, обстрілюючи його, їх можна збити уразивши екіпаж, бензобак, двигун чи пропелер. Види атак немезіса залежать від дистанції до кулі. Найближче - ракети, далі - міни на парашутах, далі - літаки, далі - кукурузники. 
-Зброя має бути максимально не зручною, бажано однозарядною. Має теж бути дієгітічною і лежати в чохлі на стінці корзини кулі всередині, там же мають лежати патрони до неї, щоб гравець перезаряджав зброю інтерактячи з ними. Наприклад гарпун, однозарядка гвинтів чи дробовик.
-Має бути булетдроп, щоб гравець враховував це при пострілі
-Ігровий цикл складається з пролітання над островами, та сейфзоною у вигляді протягування кулі дирижаблем після прольоту над рівнем. В цій сейфзоні гравець може поповнити запаси (б/к), поремонтувати і покращити кулю, купити нове спорядження.
-Острова різняться між собою біомом з відповідними небезпеками на ньому:
-Скелястий острів – високі і широкі скелі які гравець має враховувати при побудові маршруту і облітати завчасно
-Джунглі – високі і тонкі дерева, їх легше облетіти ніж гори, але їх більше і вони розташовані щільніше
-Місто – має високі будинки які треба облітати, додатково має туман що ускладнює орієнтацію в просторі. Помехи на радарі, глушилки, мінігра для відновлення функціоналу радару. 
-Пустеля – має високі вежі з охоронцями що стріляють по гравцю, піщані бурі що періодично з’являються і зникають. Маяки які ідентифікують гравця і посилають додаткові лікати (не потрапити на світло, або вистрілити по лампі)
-Поле – не має природніх перешкод, але по ньому літають птахи яких треба уникати або збивати
-Зимовий - рандомні вітри + постійний підігрів двигуна потрібен + сніжні бугри 
-Лавовий - неочікувані стовпи лави стріляючий вгору + висока температура  Ресурси лежать на оточенні, їх можна підняти граплінг хуком. Або літають кулі, на яких ресурси, які теж можна хукнути.
+The player must keep moving forward; a big airship is chasing them, and it can't be hit (defeated). It fires rockets at the player that slowly follow the player on a fixed trajectory and can be shot down or dodged. Crop-duster planes also launch from the airship, follow the player on the right or left side and shoot at them; they can be shot down by hitting the crew, the fuel tank, the engine or the propeller. The nemesis's attack types depend on the distance to the balloon. Closest: rockets, further: mines on parachutes, further: planes, further: crop dusters.
+Weapons should be as awkward as possible, preferably single-shot. They should also be diegetic and lie in a holster on the wall inside the balloon's basket, with their rounds there too, so the player reloads by interacting with them. For example a harpoon, a single-shot rifle or a shotgun.
+There should be bullet drop, so the player has to account for it when shooting.
+The game loop is flying over islands, plus a safe zone in the form of the airship towing the balloon after flying over a level. In this safe zone the player can restock supplies (ammo), repair and upgrade the balloon, buy new gear.
+The islands differ by biome, each with its own hazards:
+Rocky island – tall and wide rocks that the player has to account for when planning the route and fly around early
+Jungle – tall thin trees; they're easier to fly around than mountains, but there are more of them and they stand closer together
+City – has tall buildings to fly around, plus fog that makes it harder to orient yourself. Radar interference, jammers, a minigame to restore the radar.
+Desert – has tall towers with guards who shoot at the player, sandstorms that come and go periodically. Beacons that identify the player and send extra planes (don't get into the light, or shoot the lamp)
+Field – has no natural obstacles, but birds fly over it that must be avoided or shot down
+Winter - random winds + the engine needs constant heating + snowy mounds
+Lava - unexpected pillars of lava shooting up + high temperature  Resources lie on the surroundings; they can be picked up with the grappling hook. Or there are flying balloons with resources that can also be hooked.
 
-Двинун-пічка. Показник палива = 0 - дефолтна повільна швидкість, паливо >0<90 - прискорення, паливо >90 - подвійне прискорення, дамаг двигуну.
+Stove engine. Fuel gauge = 0 - default slow speed, fuel >0<90 - acceleration, fuel >90 - double acceleration, damage to the engine.
 
-Сокін - basic 3С (camera and interaction), куля і зброя
-Вано - АІшка
-Ростік - Двигун Док - дизайн дока, менюшки, арт
+Sokin - basic 3C (camera and interaction), balloon and weapons
+Vano - the AI
+Rostik - Engine, Doc - design doc, menus, art
 Art style
-Reference: Oily Depths 
-Style: low-poly PS1-style model 
-Textures: blocky low-resolution 
+Reference: Oily Depths
+Style: low-poly PS1-style model
+Textures: blocky low-resolution
 Shading: flat
-Render and post-processing step: low-res render, colour quantize with Bayer dither, 2× nearest-neighbour upscale, grain and vignette. 
+Render and post-processing step: low-res render, colour quantize with Bayer dither, 2× nearest-neighbour upscale, grain and vignette.
 
-Дирижабль
-Літачки Ракети
-Куля (корзина, куля, двигун-пічка)
-Навігаційна панель ()
-Вага
-Зброя?
+Airship
+Planes Rockets
+Balloon (basket, envelope, stove engine)
+Navigation panel ()
+Weight
+Weapons?
 
 
-Main menu: 
+Main menu:
 Continue
 New Game
 Settings
@@ -51,32 +51,32 @@ Leave
 Legacy
 
 
-Хук - працює як вогнемет в ханті. Для повторного вистрілу потрібно підкачати тиск. 
+Hook - works like the flamethrower in Hunt. To fire again you have to pump up the pressure.
 
-Двохзарядний дробовик
+Double-barrel shotgun
 
-Однозарядна гвинтівка
+Single-shot rifle
 
-Гарпун
+Harpoon
 
-Револьвер
-
-
-Двигун пічка складається з наступних елементів:
-Тіло двигуна - великий металевий об’єкт в задній частині кулі до якого кріпляться всі інтерактивні елементи, він відображає рівень здоров’я кулі, при його пошкодженні з’являються декалі пошкодження
-Пічка - місце в яке гравець закидує дрова щоб працював пропелер. Має дверцята які треба зачиняти щоб зберігалось тепло, з відкритими дверцятами тепло втрачається швидше. Різні види палива надають різний рівень заряду тепла. 
-Рівень температури - він же рівень палива, показує скільки палива залишився в дирижаблі  У двигуна є 2 шкали:
-Температура: Температура знижується на 1 градус на секунду, але це зниження зупиняється на 10 секунд в момент підкидання пального
-Якщо температура падає до 0, то початок нагрівання після підкидання дрів починається через 10 секунд і температура починає зростати зі швидкістю 5 градусів на секунду до кінцевої закинутої температури.
-Час горіння: відображає скільки буде підтримуватись температура, якщо час падає до 0, то температура падає 5 градусів на секунду. Максимальна кількість часу горіння = 10 хвилинам і відображає максимальний об’єм печі.  Кожен айтем додає різну кількість показника температури і часу горіння:
- Дрова 3 хвилин  - 20 градусів (7) 
-Вугілля 2 хвилини  - 30 градусів (13)
-Кристал 10 секунд - 50 градусів (24)
-  Відро вміщає максимум 10 одиниць пального
+Revolver
 
 
-Радар відображає ворожі об’єкти на карті на ретро двокольоровому моніторі. Радар має поділки дистанції до судна, що відображає дальність до Дерижабля. 
-Спідометр мінімалістичний як на старих потягах
+The stove engine consists of the following elements:
+Engine body - a big metal object at the back of the balloon to which all the interactive elements are attached; it shows the balloon's health level; when it's damaged, damage decals appear
+Stove - the place where the player throws wood so the propeller works. It has a door that must be closed to keep the heat; with the door open, heat is lost faster. Different fuel types give different amounts of heat charge.
+Temperature level - also the fuel level, shows how much fuel is left in the airship  The engine has 2 gauges:
+Temperature: The temperature drops by 1 degree per second, but this drop stops for 10 seconds at the moment fuel is added
+If the temperature drops to 0, heating after adding wood starts 10 seconds later and the temperature rises at 5 degrees per second up to the final added temperature.
+Burn time: shows how long the temperature will be held; if the time drops to 0, the temperature drops by 5 degrees per second. The maximum burn time = 10 minutes and represents the stove's maximum capacity.  Each item adds a different amount of temperature and burn time:
+ Wood 3 minutes  - 20 degrees (7)
+Coal 2 minutes  - 30 degrees (13)
+Crystal 10 seconds - 50 degrees (24)
+  The bucket holds at most 10 units of fuel
 
-Детальний розбір навігаційної панелі. Які є елементи і як вони виглядають. 
+
+The radar shows enemy objects on the map on a retro two-colour monitor. The radar has distance marks to the vessel, showing the range to the Airship.
+Minimalist speedometer like on old trains
+
+A detailed breakdown of the navigation panel. Which elements there are and what they look like.
 ```
