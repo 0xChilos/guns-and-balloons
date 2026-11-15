@@ -5,6 +5,7 @@
 #include "MainMenuScreen.generated.h"
 
 class UMainMenuWidget;
+class UMaterialInterface;
 class UWidgetComponent;
 class UWidgetInteractionComponent;
 
@@ -60,6 +61,14 @@ protected:
 	/** Multiplies the panel's colours, to balance the menu against the scene's exposure. TBD. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Menu", meta = (ClampMin = "0.0"))
 	float Brightness = 1.f;
+
+	/**
+	 * Panel material instead of the engine's translucent widget material. In gameplay levels this is
+	 * /Game/UI/PauseMenu/M_PauseMenuPanel (depth test off, so the gun and the basket can't cover the
+	 * panel), made by Scripts/Editor/create_pause_menu_material.py. Empty: the engine's material.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Menu")
+	TSoftObjectPtr<UMaterialInterface> PanelMaterial;
 
 private:
 	void FitToView();

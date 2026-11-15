@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "MainMenuWidget.h"
+#include "Materials/MaterialInterface.h"
 
 AMainMenuScreen::AMainMenuScreen()
 {
@@ -43,16 +44,25 @@ void AMainMenuScreen::BeginPlay()
 	Super::BeginPlay();
 
 	Pointer->InteractionDistance = Distance * 4.f;
+	if (!PanelMaterial.IsNull())
+	{
+		if (UMaterialInterface* Material = PanelMaterial.LoadSynchronous())
+		{
+			Screen->SetMaterial(0, Material);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("MenuScreen: PanelMaterial %s is missing; near objects may be drawn over %s."),
+				*PanelMaterial.ToString(), *GetName());
+		}
+	}
 	if (MenuClass)
 	{
 		// Brightness scales the menu's own colours before its tree is built. (The component's tint
 		// can't do it: the translucent widget material dims the opacity with it too.)
 		if (UMainMenuWidget* Menu = CreateWidget<UMainMenuWidget>(GetWorld(), MenuClass))
 		{
-			for (FLinearColor* Color : {&Menu->TextColor, &Menu->SelectedColor, &Menu->DisabledTextColor, &Menu->CursorColor})
-			{
-				*Color = FLinearColor(Color->R * Brightness, Color->G * Brightness, Color->B * Brightness, Color->A);
-			}
+			Menu->ScaleColors(Brightness);
 			Screen->SetWidget(Menu);
 		}
 	}
