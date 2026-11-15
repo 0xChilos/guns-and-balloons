@@ -3,12 +3,13 @@
 > **Updated:** 2026-11-15 · **Branch:** `feat/level-generation` · **Spec:** [implementation plan v1.1](../../temp/Balloon_Level_Generation_LLM_Implementation_Plan.v1.md) · **Tech reference:** [level-generation.md](../level-generation.md)
 
 ## Summary
+- **Procedural borders:** full-project build, all 12 native BalloonLevel tests, headless seeded/randomized lifecycle checks and PIE smoke passed on 2026-11-15. The preview enables fresh seeds and generates eight rocket balloons; legacy authored markers were removed. Visual testing remains with the user.
 - **Latest validation:** current full-project incremental build and all ten BalloonLevel tests passed at 18:46 Europe/Kyiv, 2026-11-15. Open integration findings and acceptance limits: [validation report](VALIDATION-2026-11-15.md).
 - **Done (M0–M6):** implemented and tested as a **plan → validate** pipeline.
 - **M7 integrated:** controller saved in the generation test map; eight biome/preset editor property checks passed. PIE and visual acceptance remain manual; see Scripts/Editor/README_LevelGeneration.md.
 - **M8 build and automation verified:** final full-project suffixed DLL built; all nine BalloonLevel tests passed (one with synthetic-world destruction warnings). See the final M8 entry in [TEST_REPORT.md](TEST_REPORT.md). Visual checks were deferred by the user.
 
-`GenerateLevel` now realizes validated placements as scenery HISM components and gameplay Actors. Failed regeneration retains the previous Ready plan/config and realized content. Border descriptors still require explicit proxy integration. Earlier M7 and review findings below are historical unless superseded by the final M8 report.
+`GenerateLevel` now realizes validated placements as scenery HISM components and gameplay Actors. Failed regeneration retains the previous Ready plan/config and realized content. Border descriptors are realized as registered influence proxies and optional config-selected rocket balloons, in the same transaction. Earlier M7 and review findings below are historical unless superseded by the final M8 report.
 
 ## Milestones
 | Milestone | Status | Notes |

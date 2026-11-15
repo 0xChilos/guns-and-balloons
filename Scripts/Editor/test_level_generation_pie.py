@@ -4,7 +4,9 @@ import traceback
 import unreal
 
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+editor_world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+if not editor_world or editor_world.get_path_name() != '/Game/Scenes/LevelGeneration_Test.LevelGeneration_Test':
+    assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
 state = {'start': time.monotonic()}
 
 
@@ -23,9 +25,18 @@ def tick(_delta):
             assert len(generators) == 1, 'Run setup_level_generation_preview.py first'
             generator = generators[0]
             assert generator.get_editor_property('route_pawn') == balloon
-            assert generator.generate_level(), '\n'.join(generator.get_diagnostics())
+            assert generator.get_editor_property('generation_mode') == unreal.BalloonGenerationMode.ON_LEVEL_START, (
+                'Preview must generate automatically on BeginPlay')
             assert generator.get_generation_status() == unreal.BalloonLevelGenerationStatus.READY
             assert len(generator.get_border_influences()) == 8
+            proxy_class = unreal.load_class(None, '/Script/gunsandballoons.BalloonBorderThreat')
+            rocket_class = unreal.load_class(None,
+                '/Game/Assets/Map_edge/Blueprints/BP_RocketBalloon.BP_RocketBalloon_C')
+            proxies = [a for a in unreal.GameplayStatics.get_all_actors_of_class(world, proxy_class)
+                       if a.get_owner() == generator]
+            rockets = [a for a in unreal.GameplayStatics.get_all_actors_of_class(world, rocket_class)
+                       if a.get_owner() == generator]
+            assert len(proxies) == len(rockets) == 8, 'Expected eight generated border proxies and rocket balloons'
             generator.draw_border_debug(60.0)
             assert balloon.get_component_by_class(unreal.BalloonKeyboardControlComponent)
             state.update(balloon=balloon, location=balloon.get_actor_location(),

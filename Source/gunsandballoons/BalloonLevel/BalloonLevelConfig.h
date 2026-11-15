@@ -49,6 +49,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") FRuntimeFloatCurve WidthProfile;
 	/** Border settings are prototypes requiring gameplay tuning. Independent from interior enemies (M4). */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") bool BordersEnabled = false;
+ /** Optional rocket-balloon class. Must expose numeric AggroRangeM and DriftRangeM properties.
+  * Empty realizes collision proxies only. A soft reference keeps the selected class in cooked builds. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") TSoftClassPtr<AActor> BorderActorClass;
  /** -1 uses density per combined border kilometer; 0 explicitly requests none. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders", meta=(ClampMin="-1")) int32 BorderExactCount = -1;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders") float BorderDensityPerKm = 8.f;
