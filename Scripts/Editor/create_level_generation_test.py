@@ -2,7 +2,7 @@
 import unreal
 
 SOURCE = '/Game/Scenes/BalloonFlight_Test'
-TARGET = '/Game/Scenes/LevelGeneration_Test'
+TARGET = '/Game/Scenes/MainLevel'
 
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)

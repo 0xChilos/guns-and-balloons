@@ -19,7 +19,7 @@ once; Random mode waits for a successful selection. Build succeeded with DLL
 suffix 8816; nonvisual `GunsAndBalloons.BalloonLevel.EnvironmentConfig` passed.
 Restart the editor to load the new native module. No visual tests performed.
 
-M7 integration update (2026-11-15): `LevelGeneration_Test` now saves the
+M7 integration update (2026-11-15): `MainLevel` now saves the
 environment controller, explicit ground/fog/sun/sky bindings, Movable lights,
 and Every Level Start generation. Eight editor property combinations passed;
 visual tests were explicitly deferred by the user. Manual acceptance steps and

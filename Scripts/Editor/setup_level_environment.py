@@ -10,8 +10,8 @@ import unreal
 levels = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
-if world.get_path_name() != '/Game/Scenes/LevelGeneration_Test.LevelGeneration_Test':
-    assert levels.load_level('/Game/Scenes/LevelGeneration_Test')
+if world.get_path_name() != '/Game/Scenes/MainLevel.MainLevel':
+    assert levels.load_level('/Game/Scenes/MainLevel')
 all_actors = actors.get_all_level_actors()
 
 
