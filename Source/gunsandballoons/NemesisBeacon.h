@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NemesisFx.h"
 #include "NemesisBeacon.generated.h"
 
+class UBoxComponent;
 class USpotLightComponent;
 class UStaticMeshComponent;
 
@@ -16,7 +18,9 @@ class UStaticMeshComponent;
  * it goes back to searching). SpotTime after locking on it calls a pair of crop dusters from the
  * nemesis airship: at least one always comes, even above the airship's limit (the second one only
  * within it). A new lock calls again only after Cooldown. The beacon does no damage itself.
- * One hit on the lamp breaks it for good; shooting it before it spots you prevents the call.
+ * One hit on the lamp breaks it for good; shooting it before it spots you prevents the call. The
+ * lamp shatters (flash, sparks, smoke), goes dark and hangs askew; the tower stays standing and smokes
+ * for a few seconds.
  */
 UCLASS()
 class GUNSANDBALLOONS_API ANemesisBeacon : public AActor
@@ -63,8 +67,25 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
 	TObjectPtr<UStaticMeshComponent> Lamp;
 
+	/** Invisible hit zone around the lamp, bigger than it, so it can be hit at range (any hit in it
+	 *  breaks the lamp). 2026-11-15. */
+	UPROPERTY(VisibleAnywhere, Category = "Beacon")
+	TObjectPtr<UBoxComponent> LampHitBox;
+
+	/** LampHitBox half size, cm. TBD */
+	UPROPERTY(EditAnywhere, Category = "Beacon")
+	FVector LampHitBoxExtent = FVector(130.f, 130.f, 130.f);
+
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
 	TObjectPtr<USpotLightComponent> Beam;
+
+	/** What the broken lamp looks like (dark, burnt). */
+	UPROPERTY(EditAnywhere, Category = "Beacon")
+	TObjectPtr<UMaterialInterface> BrokenLampMaterial;
+
+	/** The broken lamp smokes this long, s. */
+	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
+	float BrokenSmokeTime = 6.f;
 
 	/** Visible glowing cone of the beam. */
 	UPROPERTY(VisibleAnywhere, Category = "Beacon")
@@ -73,13 +94,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "100"))
 	float TowerHeight = 1500.f;
 
+	/** At BeginPlay, grow the tower so the lamp is at the player's height (basket + LampHeightOffset),
+	 *  so the player can shoot it. Off: TowerHeight as set. Team decision 2026-11-15. */
+	UPROPERTY(EditAnywhere, Category = "Beacon")
+	bool bLampAtPlayerHeight = true;
+
+	/** Lamp height relative to the basket centre, cm (with bLampAtPlayerHeight). TBD */
+	UPROPERTY(EditAnywhere, Category = "Beacon")
+	float LampHeightOffset = 0.f;
+
 	/** Full cone angle, degrees. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "1", ClampMax = "90"))
 	float BeamAngle = 15.f;
 
-	/** cm (200 m). */
+	/** Spotting range and beam length, cm (60 m; was 200 m). TBD */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
-	float Range = 20000.f;
+	float Range = 6000.f;
 
 	/** Sweep ±this many degrees around the actor's forward, at SweepSpeed. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0", ClampMax = "180"))
@@ -96,9 +126,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
 	float TrackSpeed = 60.f;
 
-	/** Locked on, it stops following the basket beyond this distance, cm (250 m). TBD */
+	/** Locked on, it stops following the basket beyond this distance, cm (80 m; was 250 m). TBD */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "0"))
-	float TrackRange = 25000.f;
+	float TrackRange = 8000.f;
 
 	/** Crop dusters called per spotting; at least one always comes. */
 	UPROPERTY(EditAnywhere, Category = "Beacon", meta = (ClampMin = "1"))
@@ -120,12 +150,16 @@ private:
 	bool IsBasketInBeam() const;
 
 	void SetLocked(bool bLocked);
+	/** Tower size and lamp position from TowerHeight. */
+	void ApplyLayout();
 
 	float SweepYaw = 0.f;
 	float BeamPitch = 0.f;
 	float SweepDir = 1.f;
 	float LitTime = 0.f;
 	bool bCalledThisLock = false;
+	NemesisFx::FStream BrokenSmoke;
+	float BrokenTime = 0.f;
 	float CooldownLeft = 0.f;
 	bool bLit = false;
 	bool bBroken = false;
