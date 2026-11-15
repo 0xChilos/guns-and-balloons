@@ -1,5 +1,6 @@
 #include "NemesisBeacon.h"
 
+#include "Components/BoxComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
@@ -17,6 +18,8 @@ ANemesisBeacon::ANemesisBeacon()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Iron(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Iron.MI_Nemesis_Iron"));
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Glow(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Glow.MI_Nemesis_Glow"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Dark(TEXT("/Game/Assets/Nemesis/MI_Nemesis_Dark.MI_Nemesis_Dark"));
+	BrokenLampMaterial = Dark.Object;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> BeamMesh(TEXT("/Game/Assets/Enemies/FBX/SM_LightBeam.SM_LightBeam"));
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -35,34 +38,54 @@ ANemesisBeacon::ANemesisBeacon()
 	Lamp->SetupAttachment(LampPivot);
 	Lamp->SetStaticMesh(Cube.Object);
 	Lamp->SetMaterial(0, Glow.Object);
-	Lamp->SetRelativeScale3D(FVector(1.2f, 1.2f, 1.2f));
+	Lamp->SetRelativeScale3D(FVector(1.6f, 1.6f, 1.6f)); // a bigger target (was 1.2 m)
 	NemesisCollision::Shootable(Lamp);
+
+	LampHitBox = CreateDefaultSubobject<UBoxComponent>(TEXT("LampHitBox"));
+	LampHitBox->SetupAttachment(LampPivot);
+	NemesisCollision::Shootable(LampHitBox);
 
 	Beam = CreateDefaultSubobject<USpotLightComponent>(TEXT("Beam"));
 	Beam->SetupAttachment(LampPivot);
-	Beam->SetRelativeLocation(FVector(70.f, 0.f, 0.f));
+	Beam->SetRelativeLocation(FVector(90.f, 0.f, 0.f));
 	Beam->SetLightColor(NemesisSearchlight::Searching);
 	Beam->SetIntensity(5000000.f);
 	Beam->SetCastShadows(false);
 
 	BeamCone = NemesisSearchlight::CreateBeam(this, LampPivot, BeamMesh.Object, TEXT("BeamCone"));
-	BeamCone->SetRelativeLocation(FVector(70.f, 0.f, 0.f));
+	BeamCone->SetRelativeLocation(FVector(90.f, 0.f, 0.f));
 }
 
 void ANemesisBeacon::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
-	Tower->SetRelativeScale3D(FVector(2.f, 2.f, TowerHeight / 100.f));
-	LampPivot->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + 60.f));
+	ApplyLayout();
 	NemesisSearchlight::Configure(Beam, BeamCone, BeamAngle, Range);
 	BeamPitch = SearchPitch;
 	LampPivot->SetRelativeRotation(FRotator(BeamPitch, SweepYaw, 0.f));
 }
 
+void ANemesisBeacon::ApplyLayout()
+{
+	LampHitBox->SetBoxExtent(LampHitBoxExtent);
+	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
+	Tower->SetRelativeScale3D(FVector(2.f, 2.f, TowerHeight / 100.f));
+	LampPivot->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight + 80.f));
+}
+
 void ANemesisBeacon::BeginPlay()
 {
 	Super::BeginPlay();
+	if (bLampAtPlayerHeight)
+	{
+		UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+		if (T && T->GetBalloon())
+		{
+			const float LampZ = T->GetBasketLocation().Z + LampHeightOffset;
+			TowerHeight = FMath::Clamp(LampZ - GetActorLocation().Z - 80.f, 300.f, 30000.f);
+			ApplyLayout();
+		}
+	}
 	OnTakePointDamage.AddUniqueDynamic(this, &ANemesisBeacon::HandlePointDamage);
 	BeamPitch = SearchPitch;
 	NemesisSearchlight::SetLockedState(Beam, BeamCone, false);
@@ -107,7 +130,18 @@ bool ANemesisBeacon::IsBasketInBeam() const
 void ANemesisBeacon::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (bBroken) return;
+	if (bBroken)
+	{
+		// The shattered lamp smokes for a while, then stops; the tower stays.
+		BrokenTime += DeltaSeconds;
+		if (BrokenSmoke.IsActive())
+		{
+			if (BrokenTime < BrokenSmokeTime) BrokenSmoke.Tick(DeltaSeconds, Lamp->GetComponentLocation() + FVector(0.f, 0.f, 50.f), FVector::UpVector, FVector::ZeroVector);
+			else BrokenSmoke.Stop();
+		}
+		if (!BrokenSmoke.IsActive() && BrokenTime >= BrokenSmokeTime) SetActorTickEnabled(false);
+		return;
+	}
 
 	UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
 	CooldownLeft = FMath::Max(0.f, CooldownLeft - DeltaSeconds);
@@ -166,7 +200,7 @@ void ANemesisBeacon::Tick(float DeltaSeconds)
 void ANemesisBeacon::HandlePointDamage(AActor* DamagedActor, float InDamage, AController* InstigatedBy, FVector HitLocation,
 	UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, const UDamageType* DamageType, AActor* DamageCauser)
 {
-	if (bBroken || HitComponent != Lamp) return;
+	if (bBroken || (HitComponent != Lamp && HitComponent != LampHitBox)) return;
 	bBroken = true;
 	if (bLit)
 	{
@@ -175,8 +209,19 @@ void ANemesisBeacon::HandlePointDamage(AActor* DamagedActor, float InDamage, ACo
 	}
 	Beam->SetVisibility(false);
 	BeamCone->SetVisibility(false);
-	Lamp->SetVisibility(false);
+	// The lamp shatters but stays on the tower: dark, knocked askew, smoking.
+	const FVector LampAt = Lamp->GetComponentLocation();
+	NemesisFx::FineExplosion(GetWorld(), LampAt, 0.45f);
+	if (BrokenLampMaterial)
+	{
+		for (int32 i = 0; i < Lamp->GetNumMaterials(); ++i) Lamp->SetMaterial(i, BrokenLampMaterial);
+	}
+	Lamp->AddLocalRotation(FRotator(-25.f, 15.f, 10.f));
+	Lamp->SetRelativeScale3D(Lamp->GetRelativeScale3D() * 0.85f);
 	NemesisCollision::None(Lamp);
+	NemesisCollision::None(LampHitBox);
+	BrokenTime = 0.f;
+	BrokenSmoke.Start(GetWorld(), NemesisFx::EKind::EngineSmoke, 10.f);
 	UE_LOG(LogTemp, Log, TEXT("%s: lamp broken"), *GetName());
 	OnLampBroken();
 }

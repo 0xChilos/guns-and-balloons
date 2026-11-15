@@ -113,7 +113,7 @@ void ANemesisRocket::Launch(ANemesisAirship* InAirship)
 		Puff->Emit(P, 6, P0 - Dir * 150.f, -Dir, FVector::ZeroVector);
 		Puff->SetLifeSpan(P.LifeMax + 0.5f);
 	}
-	Trail.Start(GetWorld(), NemesisFx::EKind::RocketTrail, TrailRate);
+	Trail.Start(GetWorld(), NemesisFx::EKind::MissileTrail, TrailRate); // same plume as the AA missile
 }
 
 FVector ANemesisRocket::EvalCurve(float T) const

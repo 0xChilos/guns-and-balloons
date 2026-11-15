@@ -120,11 +120,11 @@ protected:
 	float BobPeriod = 4.f;
 
 	/**
-	 * The gun opens fire when the basket is this close, cm (50 m). Small on purpose: AA guns along the
+	 * The gun opens fire when the basket is this close, cm (25 m; was 50, then 120). Small on purpose: AA guns along the
 	 * map edges mark the line the player must not cross, they are not a constant threat. TBD
 	 */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))
-	float EngageRadius = 5000.f;
+	float EngageRadius = 2500.f;
 
 	/** Stops engaging beyond EngageRadius + this, cm (no flicker at the edge). */
 	UPROPERTY(EditAnywhere, Category = "Flak", meta = (ClampMin = "0"))

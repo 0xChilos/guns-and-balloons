@@ -60,7 +60,7 @@ protected:
 
 	/** Smoke trail puffs per second. */
 	UPROPERTY(EditAnywhere, Category = "Rocket", meta = (ClampMin = "0"))
-	float TrailRate = 35.f;
+	float TrailRate = 90.f;
 
 	/** Rise of the Bezier control point above the straight line, cm (10 m). */
 	UPROPERTY(EditAnywhere, Category = "Rocket")

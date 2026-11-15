@@ -128,16 +128,24 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 void ANemesisTowerCannon::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	ApplyLayout();
+}
+
+void ANemesisTowerCannon::ApplyLayout()
+{
 	if (bModel)
 	{
 		// Everything hangs off the model's sockets: head on the deck, guns on the head, boiler on the deck.
-		const FVector HeadAt = TurretSocketInMesh(Tower, TEXT("head"));
+		// The tower may be stretched (TowerZScale) so the deck reaches the player's height.
+		const FVector Stretch(1.f, 1.f, TowerZScale);
+		Tower->SetRelativeScale3D(Stretch);
+		const FVector HeadAt = TurretSocketInMesh(Tower, TEXT("head")) * Stretch;
 		DeckHeight = HeadAt.Z;
 		CannonYaw->SetRelativeLocation(HeadAt);
 		CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
 		const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
 		MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
-		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine"));
+		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
 		FuelTank->SetRelativeLocation(EngineAt);
 		// Hit box around the boiler, a bit bigger than it.
 		const FBox Box = FuelTank->GetStaticMesh()->GetBoundingBox();
@@ -162,6 +170,25 @@ void ANemesisTowerCannon::BeginPlay()
 {
 	Super::BeginPlay();
 	OnTakePointDamage.AddUniqueDynamic(this, &ANemesisTowerCannon::HandlePointDamage);
+	if (bDeckAtPlayerHeight)
+	{
+		UNemesisTargetSubsystem* T = UNemesisTargetSubsystem::Get(this);
+		if (T && T->GetBalloon())
+		{
+			const float WantDeck = T->GetBasketLocation().Z + DeckHeightOffset - GetActorLocation().Z;
+			if (bModel)
+			{
+				const float ModelDeck = TurretSocketInMesh(Tower, TEXT("head")).Z;
+				TowerZScale = ModelDeck > 1.f ? FMath::Clamp(WantDeck / ModelDeck, 0.3f, 20.f) : 1.f;
+			}
+			else
+			{
+				TowerHeight = FMath::Max(300.f, WantDeck - CannonPlatformHeight);
+			}
+		}
+	}
+	// Also recomputes DeckHeight: plain members set in OnConstruction don't reach the PIE copy of a placed actor.
+	ApplyLayout();
 }
 
 bool ANemesisTowerCannon::CanSeeBasket(FVector& OutBasket) const
@@ -197,7 +224,11 @@ void ANemesisTowerCannon::SetState(ETowerCannonState NewState)
 void ANemesisTowerCannon::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (State == ETowerCannonState::Destroyed) return;
+	if (State == ETowerCannonState::Destroyed)
+	{
+		TickWreck(DeltaSeconds);
+		return;
+	}
 	StateTime += DeltaSeconds;
 
 	FVector Basket;
@@ -266,26 +297,46 @@ void ANemesisTowerCannon::HandlePointDamage(AActor* DamagedActor, float InDamage
 	BlowUp();
 }
 
+FVector ANemesisTowerCannon::DeckLocation() const
+{
+	return GetActorTransform().TransformPosition(FVector(0.f, 0.f, DeckHeight));
+}
+
 void ANemesisTowerCannon::BlowUp()
 {
 	SetState(ETowerCannonState::Destroyed);
 	UWorld* World = GetWorld();
-	// The tank goes up first, then the fire runs down the tower.
+	// The tank goes up and takes the cannon with it; the tower stays with an empty deck.
 	NemesisFx::Explosion(World, FuelTank->GetComponentLocation(), 3.f);
 	NemesisFx::Explosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
-	for (float Z = DeckHeight * 0.75f; Z > 0.f; Z -= DeckHeight * 0.25f)
+	for (UStaticMeshComponent* Part : { FuelTank.Get(), Carriage.Get(), Barrel.Get() })
 	{
-		NemesisFx::Explosion(World, GetActorTransform().TransformPosition(FVector(0.f, 0.f, Z)), bModel ? 2.5f : 1.8f);
+		Part->SetVisibility(false);
+		NemesisCollision::None(Part);
 	}
-	// Cannon and tower are gone.
-	TArray<UPrimitiveComponent*> Parts;
-	GetComponents<UPrimitiveComponent>(Parts);
-	for (UPrimitiveComponent* P : Parts)
-	{
-		P->SetVisibility(false);
-		NemesisCollision::None(P);
-	}
-	UE_LOG(LogTemp, Log, TEXT("%s: fuel tank hit, tower destroyed"), *GetName());
+	NemesisCollision::None(TankHitBox);
+	MuzzleGlow->SetVisibility(false);
+	WreckTime = 0.f;
+	WreckFire.Start(World, NemesisFx::EKind::Fire, 20.f);
+	WreckSmoke.Start(World, NemesisFx::EKind::EngineSmoke, 10.f);
+	UE_LOG(LogTemp, Log, TEXT("%s: fuel tank hit, cannon destroyed"), *GetName());
 	OnTowerDestroyed();
-	SetLifeSpan(10.f);
+}
+
+void ANemesisTowerCannon::TickWreck(float DeltaSeconds)
+{
+	WreckTime += DeltaSeconds;
+	const FVector Deck = DeckLocation() + FVector(0.f, 0.f, 60.f);
+	// The fire burns out quickly, the smoke lasts a bit longer.
+	if (WreckFire.IsActive())
+	{
+		if (WreckTime < WreckSmokeTime * 0.35f) WreckFire.Tick(DeltaSeconds, Deck, FVector::UpVector, FVector::ZeroVector);
+		else WreckFire.Stop();
+	}
+	if (WreckSmoke.IsActive())
+	{
+		if (WreckTime < WreckSmokeTime) WreckSmoke.Tick(DeltaSeconds, Deck, FVector::UpVector, FVector::ZeroVector);
+		else WreckSmoke.Stop();
+	}
+	if (!WreckFire.IsActive() && !WreckSmoke.IsActive()) SetActorTickEnabled(false);
 }
