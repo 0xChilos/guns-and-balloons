@@ -3,7 +3,7 @@
 The whole basket takes damage, the envelope does not (approved 2026-11-15):
 - Health: DamageBones = [basket] with bIncludeChildBones (stove, furnace_door, fuel_bucket, display, ...),
   IgnoredBones = [balloon] (envelope branch), DamageComponentTag = BasketDamage.
-- The bone-less basket collision boxes (Wall_*, Floor_*, StoveBlock, ConsoleBlock) get the BasketDamage tag.
+- The bone-less basket collision boxes (Wall_*, Rim_*, Floor_*, StoveBlock, ConsoleBlock) get the BasketDamage tag.
   Envelope_* spheres stay untagged.
 Needs the C++ build that adds IgnoredBones / bIncludeChildBones / DamageComponentTag. Idempotent.
 
@@ -18,7 +18,7 @@ TAG = 'BasketDamage'
 
 
 def is_basket_box(name):
-    return name.startswith(('Wall_', 'Floor_')) or name in ('StoveBlock', 'ConsoleBlock')
+    return name.startswith(('Wall_', 'Rim_', 'Floor_')) or name in ('StoveBlock', 'ConsoleBlock')
 
 
 def main():

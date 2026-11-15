@@ -1,6 +1,6 @@
 # Balloon flight — technical reference (C++)
 
-> **For agents.** How the flight code works and how to connect new systems to it. Design lives in [balloon-controls](../features/balloon-controls.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-14
+> **For agents.** How the flight code works and how to connect new systems to it. Design lives in [balloon-controls](../features/balloon-controls.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-15
 
 ## Core rule
 `UBalloonFlightComponent` is **the only thing that moves the balloon.** New control systems (speed panel, side levers, stove) never move the actor directly; the speed panel/keyboard call `SetTargetSpeed` / `SetTurnInput`, while persistent effects use named `SetFlightModifier` sources. The component knows nothing about input devices.
@@ -53,6 +53,7 @@ Parameters (`EditAnywhere`, protected, not changeable from BP at runtime): `MinS
 - **Stove (speed limit):** there is no runtime setter for `MaxSpeed` yet. Either clamp on the stove side before calling `SetTargetSpeed`, or add a public setter (e.g. `SetSpeedLimit`) — confirm with a human first.
 - **UI / speedometer:** read `GetSpeedometer01()` / `GetCurrentSpeed()` / `GetCurrentTurnRate()`. There are no events/delegates — polling only.
 - **Collision:** add/remove a `UShapeComponent` on the balloon actor — the sweep picks it up automatically, no code change needed. The root `BalloonCollision` is disabled (`NoCollision`). Regenerate primitives with `UBalloonCollisionSetupLibrary::AddBalloonCollisionPrimitives("/Game/Assets/Balloon/BP_Balloon.BP_Balloon")`, then compile and save the BP. Dimensions are in the Parameters table of [balloon-controls](../features/balloon-controls.md).
+- **Current model fit (2026-11-15):** basket circumradius 97.5 cm, 7 cm wicker walls, eight separate 15 cm rim boxes at Z 96–109 cm. Floor/wall extents derive from the octagon apothem. Stove Y = +54.36 cm, console Y = −70.58 cm; the envelope is unchanged. Generated boxes carry `BasketDamage`. `Scripts/setup_balloon_collision.py` applies the setup and checks alignment against the imported stove/display bones; rerun it after model changes.
 - **Things carried by the balloon** (player, cargo): attach them — attached actors are ignored by the sweep and don't block flight.
 
 ## Known limitations and pitfalls
@@ -66,4 +67,6 @@ Parameters (`EditAnywhere`, protected, not changeable from BP at runtime): `MinS
 - `UBalloonCollisionSetupLibrary` is an editor utility in the runtime module; in packaged builds it returns `false`.
 
 ## Verification
+
+2026-11-15 collision model update: Editor Win64 Development build passed. `Scripts/setup_balloon_collision.py` regenerated and saved the Blueprint and cleared stale shape overrides in `BalloonFlight_Test`. `Scripts/Editor/validate_balloon_collision.py` scanned all three project maps and passed for the single placed balloon, checking primitive counts, wall/floor dimensions, damage tags and alignment with the current imported stove/display bones.
 `Scripts/Editor/test_wing_api.py` checks source composition, clamps, state generation (2/4/6), PingPong and Cycle on transient components. `Scripts/Editor/test_wing_pie.py` runs 12 checks in `BalloonFlight_Test`, including actual lever traces/clicks, ABP angles, flight inertia/braking, actor/owner interaction regressions and EndPlay cleanup. It removes its temporary actors without saving the level. Last run: 2026-11-14, passed; Editor Win64 Development build passed.
