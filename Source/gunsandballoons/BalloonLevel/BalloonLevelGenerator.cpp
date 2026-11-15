@@ -1,4 +1,6 @@
 #include "BalloonLevelGenerator.h"
+#include "BalloonLevelRealizer.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "BalloonAssetCatalog.h"
 #include "BalloonBorderPlanner.h"
 #include "BalloonPlacementPlanner.h"
@@ -11,16 +13,28 @@
 ABalloonLevelGenerator::ABalloonLevelGenerator()
 {
 	PrimaryActorTick.bCanEverTick = false;
+ Realizer = CreateDefaultSubobject<UBalloonLevelRealizer>(TEXT("Realizer"));
  EventManager = CreateDefaultSubobject<UBalloonLevelEventManager>(TEXT("EventManager"));
 	Spline = CreateDefaultSubobject<USplineComponent>(TEXT("ProgressionSpline"));
 	SetRootComponent(Spline);
 	Spline->ClearSplinePoints();
 }
 
+void ABalloonLevelGenerator::BeginPlay()
+{
+ Super::BeginPlay();
+ if (GenerationMode == EBalloonGenerationMode::OnLevelStart)
+ {
+  GenerateLevel();
+ }
+}
+
 void ABalloonLevelGenerator::ClearGeneratedLevel()
 {
+ Realizer->Clear();
  EventManager->ResetEventTimeline();
  BorderProxies.Reset();
+ ActiveConfig = nullptr;
 	Spline->ClearSplinePoints();
 	Plan = FBalloonLevelPlan();
 	Progress = FBalloonLevelProgress();
@@ -30,29 +44,73 @@ void ABalloonLevelGenerator::ClearGeneratedLevel()
 
 bool ABalloonLevelGenerator::RegenerateLevel() { return GenerateLevel(); }
 
+void ABalloonLevelGenerator::GenerateLevelInEditor() { GenerateLevel(); }
+void ABalloonLevelGenerator::RegenerateLevelInEditor() { RegenerateLevel(); }
+
 bool ABalloonLevelGenerator::GenerateLevel()
 {
-	ClearGeneratedLevel();
+ const bool HadLevel = Status == EBalloonLevelGenerationStatus::Ready;
+ const auto OldPlan = Plan;
+ const auto OldProgress = Progress;
+ auto* OldConfig = ActiveConfig.Get();
+ TArray<TPair<TWeakObjectPtr<AActor>, bool>> Collision;
+ for(auto& Ref : Realizer->Actors) if(Ref.IsValid()) { Collision.Emplace(Ref,Ref->GetActorEnableCollision()); Ref->SetActorEnableCollision(false); }
+ if(BuildAndRealizeLevel()) { EventManager->ResetEventTimeline(); BorderProxies.Reset(); return true; }
+ for(auto& Entry : Collision) if(Entry.Key.IsValid()) Entry.Key->SetActorEnableCollision(Entry.Value);
+ if(HadLevel)
+ {
+  Plan=OldPlan; Progress=OldProgress; ActiveConfig=OldConfig; Status=EBalloonLevelGenerationStatus::Ready;
+  Spline->ClearSplinePoints(false);
+  for(const auto& Point:Plan.SplineSamples) { const int32 I=Spline->GetNumberOfSplinePoints(); Spline->AddSplinePoint(Point,ESplineCoordinateSpace::World,false); Spline->SetSplinePointType(I,ESplinePointType::Linear,false); }
+  Spline->UpdateSpline();
+  Diagnostics.Add(TEXT("M8: regeneration failed; previous realized level retained"));
+ }
+ return false;
+}
+
+bool ABalloonLevelGenerator::BuildAndRealizeLevel()
+{
+ Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); Spline->ClearSplinePoints();
 	Status = EBalloonLevelGenerationStatus::Planning;
-	if (!LevelConfig)
+ UBalloonLevelConfig* SelectedConfig = LevelConfig;
+ if (BiomeSelection == EBalloonBiomeSelection::Random)
+ {
+  TArray<UBalloonLevelConfig*> Choices;
+  for (const auto& Entry : RandomBiomeConfigs)
+  {
+   if (IsValid(Entry.Get())) Choices.AddUnique(Entry.Get());
+  }
+  if (Choices.IsEmpty())
+  {
+   Diagnostics.Add(TEXT("Random biome selection requires at least one valid RandomBiomeConfigs entry"));
+   Status = EBalloonLevelGenerationStatus::InvalidConfig;
+   return false;
+  }
+  SelectedConfig = Choices[FMath::RandHelper(Choices.Num())];
+ }
+	if (!IsValid(SelectedConfig))
 	{
 		Diagnostics.Add(TEXT("LevelConfig is required"));
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
 	}
+ ActiveConfig = DuplicateObject<UBalloonLevelConfig>(SelectedConfig, this);
+ ActiveConfig->SetFlags(RF_Transient);
+ if (RandomizeSeed) ActiveConfig->Seed = FMath::Rand();
+ Diagnostics.Add(FString::Printf(TEXT("Generation biome=%s seed=%d"), *ActiveConfig->BiomeId.ToString(), ActiveConfig->Seed));
 	FBalloonLevelPlan Candidate;
-	if (!BalloonSplinePlanning::Build(*LevelConfig, Candidate, Diagnostics))
+	if (!BalloonSplinePlanning::Build(*ActiveConfig, Candidate, Diagnostics))
 	{
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
 	}
 	Status = EBalloonLevelGenerationStatus::Validating;
-	if (!BalloonAssetCatalog::Merge(LevelConfig->SharedAssetTable, LevelConfig->BiomeAssetTable, Candidate.Catalog, Diagnostics))
+	if (!BalloonAssetCatalog::Merge(ActiveConfig->SharedAssetTable, ActiveConfig->BiomeAssetTable, Candidate.Catalog, Diagnostics))
 	{
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
 	}
-	if (!BalloonBorderPlanning::Build(*LevelConfig, Candidate, Diagnostics))
+	if (!BalloonBorderPlanning::Build(*ActiveConfig, Candidate, Diagnostics))
  {
   Status = EBalloonLevelGenerationStatus::InsufficientSpace;
   return false;
@@ -61,22 +119,22 @@ bool ABalloonLevelGenerator::GenerateLevel()
  FString EnvelopeError;
  if(!RoutePawn || !GetWorld() || !BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,EnvelopeError))
  { Diagnostics.Add(RoutePawn?EnvelopeError:TEXT("M5: RoutePawn instance is required for collision/movement inspection")); Status=EBalloonLevelGenerationStatus::Unreachable;return false; }
- Envelope.Safety=LevelConfig->RouteSafetyMeters*100.;Envelope.Wind=LevelConfig->RouteWindMeters*100.;
- Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(LevelConfig->MinimumTurningRadiusMeters)*100.);
+ Envelope.Safety=ActiveConfig->RouteSafetyMeters*100.;Envelope.Wind=ActiveConfig->RouteWindMeters*100.;
+ Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(ActiveConfig->MinimumTurningRadiusMeters)*100.);
  Candidate.BalloonRadiusCm=(Envelope.Radius+Envelope.Safety+Envelope.Wind)*UE_DOUBLE_SQRT_2;
  Candidate.BalloonHalfHeightCm=Envelope.HalfHeight+Envelope.Safety;
- BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=LevelConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
- if(LevelConfig->RouteAttempts<1 || LevelConfig->RouteAttempts>12)
+ BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=ActiveConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
+ if(ActiveConfig->RouteAttempts<1 || ActiveConfig->RouteAttempts>12)
  {Diagnostics.Add(TEXT("M5: RouteAttempts must be [1,12]"));Status=EBalloonLevelGenerationStatus::InvalidConfig;return false;}
  TArray<BalloonPlacementPlanning::FResolvedRow> Rows;
- if(!BalloonPlacementPlanning::Resolve(*LevelConfig,Candidate.Catalog,Rows,Diagnostics))
+ if(!BalloonPlacementPlanning::Resolve(*ActiveConfig,Candidate.Catalog,Rows,Diagnostics))
  {Status=EBalloonLevelGenerationStatus::InvalidConfig;return false;}
  const auto Sweep=BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn);
  bool Reachable=false;
- for(int32 Attempt=0;Attempt<LevelConfig->RouteAttempts;++Attempt)
+ for(int32 Attempt=0;Attempt<ActiveConfig->RouteAttempts;++Attempt)
  {
   Candidate.PlacementAttempt=Attempt;
-  if(!BalloonPlacementPlanning::Build(*LevelConfig,Candidate,Rows,Diagnostics))continue;
+  if(!BalloonPlacementPlanning::Build(*ActiveConfig,Candidate,Rows,Diagnostics))continue;
   const auto Result=BalloonHorizontalRoute::Validate(Candidate,Envelope,Settings,Sweep);
   Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d placement attempt=%d visited=%d: %s"),Candidate.Seed,Attempt+1,Result.CellsVisited,Result.Reachable?TEXT("fixed-Z route proved"):*Result.FailureReason));
   if(Result.Reachable) {Candidate.RoutePoints=Result.Points;Reachable=true;break;}
@@ -91,7 +149,9 @@ bool ABalloonLevelGenerator::GenerateLevel()
 	}
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
-	Diagnostics.Add(TEXT("M5 Ready: fixed-Z horizontal route certified against conservative Pawn/placement bounds and current world; descriptors only, realization remains M8."));
+	Status = EBalloonLevelGenerationStatus::Realizing;
+ if(!Realizer->Realize(Plan,Diagnostics)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
+ Diagnostics.Add(TEXT("M8 Ready: fixed-Z route certified; placements realized."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
 }
@@ -121,7 +181,7 @@ bool ABalloonLevelGenerator::RegisterBorderProxy(ABalloonBorderThreat* Proxy)
 
 bool ABalloonLevelGenerator::TryEventBorderChange(const FBalloonLevelEventDefinition& Event,FString& Reason)
 {
- if(Status!=EBalloonLevelGenerationStatus::Ready || !IsValid(RoutePawn) || !LevelConfig || !GetWorld() || Event.RequestsLightingSwap ||
+ if(Status!=EBalloonLevelGenerationStatus::Ready || !IsValid(RoutePawn) || !ActiveConfig || !GetWorld() || Event.RequestsLightingSwap ||
     !FMath::IsFinite(Event.Value) || Event.Action==EBalloonEventAction::Blueprint || uint8(Event.Action)>uint8(EBalloonEventAction::ScaleBorderRadius))
  {Reason=TEXT("Border transaction requires Ready, a live Pawn, and a valid radius action; lighting swaps forbidden");return false;}
  auto Candidate=Plan.Borders;
@@ -156,9 +216,9 @@ bool ABalloonLevelGenerator::TryEventBorderChange(const FBalloonLevelEventDefini
  if(!Matched) {Reason=TEXT("Border selector matched no threats");return false;}
  BalloonHorizontalRoute::FEnvelope Envelope;
  if(!BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,Reason))return false;
- Envelope.Safety=LevelConfig->RouteSafetyMeters*100.;Envelope.Wind=LevelConfig->RouteWindMeters*100.;
- Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(LevelConfig->MinimumTurningRadiusMeters)*100.);
- BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=LevelConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
+ Envelope.Safety=ActiveConfig->RouteSafetyMeters*100.;Envelope.Wind=ActiveConfig->RouteWindMeters*100.;
+ Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(ActiveConfig->MinimumTurningRadiusMeters)*100.);
+ BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=ActiveConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
  const auto Result=BalloonHorizontalRoute::TryBorders(Plan,Candidate,RoutePawn->GetActorLocation(),Envelope,Settings,BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn));
  if(!Result.Reachable) {Reason=Result.FailureReason;return false;}
  // No BP callbacks until every native representation has committed.
@@ -191,4 +251,32 @@ void ABalloonLevelGenerator::DrawBorderDebug(float Duration) const
    DrawDebugString(GetWorld(),Center,FString::Printf(TEXT("Border %d side %d R=%.1fm intrusion=%.1fm"),T.InstanceId,T.Side,T.RadiusCm/100.,T.IntrusionCm/100.),nullptr,Color,Duration);
   }
  }
+}
+
+void ABalloonLevelGenerator::DrawGenerationDebug() const
+{
+ if(DebugRoute) DrawBorderDebug();
+ if(!GetWorld()) return;
+ if(DebugSpline) for(int32 I=1;I<Plan.SplineSamples.Num();++I) DrawDebugLine(GetWorld(),Plan.SplineSamples[I-1],Plan.SplineSamples[I],FColor::White,false,10.f,0,2.f);
+ if(DebugHISM) for(const auto& Group:Realizer->Groups) if(IsValid(Group))
+ {
+  DrawDebugBox(GetWorld(),Group->Bounds.Origin,Group->Bounds.BoxExtent,FColor::Purple,false,10.f);
+  DrawDebugString(GetWorld(),Group->Bounds.Origin,FString::Printf(TEXT("HISM %s instances=%d end=%dcm (0=unlimited)"),*GetNameSafe(Group->GetStaticMesh()),Group->GetInstanceCount(),Group->InstanceEndCullDistance),nullptr,FColor::Purple,10.f);
+ }
+ if(DebugPlacements) for(const auto& D:Plan.Placements)
+ {
+  const FColor Color=D.Collision?FColor::Orange:FColor::Silver;
+  DrawDebugCoordinateSystem(GetWorld(),D.Transform.GetLocation(),D.Transform.Rotator(),200.f,false,10.f);
+  if(D.CollisionBounds.IsValid) DrawDebugBox(GetWorld(),D.CollisionBounds.GetCenter(),D.CollisionBounds.GetExtent(),Color,false,10.f);
+  DrawDebugString(GetWorld(),D.Transform.GetLocation(),FString::Printf(TEXT("%s / %s #%d segment=%d cull=%d"),*D.Biome.ToString(),*D.Rule.ToString(),D.InstanceIndex,D.SegmentId,D.CullEndCm),nullptr,Color,10.f);
+ }
+ if(DebugSegments) for(const auto& Segment:Plan.Segments) if(Segment.BaseBounds.IsValid) DrawDebugBox(GetWorld(),Segment.BaseBounds.GetCenter(),Segment.BaseBounds.GetExtent(),FColor::Blue,false,10.f);
+ DrawDebugSphere(GetWorld(),Plan.Start.GetLocation(),200.f,12,FColor::Green,false,10.f);
+ DrawDebugSphere(GetWorld(),Plan.Finish.GetLocation(),200.f,12,FColor::Yellow,false,10.f);
+}
+
+void ABalloonLevelGenerator::Destroyed()
+{
+ ClearGeneratedLevel();
+ Super::Destroyed();
 }

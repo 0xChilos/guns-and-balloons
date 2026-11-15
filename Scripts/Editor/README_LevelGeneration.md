@@ -35,3 +35,21 @@ py G:/UE/gunsandballoons/Scripts/Editor/test_level_generation_pie.py
 
 Success logs `LEVEL_GENERATION_PIE_PASS`: Ready, eight borders, attached player
 possession, original balloon controls, and more than 100 cm travel in three seconds.
+
+Generation controls (after rebuilding the project): select `LevelGeneration_Preview`
+and open **Balloon Level > Generation** in Details.
+- **Generation Mode**: **Manual (Button)** uses Generate Level / Regenerate Level;
+  **Every Level Start** generates automatically on each BeginPlay (including PIE).
+- **Biome Selection**: **Selected Config** uses Level Config; **Random** picks a
+  valid entry from **Random Biome Configs**. Assign one DataAsset per biome with
+  its matching BiomeId, asset tables and placement metadata. An empty list fails
+  with a diagnostic; null entries are ignored and duplicate configs count once.
+- Enable **Randomize Seed** for fresh layouts; leave disabled to use the config seed.
+  Active Config shows the selected biome and effective seed without editing assets.
+
+Manual plans are transient and are not baked into maps or copied into PIE.
+Runtime/manual Blueprint calls use the same Generate Level API. These controls
+plan and validate routes; they do not add world realization or scenery spawning.
+
+
+M8 source implementation now realizes transient HISM/Actor preview content through the same Details buttons. Clear Generated Level removes tracked generated content; failed regeneration retains the prior successful level. Draw Generation Debug exposes route, spline, segment, placement and HISM toggles. Final-source build, automation and visual checks are pending after the user-requested stop; see docs/tech/BalloonLevel/HANDOFF.md. Earlier descriptor-only statements above describe the pre-M8 fixture.

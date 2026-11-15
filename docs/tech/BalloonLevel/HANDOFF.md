@@ -1,6 +1,22 @@
 # Balloon level generation handoff
 
-Updated: 2026-11-15. Current milestone: M6. Stop before M7.
+Updated: 2026-11-15. Current milestone: M8 implementation, verification incomplete. Stopped at user request. Do not start M9.
+
+## M8 ? implemented, acceptance gate pending
+
+Implemented `UBalloonLevelRealizer` default component and generator integration: one NoCollision HISM per distinct mesh, descriptor cull distances 15000/30000/80000/0, conflicting same-mesh profiles rejected; individual colliding mesh/Blueprint Actors; decorative Actor exception restricted to flock. Actor primitive distance culling and Cull Distance Volume overrides are disabled. Generated components/Actors are transient and excluded from duplication. Cleanup tracks exact components and weak Actor references; no class/tag-based deletion. Generator deletion explicitly clears owned content.
+
+Existing Details generation/regeneration/clear buttons now realize preview content. Regeneration stages new content, removes staged objects on failure and retains the previous successful plan/config/progress/world content; old owned collision is temporarily disabled during route generation. Events/proxy registration reset only on successful replacement. Blueprint construction/BeginPlay side effects cannot be rolled back. Existing authored border proxies remain explicit M6 registrations; no border visual/behavior Blueprint or environment asset was invented. M7 is not implemented by this work.
+
+Added explicit debug toggles for route/corridor/borders, spline, segments, placements (biome/rule/IDs/cull and certified bounds), HISM group counts/bounds/culls and start/finish markers. Realization diagnostics record descriptor/component/Actor counts and synchronous milliseconds including loads. No generator tick or OnConstruction regeneration.
+
+Added `BalloonLevelM8Test.cpp` and `Scripts/Verify-BalloonLevelM8.ps1` for real UWorld/HISM/mesh Actor checks, cull state, transactional conflict rejection, owned cleanup and a 10000-instance CPU workload. Final test also checks generator deletion cleanup. No uassets/maps were created or modified.
+
+Observed verification: initial isolated compile found two test-only C++ errors, corrected. A subsequent isolated UE 5.9 build succeeded (22.27s local actions), but this predates the final deletion-cleanup/debug/duplication refinements. Automation stalled loading the default OpenWorld map before tests produced results; commandlet stopped, script changed to Entry map. Full-project UHT passed, but full C++ builds were stopped without a result. Final-source verification and Entry-map automation were queued, then stopped at the user's explicit request. No completed M8 automation results or profiling numbers exist. No rendered culling, flock Blueprint integration, editor visual inspection or PIE verification is claimed. M8 acceptance gate remains OPEN.
+
+Next action only when authorized: rerun `powershell -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM8.ps1 -Incremental`, inspect the JSON report, verify source-copy hashes, complete full-project build and real-content/editor/PIE/rendering checks, then record actual profile results. Preserve pre-existing generation-mode edits and unrelated concurrent documentation changes. No commit. Stopped after recording state.
+
+## Historical M6 handoff
 
 ## M6 timed gameplay events
 

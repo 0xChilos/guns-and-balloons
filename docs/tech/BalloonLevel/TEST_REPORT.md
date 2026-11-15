@@ -178,3 +178,24 @@ The direct script invocation initially hit PowerShell execution policy; the proc
 Tests: M6.Events covers exclusion of planning time, initial-zero equality/idempotent start, large elapsed steps, threshold/priority/stable-ID ordering, explicit pause freezing time/progress/signals, normalized and meter thresholds, backtracking one-shots, target filtering, custom signals, restart state, rejected explicit/named/unknown Day/Night requests, duplicate IDs and NaN, cooldown boundaries/coalescing, upward-crossing repeats, nested-signal suppression and callback reset canceling a pending batch. M6.RuntimeSafety exercises actual UWorld collision and a live synthetic Pawn/real flight component: safe generation, registered sphere proxy, rejected whole-group closure with descriptor/proof/collision rollback, safe tagged shrink from exact current XY, untouched nonselected threat, native collision commit, invalid radius and lighting rejection, event rejection exact-once, unchanged lighting preset, and generator clear/reset. Existing M1–M5 tests all pass, including the current-position safety and no-vertical-bypass regressions.
 
 Full-project build FAILED (exit 1) at the existing FirstPersonCameraPawn.h:335 UHT `Member variable declaration: Expected name`; merge markers remain untouched. Log: Saved/Logs/M6-ProjectBuild.log. Therefore project Blueprint/PIE integration remains unverified. The isolated harness does execute reflected dynamic delegates and real engine collision, but does not create authored Blueprint assets. Existing nonfatal MCP port 8000 bind errors did not affect automation. No native enemy-manager integration, runtime interpolation, environment changes, asset edits, visual playtest or profiling. Save/load exposes a snapshot only, without restore/save-slot wiring. No commit. Stop before M7.
+
+## Validation review — 2026-11-15 (post-M6, generation modes)
+
+Scope: code review of all BalloonLevel sources against spec v1.1 plus re-verification of the uncommitted generation-modes change (`GenerationMode`, `BiomeSelection`, `RandomizeSeed`, `ActiveConfig`, parameterless Details buttons). Findings are recorded in [STATUS.md](STATUS.md).
+
+- Isolated harness `Scripts/Verify-BalloonLevelM6.ps1`: Saved/M6Verification/TestReport/index.json at 11:54:45 Europe/Kyiv, succeeded=8, failed=0, notRun=0. SHA256 of all BalloonLevel sources, BalloonLevel tests and the event observer matches the working tree (zero mismatches).
+- **Full project, first successful run:** `UnrealEditor-Cmd.exe gunsandballoons.uproject -unattended -nop4 -nosplash -NullRHI -NoSound -ExecCmds="Automation RunTests GunsAndBalloons.BalloonLevel" -TestExit="Automation Test Queue Empty"` against `UnrealEditor-gunsandballoons.dll` built 11:56:03 (contains the editor-button test). Exit 0; succeeded=8, failed=0, notRun=0, inProcess=0: M1, M2, M3, M4, M5, M6.Events, M6.RuntimeSafety, GenerationModes. The former FirstPersonCameraPawn.h UHT blocker is gone since e061a95.
+- Not re-run: PIE smoke test (last pass 11:15 Europe/Kyiv, before the generation-modes change). No profiling, no visual QA, no biome DataTables exist.
+
+## M8 ? stopped at user request, 2026-11-15
+
+Implemented realizer, generator transaction/preview/debug integration, automation test and verification script. M8 is not accepted as fully verified.
+
+- Initial isolated build failed on test-only TObjectPtr deduction and FString formatting; both corrected.
+- Subsequent isolated UE 5.9 compilation succeeded: 22.27s local actions. Log: Saved/Logs/M8-IsolatedBuild.log. This build predates final generator Destroyed cleanup, expanded debug, duplication flags and deletion-test refinements; final source compilation remains unverified.
+- Automation launched but stalled loading default OpenWorld before producing a report. No completed test count or profiling measurement. Log: Saved/Logs/M8-Automation.log. Script now requests /Engine/Maps/Entry; that rerun was not completed.
+- Full-project UHT passed. Full-project compilation did not finish; attempts were stopped, final one at user request. Log: Saved/Logs/M8-ProjectBuild.log. Historical M6 merge-conflict blocker no longer applies.
+- All owned M8 build/test processes were stopped as requested. No rendered culling, actual flock Blueprint, PIE, source-copy hash parity or final-source acceptance claim.
+- Earlier whitespace check passed before the final source/docs edits. No final rerun after the stop request.
+
+Commands attempted: Scripts/Verify-BalloonLevelM8.ps1 (clean and -Incremental, process-local execution-policy Bypass); UE Build.bat gunsandballoonsEditor Win64 Development with -WaitMutex -NoHotReloadFromIDE -NoUBA, retry -MaxParallelActions=2. Unreal toolchain access required approved external cache access. No uasset changes or commit.

@@ -31,6 +31,8 @@
 | [tech/crosshair.md](tech/crosshair.md) | Technical reference for agents: crosshair HUD, material, spread and inertia | Сокін |
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
+| [tech/level-generation.md](tech/level-generation.md) | Technical reference for agents: level generator pipeline, API, events, border proxies, interaction with the balloon | TBD |
+| [tech/BalloonLevel/STATUS.md](tech/BalloonLevel/STATUS.md) | Level generation implementation status vs spec, validation results, known defects | TBD |
 | [tech/BalloonLevel/HANDOFF.md](tech/BalloonLevel/HANDOFF.md) | Procedural level generation: M6 handoff, verification and implementation limits | TBD |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Сокін |
 | [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Ростік |

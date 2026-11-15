@@ -41,3 +41,11 @@
 - Exact-once means one attempt, including rejection. Reset retains authored definitions and persistent BP delegate bindings, resets all per-run state, and cancels an in-flight batch. Recursive dispatch is suppressed.
 - Reuse M5's exact-current-position route validator; apply registered native sphere changes only after proof and publish one BorderChanged notification. No automatic world realization or enemy spawning; optional encounters are Blueprint receiver signals pending M8 ownership/safe spawn integration.
 - MVP radius updates are instantaneous Set/Add/Scale only. No unvalidated animation/interpolation API. Fixed lighting is snapshotted at start and never changed by events; invalid transition requests fail registration.
+
+## M8 implementation decisions — 2026-11-15
+
+- Preserve Ready as the gameplay/event-ready state, now requiring realization. Keep M6 consumers compatible rather than introducing a new terminal status.
+- A default realizer ActorComponent owns exact component references and weak Actor references. Cleanup never searches by class/tag; transient generated content is not authored level content.
+- Use existing cull metadata, reject conflicts, disable Cull Distance Volume overrides. UE 5.9 HISM source tests end distance > 0 before applying distance limits; zero disables the authored limit. NullRHI tests check API/component state, not GPU visibility.
+- Synchronous staged realization and rollback retain the previous successful level. Old owned collision is suppressed only during generation. Blueprint callback side effects cannot be rolled back; no claim of atomic external gameplay behavior.
+- M7 environment work remains outside the requested milestone. Existing authored border proxies remain explicit, with no invented enemy/visual assets or gameplay effects.
