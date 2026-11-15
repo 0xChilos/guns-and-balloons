@@ -200,6 +200,9 @@ protected:
 	/** GetAimedInteractable, with the debug line optional (it runs every frame for the loading gate). */
 	AActor* TraceAimedTarget(bool bDebugDraw) const;
 
+	/** The ammo supply in front of the camera, for RMB (weapon racks' click boxes don't hide it). */
+	class UAmmoSupplyComponent* TraceAimedSupply(bool bDebugDraw) const;
+
 	/** The interaction trace from the eye along the view. */
 	bool TraceAimed(FHitResult& OutHit, bool bDebugDraw) const;
 

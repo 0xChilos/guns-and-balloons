@@ -16,6 +16,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoRoundTaken, UAmmoSupplyCompo
  *
  * Works on its own or alongside IInteractable on the same actor (e.g. AInteractSwap opens the
  * crate on the first click and the same click already takes a round).
+ *
+ * On a big actor only part of it is the supply: HitBones limits it to those bones of the actor's skinned
+ * mesh (BP_Balloon: the ammo box on the weapon wall, bones ammo_box and ammo_lid).
  */
 UCLASS(ClassGroup = (Weapon), meta = (BlueprintSpawnableComponent))
 class GUNSANDBALLOONS_API UAmmoSupplyComponent : public UActorComponent
@@ -38,6 +41,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Ammo")
 	bool GiveRound(APawn* InstigatorPawn);
 
+	/** Whether aiming at this hit means aiming at the supply (always, unless HitBones limits it). */
+	bool AcceptsHit(const FHitResult& Hit) const;
+
+	/** The supply the hit actor (or an actor owning it) has, if it takes this hit; null otherwise. */
+	static UAmmoSupplyComponent* FindForHit(const FHitResult& Hit);
+
 	/** A round left the supply and went into the gun's loading queue. */
 	UPROPERTY(BlueprintAssignable, Category = "Ammo")
 	FOnAmmoRoundTaken OnRoundTaken;
@@ -50,4 +59,8 @@ protected:
 	/** Rounds this supply holds; -1 = unlimited. Needs tuning: the design value is TBD (weapons.md). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo", meta = (ClampMin = "-1"))
 	int32 Rounds = -1;
+
+	/** Empty: the whole actor is the supply. Otherwise only hits on these bones of the actor's skinned mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
+	TArray<FName> HitBones;
 };
