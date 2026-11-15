@@ -36,7 +36,7 @@ for biome in ('Shared', 'Forest', 'Field', 'City', 'Desert'):
     assert unreal.EditorAssetLibrary.save_loaded_asset(table)
     tables[biome] = table
 
-configs = [unreal.load_asset('/Game/Blueprints/Tests/DA_LevelGenerationPreview')]
+configs = []
 configs += [unreal.load_asset(f'/Game/Blueprints/Tests/Environment/DA_Environment_{b}_{p}')
             for b in ('Forest', 'Field', 'City', 'Desert') for p in ('Day', 'Night')]
 for config in configs:

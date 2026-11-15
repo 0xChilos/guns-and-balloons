@@ -14,6 +14,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalloonLevelM5Test,"GunsAndBalloons.BalloonLev
 bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
 {
  using namespace BalloonHorizontalRoute;
+ // Regression matrix for the shipped short curved routes. Use the same effective
+ // turning limit in geometry planning and continuous proof, including a slower pawn.
+ auto* Curved = NewObject<UBalloonLevelConfig>();
+ Curved->LengthMeters = 500.f; Curved->MaxHeadingDegrees = 25.f;
+ Curved->MinimumTurningRadiusMeters = 100.f;
+ FEnvelope CurvedEnvelope; CurvedEnvelope.Radius=500.; CurvedEnvelope.HalfHeight=500.;
+ CurvedEnvelope.Speed=300.; CurvedEnvelope.MaxYawRate=.5; CurvedEnvelope.YawAcceleration=1.;
+ CurvedEnvelope.MinimumRadius=10000.; CurvedEnvelope.SpeedAcceleration=100.;
+ FSettings CurvedSettings; CurvedSettings.MaxAttempts=1;
+ const FSweep NoWorldCollision=[](const FVector&,const FVector&,const FVector&){return false;};
+ for (int32 Seed=0; Seed<128; ++Seed)
+ {
+  Curved->Seed=Seed; FBalloonLevelPlan Plan; TArray<FString> Errors;
+  TestTrue(TEXT("Curved seed builds"),BalloonSplinePlanning::Build(*Curved,Plan,Errors,CurvedEnvelope.MinimumRadius));
+  const auto Proof=Validate(Plan,CurvedEnvelope,CurvedSettings,NoWorldCollision);
+  TestTrue(FString::Printf(TEXT("Curved seed %d passes continuous proof"),Seed)+TEXT(": ")+Proof.FailureReason,Proof.Reachable);
+ }
  auto* C=NewObject<UBalloonLevelConfig>();C->MaxHeadingDegrees=0.;C->LengthMeters=100.;C->BaseWidthMeters=40.;C->MinWidthMeters=40.;
  FBalloonLevelPlan P;TArray<FString> D;TestTrue(TEXT("geometry"),BalloonSplinePlanning::Build(*C,P,D));
  FEnvelope E;E.Radius=100.;E.HalfHeight=400.;E.Speed=300.;E.MaxYawRate=.5;E.YawAcceleration=1.;E.MinimumRadius=600.;E.Safety=20.;E.Wind=30.;
@@ -120,6 +137,25 @@ bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
  TestTrue(TEXT("failed regeneration leaves balloon in place"), Pawn->GetActorTransform().Equals(PreviousBalloonTransform));
  TestTrue(TEXT("failed generation retains previous colliding terrain"), PreviousTerrain.IsValid() && PreviousTerrain->GetActorEnableCollision());
  TestEqual(TEXT("failed generation leaves no staged terrain"), Generator->Realizer->Actors.Num(), 1);
+ // A blocked level start exhausts exactly the configured seed budget; geometry
+ // failures must never enter the placement loop or mutate the source config.
+ auto* Automatic=W->SpawnActor<ABalloonLevelGenerator>();
+ Automatic->LevelConfig=C; Automatic->RoutePawn=Pawn; Automatic->SpawnEnemies=false;
+ Automatic->ManageEnvironment=false; Automatic->GenerationMode=EBalloonGenerationMode::OnLevelStart;
+ Automatic->LevelStartSeedRetries=2;
+ Automatic->DispatchBeginPlay();
+ int32 SeedCount=0, GeometryFailures=0, PlacementAttempts=0;
+ for (const FString& Message:Automatic->GetDiagnostics())
+ {
+  if (Message.StartsWith(TEXT("Generation biome="))) ++SeedCount;
+  if (Message.Contains(TEXT("geometry preflight failed"))) ++GeometryFailures;
+  if (Message.Contains(TEXT("placement attempt="))) ++PlacementAttempts;
+ }
+ TestEqual(TEXT("Level start tries initial seed plus two retries"),SeedCount,3);
+ TestEqual(TEXT("Each blocked seed fails geometry once"),GeometryFailures,3);
+ TestEqual(TEXT("Geometry failure skips placement retries"),PlacementAttempts,0);
+ TestEqual(TEXT("Source seed unchanged by fallback"),C->Seed,12345);
+ TestTrue(TEXT("Exhausted start reports unreachable"),Automatic->GetGenerationStatus()==EBalloonLevelGenerationStatus::Unreachable);
  W->DestroyWorld(false);
  return true;
 }

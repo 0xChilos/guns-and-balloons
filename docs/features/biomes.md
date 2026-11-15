@@ -16,6 +16,7 @@ Variety between runs: each biome forces a different route and different prioriti
 - Terrain is created per level: `Generated` builds seeded rolling ground; `Flat` builds a level surface. Height variation, wavelength, grid size, corridor padding and material are configured per biome; values are prototypes requiring tuning. `WorldCollision` instead uses tagged authored ground. Placement follows the surface and optionally aligns to slopes; horizon background rings retain their ground datum. Terrain collision participates in route validation and terrain is replaced/cleared with the generated level. Flight altitude stays fixed.
 - Successful level generation also applies the bound environment from the generated config, for editor buttons, Blueprint calls and level start. Failed generation retains the previous environment.
 - Environment ground material and fog use the generation config's `BiomeId`; fixed Day/Night lighting uses its `Preset`. Editor preview reads the selected config; play uses the successfully generated config snapshot. Random selection requires generation before preview. Lighting remains fixed during play.
+- Level-start generation retries failed route/space planning with a distinct seed, keeping the chosen biome and resolved settings. `LevelStartSeedRetries` defaults to 3 additional attempts (0-12; prototype tuning, TBD). Manual generation retains fixed-seed reproducibility. An empty-placement route preflight stops geometric/world/border failures before placement retries. Geometry uses the greater of the config and pawn turning radii with `RouteCurvatureMargin` (default 3; prototype tuning, TBD) to reserve curvature for the continuous quintic proof. The full route proof remains required. Exhaustion reports failure and retains an existing level; impossible setups can still fail at first start.
 - Generation: `Manual (Button)` from a button, or `Every Level Start` automatically on every BeginPlay. The plan is temporary and isn't saved in the map.
 - Biome: `Selected Config`, or `Random` from the `RandomBiomeConfigs` list with their asset tables. `RandomizeSeed` gives a new seed on every generation; otherwise the config's seed is used. The source DataAsset isn't changed.
 - A level = a flight through one biome. After it comes the [safe zone](safe-zone.md).
@@ -44,6 +45,8 @@ A patrol is one crop duster flying a route; when it spots the balloon (within ~2
 | Corridor width | 600 m | Default; ≥ 2 × the rocket balloons' `AggroRangeM` (300 m), so in the middle of the corridor the player is out of their range |
 | Level length (flight time) | TBD | |
 | Flight height | TBD | The balloon's spawn height; there is no height control |
+| Level-start seed retries | TBD (prototype: 3 additional, editable 0-12) | `LevelStartSeedRetries`; exhaustion reports failure |
+| Route curvature margin | TBD (prototype: 3, minimum 1) | `RouteCurvatureMargin`; reserve for continuous quintic proof |
 | Levels per run | TBD | |
 | Biome order | TBD | Random / fixed |
 

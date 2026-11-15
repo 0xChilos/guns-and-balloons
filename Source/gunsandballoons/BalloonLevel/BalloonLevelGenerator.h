@@ -93,6 +93,8 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation", meta=(EditCondition="BiomeSelection == EBalloonBiomeSelection::Random")) TArray<TObjectPtr<UBalloonLevelConfig>> RandomBiomeConfigs;
  /** Fresh seed on each button press/start; disable to reproduce the authored seed. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation") bool RandomizeSeed = false;
+ /** Additional seed attempts at level start only. Prototype limit requiring tuning; zero disables fallback. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation", meta=(ClampMin="0", ClampMax="12")) int32 LevelStartSeedRetries = 3;
  /** Immutable per-generation copy; source DataAssets are never changed. */
  UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="Balloon Level|Generation") TObjectPtr<UBalloonLevelConfig> ActiveConfig;
 protected:
@@ -141,7 +143,9 @@ private:
  bool ConfigureEnvironment();
  void ClearOwnedEnvironment();
  UPROPERTY(Transient) TArray<TObjectPtr<AActor>> OwnedEnvironmentActors;
- bool BuildAndRealizeLevel();
+ bool BuildAndRealizeLevel(bool RetrySeed = false);
+ bool StartingLevel = false;
+ bool SeedRetryable = false;
  UPROPERTY(Transient) TMap<int32, TObjectPtr<ABalloonBorderThreat>> BorderProxies;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") EBalloonLevelGenerationStatus Status = EBalloonLevelGenerationStatus::NotStarted;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") TArray<FString> Diagnostics;

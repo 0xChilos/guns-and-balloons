@@ -3,6 +3,7 @@
 bool UBalloonLevelConfig::Validate(TArray<FString>& Errors) const
 {
 	const int32 Before = Errors.Num();
+ if (!FMath::IsFinite(RouteCurvatureMargin) || RouteCurvatureMargin < 1.f) Errors.Add(TEXT("RouteCurvatureMargin must be finite and >= 1"));
  if (!FMath::IsFinite(ItemDensity) || ItemDensity < 0.f || ItemDensity > 1.f)
   Errors.Add(TEXT("ItemDensity must be finite and in [0,1]"));
  for (float Value : {EnemyDensity, ObstacleDensity})

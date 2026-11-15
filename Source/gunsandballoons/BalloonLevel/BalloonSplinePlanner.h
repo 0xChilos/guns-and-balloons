@@ -4,7 +4,7 @@
 /** Pure descriptor operations. Distances and widths are centimeters; queries ignore world Z. */
 namespace BalloonSplinePlanning
 {
- GUNSANDBALLOONS_API bool Build(const UBalloonLevelConfig& Config, FBalloonLevelPlan& Plan, TArray<FString>& Errors);
+ GUNSANDBALLOONS_API bool Build(const UBalloonLevelConfig& Config, FBalloonLevelPlan& Plan, TArray<FString>& Errors, double PawnMinimumRadiusCm = 0.);
  GUNSANDBALLOONS_API int32 SegmentAt(const FBalloonLevelPlan& Plan, double S);
  GUNSANDBALLOONS_API FVector PositionAt(const FBalloonLevelPlan& Plan, double S);
  GUNSANDBALLOONS_API double WidthAt(const FBalloonLevelPlan& Plan, double S);

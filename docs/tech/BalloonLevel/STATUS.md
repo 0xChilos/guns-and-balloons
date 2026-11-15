@@ -3,6 +3,7 @@
 > **Updated:** 2026-11-15 · **Branch:** `feat/level-generation` · **Spec:** [implementation plan v1.1](../../temp/Balloon_Level_Generation_LLM_Implementation_Plan.v1.md) · **Tech reference:** [level-generation.md](../level-generation.md)
 
 ## Summary
+- **Route failure recovery (2026-11-15):** full project build and all 16 BalloonLevel tests passed (7 clean, 9 with synthetic-world teardown warnings). M5 now covers 128 seeds with 500 m routes, 25 degree heading and 100 m turn radius, plus blocked-start retry exhaustion and skipped placement attempts. Level start permits 3 additional distinct seeds by default (editable 0-12; tuning TBD). Geometry preflight skips placement retries; geometry now respects the effective pawn/config turn radius with a curvature margin (default 3; tuning TBD). Exhaustion remains an explicit failure. Local evidence: `Saved/LevelValidation/Build.log`, `RouteRetryAutomation.log`, `RouteRetryReport/index.json`.
 - **Procedural borders:** full-project build, all 12 native BalloonLevel tests, headless seeded/randomized lifecycle checks and PIE smoke passed on 2026-11-15. The preview enables fresh seeds and generates eight rocket balloons; legacy authored markers were removed. Visual testing remains with the user.
 - **Latest validation:** current full-project incremental build and all ten BalloonLevel tests passed at 18:46 Europe/Kyiv, 2026-11-15. Open integration findings and acceptance limits: [validation report](VALIDATION-2026-11-15.md).
 - **Done (M0–M6):** implemented and tested as a **plan → validate** pipeline.

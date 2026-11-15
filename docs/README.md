@@ -33,7 +33,7 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, the single Pawn and interaction routing | Sokin |
 | [tech/level-generation.md](tech/level-generation.md) | Technical reference for agents: level generator pipeline, API, events, border proxies, interaction with the balloon | TBD |
 | [tech/BalloonLevel/STATUS.md](tech/BalloonLevel/STATUS.md) | Level generation implementation status vs spec, validation results, known defects | TBD |
-| [tech/BalloonLevel/HANDOFF.md](tech/BalloonLevel/HANDOFF.md) | Procedural level generation: M6 handoff, verification and implementation limits | TBD |
+| [tech/BalloonLevel/API.md](tech/BalloonLevel/API.md) | Technical reference for agents: complete level generation API (generator, start options, config, events, proxies, environment, planners) | TBD |
 | [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Rostik |
 | [tech/main-menu.md](tech/main-menu.md) | Technical reference for agents: main menu level script, in-world menu panel, mouse-only controller | Rostik |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Sokin |

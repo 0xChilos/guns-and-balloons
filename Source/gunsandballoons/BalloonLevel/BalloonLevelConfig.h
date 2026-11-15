@@ -25,6 +25,8 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route") float RouteSafetyMeters = 1.f;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route") float RouteWindMeters = 0.f;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route", meta=(ClampMin="1", ClampMax="12")) int32 RouteAttempts = 12;
+ /** Curvature reserve for continuous quintic route proof. Prototype tuning (TBD). */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route", meta=(ClampMin="1")) float RouteCurvatureMargin = 3.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") int32 Seed = 12345;
 	/** Prototype authoring values, require tuning; not approved gameplay defaults. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry", meta=(Units="m")) float LengthMeters = 1500.f;

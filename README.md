@@ -25,20 +25,15 @@ level start. Click the viewport to capture keyboard input: W/S change target spe
 press; hold A/D to turn; use the mouse to look. The old PlayerStart and the test AmmoCrate
 were removed. The original `BalloonFlight_Test` is unchanged.
 
-`Scripts/Editor/create_level_generation_test.py` is the historical script that created the
-sandbox (now pointing at `MainLevel`); it refuses to overwrite an existing map.
+Generator setup and editor checks: [Scripts/Editor/README_LevelGeneration.md](Scripts/Editor/README_LevelGeneration.md).
 
-## Native procedural planner (M4)
+## Procedural level generation
 
-The C++ BalloonLevel generator now plans the biome catalog and six placement rules,
-with independent optional obstacle/enemy budgets and deterministic Actor/HISM
-**descriptors**. It does not yet realize content or prove a safe flight route.
-Authoring details: [catalog and rules](Content/BalloonLevel/Rules/README.md).
-Build/test evidence and next milestone: [handoff](docs/tech/BalloonLevel/HANDOFF.md).
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`
-for the isolated UE 5.9 build and M1–M4 automation. Full project integration is blocked
-by existing merge markers in `FirstPersonCameraPawn.h`.
-
-M4 was re-verified on 2026-11-15: clean isolated compilation and all four M1–M4
-automation tests passed. The full-project build reproduced the Pawn header blocker.
-See the handoff for current report and log paths. Stop before M5.
+`ABalloonLevelGenerator` plans a curved corridor, proves a fixed-height flight route, then realizes
+terrain, scenery, obstacles, border balloons, loot and enemies; fixed Day/Night and fog come from the
+environment controller. Menus start a level through `BalloonLevelLaunchSubsystem::StartLevel`.
+- API reference: [docs/tech/BalloonLevel/API.md](docs/tech/BalloonLevel/API.md)
+- Pipeline and rules: [docs/tech/level-generation.md](docs/tech/level-generation.md)
+- Status and known issues: [docs/tech/BalloonLevel/STATUS.md](docs/tech/BalloonLevel/STATUS.md)
+- Asset tables and placement rules: [Content/BalloonLevel/Rules/README.md](Content/BalloonLevel/Rules/README.md)
+- Tests: close the editor, then `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevel.ps1`

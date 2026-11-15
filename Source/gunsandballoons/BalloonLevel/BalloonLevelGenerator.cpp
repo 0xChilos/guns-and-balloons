@@ -154,7 +154,9 @@ void ABalloonLevelGenerator::BeginPlay()
    if (Launch->Consume(StartOptions)) { UseStartOptions = true; GenerationMode = EBalloonGenerationMode::OnLevelStart; }
  if (GenerationMode == EBalloonGenerationMode::OnLevelStart)
  {
+  StartingLevel = true;
   GenerateLevel();
+  StartingLevel = false;
  }
 }
 
@@ -180,13 +182,25 @@ void ABalloonLevelGenerator::RegenerateLevelInEditor() { RegenerateLevel(); }
 
 bool ABalloonLevelGenerator::GenerateLevel()
 {
+ if (StartingLevel && (LevelStartSeedRetries < 0 || LevelStartSeedRetries > 12))
+ { Diagnostics = {TEXT("LevelStartSeedRetries must be [0,12]")}; return false; }
  const bool HadLevel = Status == EBalloonLevelGenerationStatus::Ready;
  const auto OldPlan = Plan;
  const auto OldProgress = Progress;
  auto* OldConfig = ActiveConfig.Get();
  TArray<TPair<TWeakObjectPtr<AActor>, bool>> Collision;
  for(auto& Ref : Realizer->Actors) if(Ref.IsValid()) { Collision.Emplace(Ref,Ref->GetActorEnableCollision()); Ref->SetActorEnableCollision(false); }
- if(BuildAndRealizeLevel())
+ bool Built = BuildAndRealizeLevel();
+ TArray<FString> AttemptDiagnostics = Diagnostics;
+ for (int32 Retry = 0; !Built && StartingLevel && Retry < LevelStartSeedRetries &&
+      SeedRetryable; ++Retry)
+ {
+  // Keep the biome and resolved overrides; change only the snapshot seed.
+  Built = BuildAndRealizeLevel(true);
+  AttemptDiagnostics.Append(Diagnostics);
+ }
+ Diagnostics = MoveTemp(AttemptDiagnostics);
+ if(Built)
  {
   LevelCompleted = false;
   CompletionZone->SetWorldLocationAndRotation(Plan.Finish.GetLocation(), Plan.Finish.GetRotation());
@@ -225,10 +239,13 @@ bool ABalloonLevelGenerator::GenerateLevel()
  return false;
 }
 
-bool ABalloonLevelGenerator::BuildAndRealizeLevel()
+bool ABalloonLevelGenerator::BuildAndRealizeLevel(bool RetrySeed)
 {
- Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); ActiveConfig=nullptr; Spline->ClearSplinePoints();
+ SeedRetryable = false;
+ Diagnostics.Reset(); Plan=FBalloonLevelPlan(); Progress=FBalloonLevelProgress(); if (!RetrySeed) ActiveConfig=nullptr; Spline->ClearSplinePoints();
 	Status = EBalloonLevelGenerationStatus::Planning;
+ if (!RetrySeed)
+ {
  UBalloonLevelConfig* SelectedConfig = LevelConfig;
  if (UseStartOptions)
  {
@@ -299,9 +316,25 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   if (StartOptions.EnemyDensity == 0.f) ActiveConfig->BorderActorClass.Reset();
  }
  if (RandomizeSeed) ActiveConfig->Seed = FMath::Rand();
+ }
+ else
+ {
+  // Odd increment produces distinct seeds, including across signed integer wraparound.
+  const int32 NextSeed = static_cast<int32>(static_cast<uint32>(ActiveConfig->Seed) + 0x9E3779B9u);
+  ActiveConfig = DuplicateObject<UBalloonLevelConfig>(ActiveConfig, this);
+  ActiveConfig->SetFlags(RF_Transient);
+  ActiveConfig->Seed = NextSeed;
+ }
  Diagnostics.Add(FString::Printf(TEXT("Generation biome=%s seed=%d"), *ActiveConfig->BiomeId.ToString(), ActiveConfig->Seed));
+ if (!ActiveConfig->Validate(Diagnostics)) { Status = EBalloonLevelGenerationStatus::InvalidConfig; return false; }
+ BalloonHorizontalRoute::FEnvelope Envelope;
+ FString EnvelopeError;
+ if(!RoutePawn || !GetWorld() || !BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,EnvelopeError))
+ { Diagnostics.Add(RoutePawn?EnvelopeError:TEXT("M5: RoutePawn instance is required for collision/movement inspection")); Status=EBalloonLevelGenerationStatus::Unreachable;return false; }
+ Envelope.Safety=ActiveConfig->RouteSafetyMeters*100.;Envelope.Wind=ActiveConfig->RouteWindMeters*100.;
+ Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(ActiveConfig->MinimumTurningRadiusMeters)*100.);
 	FBalloonLevelPlan Candidate;
-	if (!BalloonSplinePlanning::Build(*ActiveConfig, Candidate, Diagnostics))
+	if (!BalloonSplinePlanning::Build(*ActiveConfig, Candidate, Diagnostics, Envelope.MinimumRadius))
 	{
 		Status = EBalloonLevelGenerationStatus::InvalidConfig;
 		return false;
@@ -314,15 +347,10 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
 	}
 	if (!BalloonBorderPlanning::Build(*ActiveConfig, Candidate, Diagnostics))
  {
+  SeedRetryable = true;
   Status = EBalloonLevelGenerationStatus::InsufficientSpace;
   return false;
  }
- BalloonHorizontalRoute::FEnvelope Envelope;
- FString EnvelopeError;
- if(!RoutePawn || !GetWorld() || !BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,EnvelopeError))
- { Diagnostics.Add(RoutePawn?EnvelopeError:TEXT("M5: RoutePawn instance is required for collision/movement inspection")); Status=EBalloonLevelGenerationStatus::Unreachable;return false; }
- Envelope.Safety=ActiveConfig->RouteSafetyMeters*100.;Envelope.Wind=ActiveConfig->RouteWindMeters*100.;
- Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(ActiveConfig->MinimumTurningRadiusMeters)*100.);
  Candidate.BalloonRadiusCm=(Envelope.Radius+Envelope.Safety+Envelope.Wind)*UE_DOUBLE_SQRT_2;
  Candidate.BalloonHalfHeightCm=Envelope.HalfHeight+Envelope.Safety;
  BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=ActiveConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
@@ -346,6 +374,16 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   if (!StagedTerrain) { Status = EBalloonLevelGenerationStatus::Failed; return false; }
  }
  const auto Sweep=BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn);
+ // An empty-placement failure cannot be repaired by re-rolling placements. Keep
+ // terrain, authored collision and borders in this proof; never weaken validation.
+ const auto Geometry = BalloonHorizontalRoute::Validate(Candidate, Envelope, Settings, Sweep);
+ if (!Geometry.Reachable)
+ {
+  Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d geometry preflight failed; placement attempts skipped: %s"), Candidate.Seed, *Geometry.FailureReason));
+  SeedRetryable = true;
+  Status = EBalloonLevelGenerationStatus::Unreachable;
+  return false;
+ }
  bool Reachable=false;
  for(int32 Attempt=0;Attempt<ActiveConfig->RouteAttempts;++Attempt)
  {
@@ -395,7 +433,7 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d placement attempt=%d visited=%d: %s"),Candidate.Seed,Attempt+1,Result.CellsVisited,Result.Reachable?TEXT("fixed-Z route proved"):*Result.FailureReason));
   if(Result.Reachable) {Candidate.RoutePoints=Result.Points;Reachable=true;break;}
  }
- if(!Reachable) {Status=EBalloonLevelGenerationStatus::Unreachable;return false;}
+ if(!Reachable) {SeedRetryable=true;Status=EBalloonLevelGenerationStatus::Unreachable;return false;}
  Plan = MoveTemp(Candidate);
 	for (const FVector& Point : Plan.SplineSamples)
 	{
