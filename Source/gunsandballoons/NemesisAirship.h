@@ -58,6 +58,15 @@ public:
 
 	void OnRocketGone(ANemesisRocket* Rocket);
 
+	/** Level scripting / testing: use Band's attack regardless of distance (bForce false = by distance). */
+	void SetForcedBand(bool bForce, ENemesisBand NewBand) { bForceBand = bForce; ForcedBand = NewBand; }
+
+	/** Before BeginPlay (deferred spawn): how far behind the balloon it starts, cm. */
+	void SetStartDistance(float Distance) { StartDistance = Distance; }
+
+	/** Testing: balloon damage is logged but not applied. */
+	void SetInvulnerableBalloon(bool bInvulnerable) { bDebugInvulnerableBalloon = bInvulnerable; }
+
 	/** Beacon: launch one crop duster now, ignoring the cooldown (still within MaxCropDusters). */
 	bool RequestCropDuster();
 

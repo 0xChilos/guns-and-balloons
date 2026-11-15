@@ -35,6 +35,7 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [tech/BalloonLevel/STATUS.md](tech/BalloonLevel/STATUS.md) | Level generation implementation status vs spec, validation results, known defects | TBD |
 | [tech/BalloonLevel/HANDOFF.md](tech/BalloonLevel/HANDOFF.md) | Procedural level generation: M6 handoff, verification and implementation limits | TBD |
 | [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Rostik |
+| [tech/main-menu.md](tech/main-menu.md) | Technical reference for agents: main menu level script, in-world menu panel, mouse-only controller | Rostik |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Sokin |
 | [tech/nemesis-airship.md](tech/nemesis-airship.md) | Technical reference for agents: nemesis airship, turrets, rockets, biome enemies, engine health | Vano |
 | [source/directors-cut.md](source/directors-cut.md) | Original raw notes (translated to English; content not edited) | — |

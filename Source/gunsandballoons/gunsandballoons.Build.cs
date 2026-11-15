@@ -12,6 +12,9 @@ public class gunsandballoons : ModuleRules
 
 		// Slate: the hook debug menu (FHookDebugMenu).
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+
+		// UMG: the main menu widget and its in-world panel. EngineSettings: the project version label.
+		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "EngineSettings" });
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "UnrealEd", "AnimGraph", "BlueprintGraph", "AnimGraphRuntime" });
