@@ -2,6 +2,7 @@
 
 #include "BalloonFlightComponent.h"
 #include "BalloonPlayerController.h"
+#include "BalloonRunSubsystem.h"
 #include "NemesisAirship.h"
 #include "NemesisBirdFlock.h"
 #include "NemesisBomber.h"
@@ -112,7 +113,12 @@ void UEngineHealthComponent::Die()
 		if (GEngine) GEngine->AddOnScreenDebugMessage(-1, RestartDelay, FColor::Red, TEXT("ENGINE DESTROYED"), true, FVector2D(3.f, 3.f));
 		GetWorld()->GetTimerManager().SetTimer(RestartTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
 		{
-			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+			// During a run: back to the shop at the last checkpoint. Otherwise (a level played on its own) restart it.
+			UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this);
+			if (!Run || !Run->FailLevel(this))
+			{
+				UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+			}
 		}), RestartDelay, false);
 	}
 }

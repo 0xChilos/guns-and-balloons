@@ -12,8 +12,8 @@ class UTexture2D;
  * The death screen (docs/features/ui-menus.md), shown by ADeathScreen when the engine is destroyed
  * (UEngineHealthComponent). It has the menus' font, rows, hover, sounds and pixel cursor, and shows
  * three things: the title ENGINE DESTROYED, what destroyed it (UEngineHealthComponent::GetDeathCause,
- * via ABalloonPlayerController), and two rows: RETURN TO CHECKPOINT (for now the start of the current level,
- * there is no checkpoint system yet) and MAIN MENU. The rows only take a click after InputDelay, so panicked
+ * via ABalloonPlayerController), and two rows: RETURN TO CHECKPOINT (during a run, the shop at the run's last
+ * checkpoint; otherwise the start of the current level) and MAIN MENU. The rows only take a click after InputDelay, so panicked
  * clicking from the fight can't press one by accident.
  *
  * Look (picked by the team from three, 2026-11-15): a silent-film title card, a double line border

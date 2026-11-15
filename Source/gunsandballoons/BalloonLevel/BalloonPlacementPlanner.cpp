@@ -3,6 +3,13 @@
 #include "BalloonBorderPlanner.h"
 #include "BalloonAssetCatalog.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/CollisionProfile.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/SCS_Node.h"
+#include "GameFramework/Actor.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SceneComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Math/RotationMatrix.h"
 
@@ -31,6 +38,77 @@ namespace
   if(S>=P.LengthCm && FVector::DotProduct(V-P.SplineSamples.Last(),P.SplineSamples.Last()-P.SplineSamples[P.SplineSamples.Num()-2])>0.) return false;
   return FVector::Dist2D(V,BalloonSplinePlanning::PositionAt(P,S))+Margin <= BalloonSplinePlanning::WidthAt(P,S)*0.5;
  }
+ // Component templates of a Blueprint live in its SimpleConstructionScript, not on the class CDO
+ // (UE does not create SCS components for templates). Walk the SCS tree plus the CDO's native
+ // components and return the actor-local AABB of everything that will collide at runtime.
+ // Templates are unregistered, so transforms come from the SCS parent links and CalcBounds(Identity).
+ struct FBlueprintBounds
+ {
+  const UBlueprintGeneratedClass* Class=nullptr;
+  const AActor* CDO=nullptr;
+  // Templates skip FBodyInstance::FixupData, so a serialized collision profile decides first.
+  // Anything not explicitly NoCollision counts as colliding: an oversized box rejects routes,
+  // a missing one hides them.
+  static bool HasQueryCollision(const UPrimitiveComponent& P)
+  {
+   const FName Profile=P.GetCollisionProfileName();
+   if(!Profile.IsNone()) return Profile!=UCollisionProfile::NoCollision_ProfileName;
+   return P.IsQueryCollisionEnabled();
+  }
+  USCS_Node* FindNode(FName Name) const
+  {
+   for(const UClass* C=Class; C; C=C->GetSuperClass())
+   {
+    const UBlueprintGeneratedClass* BP=Cast<UBlueprintGeneratedClass>(C);
+    if(!BP || !BP->SimpleConstructionScript) continue;
+    for(USCS_Node* Node: BP->SimpleConstructionScript->GetAllNodes())
+     if(Node && Node->GetVariableName()==Name) return Node;
+   }
+   return nullptr;
+  }
+  FTransform NativeToActor(const USceneComponent* Component) const
+  {
+   FTransform Result=Component->GetRelativeTransform();
+   for(const USceneComponent* Parent=Component->GetAttachParent(); Parent; Parent=Parent->GetAttachParent())
+    Result=Result*Parent->GetRelativeTransform();
+   return Result;
+  }
+  FTransform NodeToActor(const USCS_Node* Node) const
+  {
+   const USceneComponent* Template=Cast<USceneComponent>(Node->GetActualComponentTemplate(const_cast<UBlueprintGeneratedClass*>(Class)));
+   FTransform Result=Template ? Template->GetRelativeTransform() : FTransform::Identity;
+   if(Node->ParentComponentOrVariableName!=NAME_None)
+   {
+    if(Node->bIsParentComponentNative)
+    {
+     for(USceneComponent* Native: TInlineComponentArray<USceneComponent*>(CDO))
+      if(Native->GetFName()==Node->ParentComponentOrVariableName) { Result=Result*NativeToActor(Native); break; }
+    }
+    else if(const USCS_Node* Parent=FindNode(Node->ParentComponentOrVariableName)) Result=Result*NodeToActor(Parent);
+   }
+   return Result;
+  }
+  void Measure(FBox& Out) const
+  {
+   auto Add=[&Out](const UPrimitiveComponent& P, const FTransform& ToActor)
+   {
+    if(!HasQueryCollision(P)) return;
+    const FBoxSphereBounds Local=P.CalcBounds(FTransform::Identity);
+    if(Local.SphereRadius<=KINDA_SMALL_NUMBER || Local.BoxExtent.ContainsNaN()) return;
+    Out+=Local.GetBox().TransformBy(ToActor);
+   };
+   for(UPrimitiveComponent* Native: TInlineComponentArray<UPrimitiveComponent*>(CDO))
+    if(Native) Add(*Native,NativeToActor(Native));
+   for(const UClass* C=Class; C; C=C->GetSuperClass())
+   {
+    const UBlueprintGeneratedClass* BP=Cast<UBlueprintGeneratedClass>(C);
+    if(!BP || !BP->SimpleConstructionScript) continue;
+    for(USCS_Node* Node: BP->SimpleConstructionScript->GetAllNodes())
+     if(const auto* Primitive=Node ? Cast<UPrimitiveComponent>(Node->GetActualComponentTemplate(const_cast<UBlueprintGeneratedClass*>(Class))) : nullptr)
+      Add(*Primitive,NodeToActor(Node));
+   }
+  }
+ };
 }
 
 bool BalloonPlacementPlanning::Resolve(const UBalloonLevelConfig& C, const TArray<FBalloonCatalogEntry>& Catalog,
@@ -55,6 +133,17 @@ bool BalloonPlacementPlanning::Resolve(const UBalloonLevelConfig& C, const TArra
    }
    if(R.Metadata.SizeMeters.IsNearlyZero()) R.Metadata.SizeMeters=Mesh->GetBoundingBox().GetSize()/100.;
   }
+  else if(UClass* Class=Cast<UClass>(Asset))
+  {
+   // Blueprint Actor rows have no mesh to measure. Certify collision from the components the
+   // class will actually construct instead of trusting the authored SizeMeters.
+   if(const auto* BP=Cast<UBlueprintGeneratedClass>(Class))
+   {
+    FBlueprintBounds Bounds; Bounds.Class=BP; Bounds.CDO=Cast<AActor>(Class->GetDefaultObject());
+    FBox Box(ForceInit); Bounds.Measure(Box);
+    if(Box.IsValid && !Box.GetExtent().ContainsNaN()) R.LocalCollisionBounds=Box;
+   }
+  }
   if(!Asset) { D.Add(FString::Printf(TEXT("Table %s row %s rule %s: asset unresolved"),*E.SourceTable,*E.RowName.ToString(),*E.Row.Rule.ToString())); Rows.Reset(); return false; }
   Rows.Add(R);
  }
@@ -63,7 +152,7 @@ bool BalloonPlacementPlanning::Resolve(const UBalloonLevelConfig& C, const TArra
 
 bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P,
  const TArray<FResolvedRow>& Input, TArray<FString>& D, const FGroundSampler& Ground,
- const TArray<TArray<FVector>>& FieldBorders)
+ const TArray<TArray<FVector>>& FieldBorders, const TArray<FVector>& ReservedRoute)
 {
  P.Placements.Reset();
  if(P.SampleDistances.Num()<2 || P.SplineSamples.Num()!=P.SampleDistances.Num()) { D.Add(TEXT("Placement: missing M2 geometry")); return false; }
@@ -83,7 +172,7 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
  FRandomStream Flocks(Seed(P,TEXT("FlockBudget"))); const int32 FlockTotal=Flocks.RandRange(3,6);
  int32 FlockRows=0;
  auto Group=[&](const FResolvedRow& R) { return R.Metadata.InteriorEnemy?2: (R.Entry.Row.Category==TEXT("Obstacle") || R.Entry.Row.Category==TEXT("Hazard")?1:0); };
- auto Enabled=[&](int32 G){return G==2?C.EnemiesEnabled:G==1?C.ObstaclesEnabled:C.SceneryEnabled;};
+ auto Enabled=[&](int32 G){return G==2?(C.EnemiesEnabled && C.EnemyDensity>0.f):G==1?(C.ObstaclesEnabled && C.ObstacleDensity>0.f):C.SceneryEnabled;};
  auto Active=[&](const FResolvedRow& R)
  {
   const FName Rule=R.Entry.Row.Rule;
@@ -132,6 +221,14 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
   for(int32 I:Choices) {const double N=Sum>0?Remaining*Rows[I].Entry.Row.DensityPerKm2/Sum:0.; Targets[I]=FMath::FloorToInt(N); Assigned+=Targets[I]; Remainders.Emplace(I,N-Targets[I]);}
   Remainders.StableSort([](const auto& A,const auto& B){return A.Value>B.Value;});
   for(int32 I=0;I<Remaining-Assigned;++I) ++Targets[Remainders[I].Key];
+ }
+ // Scale final category budgets so explicit counts and mandatory flock targets honour the same controls.
+ for (int32 I=0; I<Rows.Num(); ++I)
+ {
+  const int32 G=Group(Rows[I]);
+  const double Target=FMath::RoundToDouble(Targets[I] * double(G==2?C.EnemyDensity:G==1?C.ObstacleDensity:1.f));
+  if (!FMath::IsFinite(Target) || Target<0. || Target>10000.) return Fail(I,0,TEXT("scaled density target outside [0,10000]"));
+  Targets[I]=int32(Target);
  }
  TArray<FBalloonPlacementDescriptor> Output;
  TMap<FSoftObjectPath,int32> CullByMesh;
@@ -300,11 +397,45 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
       }
     }
     if(!Spaced) {if(Line) return Fail(RI,I,TEXT("line spacing conflicts with end-to-end mesh length"));continue;}
+    // Keep the preflight route available, including its start/finish reservations.
+    // Use transformed collision bounds at terrain height, rather than mesh origins:
+    // low flight and narrow corridors must not turn valid geometry into a wall.
+    if (R.Collision && Res.LocalCollisionBounds.IsValid && !ReservedRoute.IsEmpty())
+    {
+     FSurface ProposedSurface; ProposedSurface.Z=C.PlacementGroundZMeters*100.;
+     if (Ground && !Ring && !Ground(V,ProposedSurface)) continue;
+     if (!FMath::IsFinite(ProposedSurface.Z) || ProposedSurface.Normal.ContainsNaN() ||
+         ProposedSurface.Normal.Z<=0. || ProposedSurface.Normal.IsNearlyZero()) continue;
+     FVector Location=V; Location.Z=ProposedSurface.Z;
+     FQuat ProposedRotation=FRotator(0.,Yaw,0.).Quaternion();
+     if (R.AlignToSlope && !Street)
+     {
+      FVector Forward=FRotator(0.,Yaw,0.).Vector();
+      Forward.Z=-(ProposedSurface.Normal.X*Forward.X+ProposedSurface.Normal.Y*Forward.Y)/ProposedSurface.Normal.Z;
+      ProposedRotation=FRotationMatrix::MakeFromZX(ProposedSurface.Normal,Forward).ToQuat();
+     }
+     const FBox Bounds=Res.LocalCollisionBounds.TransformBy(FTransform(ProposedRotation,Location,FVector(Scale)))
+      .ExpandBy(FVector(P.BalloonRadiusCm,P.BalloonRadiusCm,P.BalloonHalfHeightCm));
+     bool BlocksRoute=Bounds.IsInsideOrOn(ReservedRoute[0]);
+     for (int32 RouteIndex=1; !BlocksRoute && RouteIndex<ReservedRoute.Num(); ++RouteIndex)
+     {
+      if (++Work>500000) return Fail(RI,I,TEXT("route reservation work limit exceeded"));
+      const FVector& Begin=ReservedRoute[RouteIndex-1];
+      const FVector& End=ReservedRoute[RouteIndex];
+      BlocksRoute=FMath::LineBoxIntersection(Bounds,Begin,End,End-Begin);
+     }
+     if (BlocksRoute)
+     {
+      if (Line) return Fail(RI,I,TEXT("field border intersects reserved flight route"));
+      continue;
+     }
+    }
     Found=true; break;
    }
    if(!Found) return Fail(RI,I,TEXT("256 attempts exhausted: spacing/cluster/eligible bounds"));
    FSurface Surface; Surface.Z=C.PlacementGroundZMeters*100.;
-   if(Ground && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
+   // Horizon rings are outside the playable terrain footprint and retain their authored datum.
+   if(Ground && !Ring && !Ground(V,Surface)) return Fail(RI,I,TEXT("terrain sampler rejected location"));
    if(!FMath::IsFinite(Surface.Z) || Surface.Normal.ContainsNaN() || Surface.Normal.Z<=0. || Surface.Normal.IsNearlyZero()) return Fail(RI,I,TEXT("invalid terrain height/normal"));
    V.Z=Surface.Z;
    FQuat Rotation=FRotator(0.,Yaw,0.).Quaternion();

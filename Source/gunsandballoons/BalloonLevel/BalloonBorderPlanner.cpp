@@ -32,13 +32,13 @@ bool BalloonBorderPlanning::CrossSection(const FBalloonBorderInfluence& T, const
 
 double BalloonBorderPlanning::UnsafeWidth(const FBalloonLevelPlan& P, double S, double H, double BalloonR)
 {
- const FVector O=BalloonSplinePlanning::PositionAt(P,S), R=RightAt(P,S);
+ const FVector O=BalloonSplinePlanning::PositionAt(P,S), R=BalloonBorderPlanning::RightAt(P,S);
  const double Half=BalloonSplinePlanning::WidthAt(P,S)*0.5;
  TArray<FVector2D> Intervals;
  for(const auto& T:P.Borders)
  {
   double A,B;
-  if(CrossSection(T,O,R,H,BalloonR,A,B) && B>=-Half && A<=Half)
+  if(BalloonBorderPlanning::CrossSection(T,O,R,H,BalloonR,A,B) && B>=-Half && A<=Half)
    Intervals.Emplace(FMath::Max(A,-Half),FMath::Min(B,Half));
  }
  Intervals.Sort([](const FVector2D& A,const FVector2D& B){return A.X<B.X;});
@@ -47,7 +47,7 @@ double BalloonBorderPlanning::UnsafeWidth(const FBalloonLevelPlan& P, double S, 
  return Total;
 }
 
-bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P, TArray<FString>& D)
+static bool BuildBorderAttempt(const UBalloonLevelConfig& C, FBalloonLevelPlan& P, TArray<FString>& D, bool SpacedLayout)
 {
  P.Borders.Reset(); P.LeftBoundary.Reset(); P.RightBoundary.Reset();
  P.BalloonRadiusCm=double(C.BalloonRadiusMeters)*100.; P.BalloonHalfHeightCm=double(C.BalloonHalfHeightMeters)*100.;
@@ -55,7 +55,7 @@ bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPla
  if(P.SplineSamples.Num()<2 || P.SampleDistances.Num()!=P.SplineSamples.Num()) {D.Add(TEXT("Borders require M2 geometry")); return false;}
  for(double S:P.SampleDistances)
  {
-  const FVector O=BalloonSplinePlanning::PositionAt(P,S), R=RightAt(P,S)*BalloonSplinePlanning::WidthAt(P,S)*0.5;
+  const FVector O=BalloonSplinePlanning::PositionAt(P,S), R=BalloonBorderPlanning::RightAt(P,S)*BalloonSplinePlanning::WidthAt(P,S)*0.5;
   P.LeftBoundary.Add(O-R); P.RightBoundary.Add(O+R);
  }
  if(!C.BordersEnabled) return true;
@@ -73,9 +73,20 @@ bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPla
   bool Accepted=false;
   for(int32 Attempt=0;Attempt<128;++Attempt)
   {
-   T.DistanceCm=Random.FRand()*P.LengthCm;
+   if (SpacedLayout)
+   {
+    // A random greedy prefix can jam a feasible packing. Try balanced slots on
+    // each edge without changing count, radius, minimum spacing or overlap rules.
+    const int32 SideCount=(Count+(I%2==0?1:0))/2;
+    const double Step=SideCount>1?P.LengthCm/(SideCount-1):0.;
+    const double Required=FMath::Max(double(C.BorderMinSpacingMeters)*100.,
+     C.BorderAllowOverlap?0.:double(C.BorderRadiusMaxMeters)*200.);
+    const double Jitter=FMath::Max(0.,Step-Required)*.2;
+    T.DistanceCm=SideCount>1?FMath::Clamp((I/2)*Step+Random.FRandRange(-Jitter,Jitter),0.,P.LengthCm):P.LengthCm*.5;
+   }
+   else T.DistanceCm=Random.FRand()*P.LengthCm;
    const FVector O=BalloonSplinePlanning::PositionAt(P,T.DistanceCm);
-   T.Center=O+RightAt(P,T.DistanceCm)*T.Side*(BalloonSplinePlanning::WidthAt(P,T.DistanceCm)*0.5+T.RadiusCm*(1.-C.BorderIntrusionFraction));
+   T.Center=O+BalloonBorderPlanning::RightAt(P,T.DistanceCm)*T.Side*(BalloonSplinePlanning::WidthAt(P,T.DistanceCm)*0.5+T.RadiusCm*(1.-C.BorderIntrusionFraction));
    T.Center.Z+=C.BorderHeightOffsetMeters*100.;
    Accepted=true;
    for(const auto& Other:P.Borders)
@@ -88,7 +99,7 @@ bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPla
   if(!Accepted) {D.Add(FString::Printf(TEXT("Border %d/%d: spacing/overlap impossible after 128 attempts; no partial plan"),I,Count)); P.Borders.Reset(); return false;}
   T.SegmentId=BalloonSplinePlanning::SegmentAt(P,T.DistanceCm);
   double A,B;
-  if(CrossSection(T,BalloonSplinePlanning::PositionAt(P,T.DistanceCm),RightAt(P,T.DistanceCm),C.BalloonHalfHeightMeters*100.,0.,A,B))
+  if(BalloonBorderPlanning::CrossSection(T,BalloonSplinePlanning::PositionAt(P,T.DistanceCm),BalloonBorderPlanning::RightAt(P,T.DistanceCm),C.BalloonHalfHeightMeters*100.,0.,A,B))
   {
    const double Half=BalloonSplinePlanning::WidthAt(P,T.DistanceCm)*0.5;
    T.IntrusionCm=FMath::Max(0.,FMath::Min(B,Half)-FMath::Max(A,-Half));
@@ -102,7 +113,24 @@ bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPla
  TArray<double> CrossSections=P.SampleDistances;
  for(const auto& T:P.Borders) CrossSections.Add(T.DistanceCm);
  for(double S:CrossSections)
-  if(UnsafeWidth(P,S,C.BalloonHalfHeightMeters*100.,C.BalloonRadiusMeters*100.) >= BalloonSplinePlanning::WidthAt(P,S)-0.01)
+  if(BalloonBorderPlanning::UnsafeWidth(P,S,C.BalloonHalfHeightMeters*100.,C.BalloonRadiusMeters*100.) >= BalloonSplinePlanning::WidthAt(P,S)-0.01)
    D.Add(FString::Printf(TEXT("Border sampled horizontal closure at %.1fcm; M5 route proof required"),S));
  return true;
+}
+
+bool BalloonBorderPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P, TArray<FString>& D)
+{
+ TArray<FString> AttemptDiagnostics;
+ if (BuildBorderAttempt(C,P,AttemptDiagnostics,false))
+ { D.Append(AttemptDiagnostics); return true; }
+ TArray<FString> SpacedDiagnostics;
+ if (BuildBorderAttempt(C,P,SpacedDiagnostics,true))
+ {
+  D.Add(TEXT("Borders: random packing exhausted; deterministic spaced layout retained requested count and spacing"));
+  D.Append(SpacedDiagnostics);
+  return true;
+ }
+ D.Append(AttemptDiagnostics);
+ D.Append(SpacedDiagnostics);
+ return false;
 }

@@ -47,6 +47,18 @@ bool FBalloonLevelM1Test::RunTest(const FString& Parameters)
 	Config->FlightHeightMeters = std::numeric_limits<float>::quiet_NaN(); Errors.Reset();
 	TestFalse(TEXT("Nonfinite height rejected"), Config->Validate(Errors));
 	Config->FlightHeightMeters = 100.f;
+	Config->TerrainMode = EBalloonTerrainMode::WorldCollision;
+	Errors.Reset();
+	TestTrue(TEXT("World terrain accepts default trace bounds"), Config->Validate(Errors));
+	Config->TerrainTraceBottomMeters = Config->TerrainTraceTopMeters;
+	Errors.Reset();
+	TestFalse(TEXT("Empty terrain trace interval rejected"), Config->Validate(Errors));
+	Config->TerrainTraceBottomMeters = -1000.f;
+	Config->TerrainActorTag = NAME_None;
+	Errors.Reset();
+	TestFalse(TEXT("World terrain requires explicit actor tag"), Config->Validate(Errors));
+	Config->TerrainActorTag = TEXT("Terrain");
+	Config->TerrainMode = EBalloonTerrainMode::Flat;
 	UDataTable* Shared = NewObject<UDataTable>(); Shared->RowStruct = FBalloonLevelAssetRow::StaticStruct();
 	UDataTable* Biome = NewObject<UDataTable>(); Biome->RowStruct = FBalloonLevelAssetRow::StaticStruct();
 	FBalloonLevelAssetRow Row;

@@ -17,6 +17,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/WidgetSwitcher.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "GeneralProjectSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -142,7 +143,6 @@ UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	HoverSound.Sound = ClockLoop;
 	HoverSound.Start = 1.12f;
 	HoverSound.Length = 0.24f;
-	NewRunLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/Movement_Scene1.Movement_Scene1")));
 	MainMenuLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/MainMenu.MainMenu")));
 
 	CreditsTitle = LOCTEXT("CreditsTitle", "CREDITS");
@@ -514,14 +514,7 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 		UE_LOG(LogTemp, Warning, TEXT("MainMenu: Continue has no save system to load yet."));
 		break;
 	case EMainMenuAction::NewRun:
-		if (NewRunLevel.IsNull())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("MainMenu: NewRunLevel is not set."));
-		}
-		else
-		{
-			UGameplayStatics::OpenLevelBySoftObjectPtr(this, NewRunLevel);
-		}
+		StartNewRun();
 		break;
 	case EMainMenuAction::Credits:
 		ShowPage(CreditsTitle, CreditsText);
@@ -539,8 +532,13 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 		}
 		break;
 	case EMainMenuAction::Retry:
-		// Deferred to the end of the frame like any level change, so it works from a paused world.
-		UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+		// During a run: back to the shop at the last checkpoint, then the failed biome again (docs/features/safe-zone.md).
+		// Otherwise (a level played on its own) restart it. Level changes are deferred to the end of the frame, so
+		// both work from a paused world.
+		if (UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this); !Run || !Run->FailLevel(this))
+		{
+			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+		}
 		break;
 	case EMainMenuAction::QuitToMenu:
 		if (MainMenuLevel.IsNull())
@@ -713,6 +711,18 @@ void UMainMenuWidget::RefreshToggleValue(int32 Index)
 		const FMainMenuToggle& Toggle = OptionToggles[Index];
 		ToggleRows[Index].Value->SetText(UGameOptions::IsOn(Toggle.Option) ? Toggle.OnText : Toggle.OffText);
 	}
+}
+
+void UMainMenuWidget::StartNewRun()
+{
+	UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this);
+	if (!Run)
+	{
+		return;
+	}
+	// Fresh gold, gear and biome pool (docs/features/safe-zone.md); the level opens on a later tick.
+	Run->StartNewRun();
+	Run->StartLevel(this);
 }
 
 void UMainMenuWidget::ShowItemList()
