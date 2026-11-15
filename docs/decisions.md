@@ -7,6 +7,7 @@ One row per decision, newest on top. Don't delete rows; only change their status
 
 | Date | Proposal / decision | Status | Concerns |
 | --- | --- | --- | --- |
+| 2026-11-15 | Bug fix: a gun aimed down the sights covered the death screen (it is nearer to the camera than the panel). Everything drawn in first person is hidden while a menu panel is up (death screen, pause) and shown again on resume. | Accepted | [ui-menus](features/ui-menus.md) |
 | 2026-11-15 | At the user's direct request: the death screen offers RETURN TO CHECKPOINT and MAIN MENU instead of TRY AGAIN. With no checkpoint system yet, the checkpoint is the start of the current level. | Accepted | [ui-menus](features/ui-menus.md) |
 | 2026-11-15 | At the user's direct request: the jammer's reach drops from 250 m to 120 m (TBD), and its dish can really be shot down (one hit ends the jamming). Two fixes made that possible: `SM_JammerTower` collides by its mesh (its convex hulls wrapped the dish), and every location mesh's `loot_*` sockets are back to scale 1 (they were 100, so all loot spawned 100× too big; a log on the jammer hid the whole dish). | Accepted | [ui-menus](features/ui-menus.md) |
 | 2026-11-15 | At the user's direct request: the nemesis airship's radar oval enlarged a little (about four plane dots instead of three). | Accepted | [ui-menus](features/ui-menus.md) |

@@ -858,6 +858,19 @@ void AFirstPersonCameraPawn::ReleaseGameplayInput()
 	}
 }
 
+void AFirstPersonCameraPawn::SetFirstPersonHiddenForMenu(bool bHideForMenu)
+{
+	// Hidden in game is a flag of its own: the hand code's own visibility switching is left alone.
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
+	for (UPrimitiveComponent* P : Primitives)
+	{
+		if (P && P->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+		{
+			P->SetHiddenInGame(bHideForMenu);
+		}
+	}
+}
+
 void AFirstPersonCameraPawn::UnPossessed()
 {
 	ReleaseGameplayInput();
