@@ -42,7 +42,7 @@ namespace
 UDeathScreenWidget::UDeathScreenWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// There is no checkpoint system yet: the checkpoint is the start of the current level (EMainMenuAction::Retry).
+	// During a run, the run's last checkpoint (UBalloonRunSubsystem::FailLevel); otherwise the start of the current level (EMainMenuAction::Retry).
 	FMainMenuItem Checkpoint;
 	Checkpoint.Label = LOCTEXT("Checkpoint", "RETURN TO CHECKPOINT");
 	Checkpoint.Action = EMainMenuAction::Retry;
@@ -138,12 +138,12 @@ void UDeathScreenWidget::BuildTree()
 	AddFull(Grain, FMargin(-512.f));
 
 	// The title card: a double line border around a dark field.
-	const auto Frame = [this](const FName& Name, const FLinearColor& Color, const FMargin& Padding)
+	const auto Frame = [this](const FName& Name, const FLinearColor& Color, const FMargin& FramePadding)
 	{
 		UBorder* B = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), Name);
 		B->SetBrush(FSlateBrush());
 		B->SetBrushColor(Color);
-		B->SetPadding(Padding);
+		B->SetPadding(FramePadding);
 		return B;
 	};
 	UBorder* OuterLine = Frame(TEXT("CardOuterLine"), CardInkColor, FMargin(4.f));

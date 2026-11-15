@@ -24,7 +24,7 @@ A break between levels: the player rests from the pressure and makes decisions a
 - A run has **4 levels**. New Run (main menu) starts the first level right away (no setup page); it is always **Forest**.
 - New Run fills a **biome pool**: City, Desert, Field. Each later level takes a random biome out of the pool.
 - Completing a level opens the shop; after the 4th level a **victory screen** (VICTORY, MAIN MENU button) is shown instead.
-- **Checkpoint:** each completed level saves the run (gold, supplies, gear, extinguisher, pool). If the engine is destroyed during a level, the run returns to that checkpoint and the shop opens again; the failed level's biome is played again. Dying in the first level returns to the shop with what the run started with.
+- **Checkpoint:** each completed level saves the run (gold, supplies, gear, extinguisher, pool). If the engine is destroyed during a level, the death screen shows; its RETURN TO CHECKPOINT returns the run to that checkpoint and opens the shop again; the failed level's biome is played again. Dying in the first level returns to the shop with what the run started with.
 - **New Run starts with:** no hook, no rifle, no shotgun, no fire extinguisher; 4 wood, 4 coal, 4 crystals, 40 rounds of ammo.
 - **Fuel and ammo:** wood, coal and crystals up to 6 each (2 / 3 / 5 gold per piece), ammo up to 60 (1 gold per round).
 - **Gear bought once:** hook 10 gold, rifle 30, shotgun 20; afterwards its row is greyed out with "Owned" on the icon.
