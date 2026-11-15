@@ -31,7 +31,7 @@
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Сокін |
-| [tech/stove.md](tech/stove.md) | Stove interaction, animation setup and manual PIE checklist | Ростік |
+| [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Ростік |
 | [source/directors-cut.md](source/directors-cut.md) | Сирі нотатки (оригінал, не редагувати) | — |
 
 ## Правила ведення
