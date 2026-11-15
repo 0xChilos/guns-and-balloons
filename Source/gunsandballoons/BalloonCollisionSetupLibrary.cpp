@@ -53,6 +53,7 @@ bool UBalloonCollisionSetupLibrary::AddBalloonCollisionPrimitives(const FString&
 			Box->SetRelativeRotation(Rotation);
 			Box->SetMobility(EComponentMobility::Movable);
 			Box->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+			Box->ComponentTags.AddUnique(TEXT("BasketDamage"));
 		}
 	};
 
@@ -76,16 +77,30 @@ bool UBalloonCollisionSetupLibrary::AddBalloonCollisionPrimitives(const FString&
 		}
 	};
 
-	// Model dimensions in Mesh space, centimetres. Keep the basket interior hollow.
+	// Match Balloon_build.py: the basket circumradius shrank from 130 to 97.5 cm.
+	// These are Mesh-space centimetres (FBX mirrors Blender Y). Keep the interior hollow.
+	constexpr float BasketRadius = 97.5f;
+	constexpr float WallThickness = 7.f;
+	const float Apothem = BasketRadius * FMath::Cos(PI / 8.f);
+	const float InnerApothem = Apothem - WallThickness;
+	const float HalfWallLength = Apothem * FMath::Tan(PI / 8.f);
 	for (int32 I = 0; I < 4; ++I)
-		AddBox(*FString::Printf(TEXT("Floor_%d"), I), FVector(0, 0, 3.5f), FRotator(0, I * 45.f, 0), FVector(113, 46.8f, 3.5f));
+		AddBox(*FString::Printf(TEXT("Floor_%d"), I), FVector(0, 0, 3.5f), FRotator(0, I * 45.f, 0),
+			FVector(InnerApothem, InnerApothem * FMath::Tan(PI / 8.f), 3.5f));
 	for (int32 I = 0; I < 8; ++I)
 	{
 		const FRotator Rotation(0, I * 45.f, 0);
-		AddBox(*FString::Printf(TEXT("Wall_%d"), I), Rotation.Vector() * 116.5f + FVector(0, 0, 54.5f), Rotation, FVector(3.5f, 47, 54.5f));
+		AddBox(*FString::Printf(TEXT("Wall_%d"), I), Rotation.Vector() * (Apothem - WallThickness / 2.f) + FVector(0, 0, 50.f),
+			Rotation, FVector(WallThickness / 2.f, HalfWallLength, 50.f));
+		// The iron rim is wider and thicker than the wicker walls.
+		const float RimApothem = (BasketRadius + 7.f) * FMath::Cos(PI / 8.f);
+		AddBox(*FString::Printf(TEXT("Rim_%d"), I), Rotation.Vector() * (RimApothem - 7.5f) + FVector(0, 0, 102.5f),
+			Rotation, FVector(7.5f, RimApothem * FMath::Tan(PI / 8.f), 6.5f));
 	}
-	AddBox(TEXT("StoveBlock"), FVector(0, 84.39f, 69.5f), FRotator::ZeroRotator, FVector(35, 35, 62.5f));
-	AddBox(TEXT("ConsoleBlock"), FVector(0, -100.5f, 73.5f), FRotator::ZeroRotator, FVector(33, 12.5f, 23.5f));
+	const float StoveY = InnerApothem - 30.f * FMath::Cos(PI / 8.f) - 1.f;
+	AddBox(TEXT("StoveBlock"), FVector(0, StoveY, 64.f), FRotator::ZeroRotator, FVector(35, 35, 57.f));
+	// The console retains its size, but follows the new inner front wall.
+	AddBox(TEXT("ConsoleBlock"), FVector(0, -(InnerApothem - 12.5f), 73.5f), FRotator::ZeroRotator, FVector(33, 12.5f, 23.5f));
 	const FVector2D Sections[] = {{430, 180}, {550, 290}, {680, 340}, {810, 300}, {940, 200}, {1040, 95}};
 	for (int32 I = 0; I < UE_ARRAY_COUNT(Sections); ++I)
 		AddSphere(*FString::Printf(TEXT("Envelope_%d"), I), FVector(0, 0, Sections[I].X), Sections[I].Y);

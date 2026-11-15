@@ -1,6 +1,6 @@
 # Fire extinguisher — technical reference (C++)
 
-> **For agents.** How the extinguisher is built. Design lives in [fire-extinguisher](../features/fire-extinguisher.md); if the code and the design disagree, the design wins. The gun base it shares is in [weapons](weapons.md). **Updated:** 2026-11-14
+> **For agents.** How the extinguisher is built. Design lives in [fire-extinguisher](../features/fire-extinguisher.md); if the code and the design disagree, the design wins. The gun base it shares is in [weapons](weapons.md). **Updated:** 2026-11-15
 
 ## Files
 | File | Role |
@@ -28,8 +28,12 @@
 ## `AGunSmoke` additions (used by the foam)
 `DrawPuffShape` (protected virtual: fills one shape's Density/Shade grid; base = the smoke blob; the foam draws one big bubble plus `BubblesPerPuff` smaller ones on a lumpy base, four flat tones, a highlight texel up-left), `bTurnPuffs` (random quarter turns; the foam turns them off so the highlights agree), `MaxPuffs` editor cap 512. `FGunSmokePuffs::Gravity` (cm/s², constant downward pull) and `StickTime` (s: a puff that hits a surface stops there, attached to the hit component, and lives that long more; 0 = slides like smoke). Both default 0, so gun smoke is unchanged.
 
+## Cooling verification
+2026-11-15: Editor Win64 Development build passed (module suffix 7151; restart the open editor to load new C++ classes). `GunsAndBalloons.Extinguisher.StoveCooling` passed: overheat clears, fuel time is retained, old heat target does not undo cooling, nozzle hit cools, misses/obstacles/range/empty tank block cooling, stove use takes priority over door interaction, basket hits are ignored, temperature clamps at zero. Existing spray, player and stove interaction tests passed. Full suite: 11/13; the previously observed `Stove.Heat` and `Stove.TickSize` timing failures remain. Report: `Saved/Automation/StoveCooling/index.json`. Visual PIE remains unverified.
+
 ## Known limitations
-- Foam is visual only: nothing is put out yet (design open question). Hook gameplay to `OnSprayStarted`/`OnSprayStopped` or trace along the nozzle.
+- `UGunComponent::ShouldUseInsteadOfInteract(Hit)` defaults false; the extinguisher overrides it for cooling surfaces. The armed Pawn checks it before dispatching an interaction, so LMB on the stove starts spray instead of toggling the door. Rack interactions still work.
+- Stove cooling uses `ApplySprayCooling` from the world-space nozzle along its direction during active emission. First blocking Visibility hit only, within `StoveCoolingRange` (400 cm, TBD); `AcceptsCoolingHit` accepts `CoolingBones` (stove/furnace_door) or the stove's FireboxShape. `StoveCoolingPerSecond` (20 deg/s, TBD) is independent of visual puff count. The last partial contents frame caps spray duration at Amount/UsePerSecond. Other fires are not extinguished yet.
 - No refill source; `SetAmount` exists for one.
 - On possession with the extinguisher in hand from the start (`InitialHandState` Armed, `StartingGunIndex` 4) the pawn's raise still applies (no `Equip` clip then).
 - View pose, foam and counter speeds are first-pass values; no sound.

@@ -23,7 +23,6 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [features/safe-zone.md](features/safe-zone.md) | Safe zone between levels: repairs, shop, upgrades | TBD |
 | [features/ui-menus.md](features/ui-menus.md) | Main menu, navigation panel | Rostik |
 | [art-style.md](art-style.md) | Visual style and post-processing | Rostik |
-| [balloon-flight-plan.md](balloon-flight-plan.md) | Implementation plan for balloon flight | Sokin |
 | [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Sokin |
 | [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Sokin |
 | [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Sokin |
@@ -31,6 +30,8 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Sokin |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Sokin |
 | [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses), FBX take split and import | TBD |
+| [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, the single Pawn and interaction routing | Sokin |
+| [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Rostik |
 | [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Sokin |
 | [tech/nemesis-airship.md](tech/nemesis-airship.md) | Technical reference for agents: nemesis airship, turrets, rockets, biome enemies, engine health | Vano |
 | [source/directors-cut.md](source/directors-cut.md) | Original raw notes (translated to English; content not edited) | — |

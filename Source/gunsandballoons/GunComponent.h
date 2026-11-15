@@ -49,6 +49,8 @@ class GUNSANDBALLOONS_API UGunComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** Let a held item use its primary action on a surface instead of clicking its interaction. */
+	virtual bool ShouldUseInsteadOfInteract(const FHitResult& Hit) const { return false; }
 	UGunComponent();
 
 	/** Mesh to animate and the camera to shoot from. Call before BeginPlay. */

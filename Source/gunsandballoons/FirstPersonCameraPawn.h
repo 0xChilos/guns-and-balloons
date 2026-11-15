@@ -6,9 +6,11 @@
 #include "FirstPersonCameraPawn.generated.h"
 
 class UCameraComponent;
+class UPlayerInteractionComponent;
 class FHookDebugMenu;
 class UGunComponent;
 class UExtinguisherComponent;
+class UFuelHandComponent;
 class UHookComponent;
 class UWrenchComponent;
 class URevolverComponent;
@@ -32,10 +34,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandStat
  *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
  *   while idle, kicks when fired and turns its loading port toward the eye while reloading.
  *   Where each gun sits and how hard it kicks is set on the gun component (UGunComponent).
+<<<<<<< HEAD
  * - Three guns and three tools, one of each: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
  *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
  *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held) and wrench
  *   (SK_Wrench, UWrenchComponent; turns while LMB is held).
+=======
+ * - Three guns, two tools and a fuel item: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
+ *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
+ *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held), and fuel (UFuelHandComponent; carried from buckets to the stove).
+>>>>>>> 17da491 (feat: added stove, fuel)
  * - The hand starts empty and holds one item at a time. Each item lies on its own place in the world
  *   (UWeaponRackComponent: the basket's hooks, an AHandItemPickup): LMB on it takes the item, LMB on its
  *   empty place puts it back, LMB on another item swaps. There are no weapon keys. An item being put
@@ -65,6 +73,10 @@ public:
 	virtual void UnPossessed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** Release held controls and tool input on menu entry, unpossession or shutdown. */
+	UFUNCTION(BlueprintCallable, Category="Player|Input")
+	void ReleaseGameplayInput();
+
 	UCameraComponent* GetCamera() const { return Camera; }
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	USkeletalMeshComponent* GetRifleMesh() const { return RifleMesh; }
@@ -76,8 +88,12 @@ public:
 	UHookComponent* GetHook() const { return Hook; }
 	USkeletalMeshComponent* GetExtinguisherMesh() const { return ExtinguisherMesh; }
 	UExtinguisherComponent* GetExtinguisher() const { return Extinguisher; }
+<<<<<<< HEAD
 	USkeletalMeshComponent* GetWrenchMesh() const { return WrenchMesh; }
 	UWrenchComponent* GetWrench() const { return Wrench; }
+=======
+	UFuelHandComponent* GetFuelHand() const { return FuelHand; }
+>>>>>>> 17da491 (feat: added stove, fuel)
 
 	/** The item in hand (the one still being put away during a swap); with an empty hand, the one held last. */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -134,6 +150,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Weapon|Hand")
 	bool IsHandEmpty() const { return HandState == EPlayerHandState::Empty; }
+
+	/** Hide and consume the active item immediately, leaving the hand empty without touching racks. */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Hand")
+	bool ConsumeHeldItem();
+
+	/** Raise a pawn inventory item into an empty hand without taking it from a rack. */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Hand")
+	bool TakeHandItem(UGunComponent* Item);
 
 	/** How far the gun is lowered out of view: 0 = up, 1 = gone (swap, possession, rack). Read by the crosshair. */
 	float GetGunLowered() const { return FMath::Max(FMath::Square(RaiseAlpha), FMath::Square(HandLowerAlpha)); }
@@ -194,7 +218,11 @@ protected:
 	/** Lowers the item being swapped out, and once it is out of view puts it on its rack and brings out the next one. */
 	void UpdateWeaponSwap(float DeltaSeconds);
 
+<<<<<<< HEAD
 	/** The items in StartingGunIndex order: revolver, rifle, shotgun, hook, extinguisher, wrench. */
+=======
+	/** Inventory order: revolver, rifle, shotgun, hook, extinguisher, fuel (never a starting item). */
+>>>>>>> 17da491 (feat: added stove, fuel)
 	TArray<UGunComponent*, TInlineAllocator<6>> GetGuns() const;
 
 	/** Each gun's mesh, in the same order as GetGuns. */
@@ -224,6 +252,9 @@ protected:
 	/** Draw the interaction trace for 1s on each click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	bool bDebugInteractTrace = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPlayerInteractionComponent> Interaction;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
@@ -290,6 +321,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UExtinguisherComponent> Extinguisher;
 
+<<<<<<< HEAD
 	/** The wrench, attached to the camera like WeaponMesh. Hidden until taken in hand. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> WrenchMesh;
@@ -300,6 +332,15 @@ protected:
 
 	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher, 5 = wrench. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "5"))
+=======
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<USkeletalMeshComponent> FuelHandMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<UFuelHandComponent> FuelHand;
+
+	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "4"))
+>>>>>>> 17da491 (feat: added stove, fuel)
 	int32 StartingGunIndex = 0;
 
 	/** Seconds to lower an item out of view when swapping. Raising the next one takes RaiseTime. */
@@ -411,8 +452,11 @@ protected:
 	float HandSwayBlendSpeed = 2.f;
 
 private:
+	void RaiseHandItem(UGunComponent* Item, UWeaponRackComponent* Rack);
 	friend class FPlayerGrabTest;
+	friend class FPlayerArchitectureTest;
 	friend class FHandItemTest;
+	friend class FStoveInteractionTest;
 
 	/** Starts dragging the IGrabbable under the crosshair (empty hand only). True if the click was used. */
 	bool TryBeginGrab();

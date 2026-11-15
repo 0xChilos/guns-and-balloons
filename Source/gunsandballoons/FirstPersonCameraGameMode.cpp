@@ -1,6 +1,7 @@
 #include "FirstPersonCameraGameMode.h"
 
 #include "CrosshairHUD.h"
+#include "BalloonPlayerController.h"
 #include "EngineUtils.h"
 #include "FirstPersonCameraPawn.h"
 #include "GameFramework/PlayerController.h"
@@ -8,6 +9,7 @@
 
 AFirstPersonCameraGameMode::AFirstPersonCameraGameMode()
 {
+	PlayerControllerClass = ABalloonPlayerController::StaticClass();
 	DefaultPawnClass = AFirstPersonCameraPawn::StaticClass();
 	HUDClass = ACrosshairHUD::StaticClass();
 }
