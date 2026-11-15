@@ -57,7 +57,8 @@ ANemesisRocket::ANemesisRocket()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> FlameMesh(TEXT("/Game/Assets/Enemies/FBX/SM_Rocket_Flame.SM_Rocket_Flame"));
 	if (NemesisModel::Use(Mesh, BodyMesh.Object))
 	{
-		NemesisModel::Use(Exhaust, FlameMesh.Object);
+		// The flame's pivot is at the nozzle (Rocket.blend), so the flicker scale keeps it attached.
+		NemesisModel::Use(Exhaust, FlameMesh.Object, FVector(-131.f, 0.f, -0.5f));
 		NemesisCollision::Shootable(Mesh); // the whole 2.6 m body can be shot, not just the centre sphere
 	}
 
@@ -106,11 +107,12 @@ void ANemesisRocket::Launch(ANemesisAirship* InAirship)
 	SetActorRotation(Dir.Rotation());
 
 	// Ignition: a puff of smoke at the launcher, then a trail behind the nozzle for the whole flight.
-	if (AGunSmoke* Puff = NemesisFx::Spawn(GetWorld(), NemesisFx::EKind::BlastSmoke))
+	// Fine-grained smoke, like the AA missile's (team decision 2026-11-15).
+	if (AGunSmoke* Puff = NemesisFx::Spawn(GetWorld(), NemesisFx::EKind::FineBlastSmoke))
 	{
-		FGunSmokePuffs P = NemesisFx::Puffs(NemesisFx::EKind::BlastSmoke);
+		FGunSmokePuffs P = NemesisFx::Puffs(NemesisFx::EKind::FineBlastSmoke);
 		P.StartRadius *= 0.5f; P.EndRadius *= 0.5f; P.SpeedMin = 50.f; P.SpeedMax = 200.f;
-		Puff->Emit(P, 6, P0 - Dir * 150.f, -Dir, FVector::ZeroVector);
+		Puff->Emit(P, 30, P0 - Dir * 150.f, -Dir, FVector::ZeroVector);
 		Puff->SetLifeSpan(P.LifeMax + 0.5f);
 	}
 	Trail.Start(GetWorld(), NemesisFx::EKind::MissileTrail, TrailRate); // same plume as the AA missile
@@ -214,7 +216,7 @@ void ANemesisRocket::Explode(bool bHitBalloon)
 	if (bExploded) return;
 	bExploded = true;
 	UE_LOG(LogTemp, Log, TEXT("Nemesis rocket exploded (%s)"), bHitBalloon ? TEXT("direct hit") : TEXT("shot down / crashed"));
-	NemesisFx::Explosion(GetWorld(), GetActorLocation(), 1.f);
+	NemesisFx::FineExplosion(GetWorld(), GetActorLocation(), 1.5f); // the AA missile's blast, not the cartoony one
 	OnExploded(bHitBalloon);
 	Destroy();
 }

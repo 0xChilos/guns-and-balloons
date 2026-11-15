@@ -20,9 +20,10 @@ enum class ETowerCannonState : uint8
 };
 
 /**
- * Desert tower with a cannon on top (AI ворогів, 7.1; team decision 2026-11-15). Uses the team's
- * SM_TurretTower model (tower, head, twin guns, boiler) when present, placeholder cubes otherwise;
- * the boiler is the fuel tank (weak spot).
+ * Desert tower with a cannon on top (enemy AI, 7.1; team decision 2026-11-15). Uses the team's
+ * SM_TurretTower model when present, placeholder cubes otherwise. On it stand our steampunk cannon and
+ * fuel tank (Content/Assets/Enemies/TowerGun.blend: SM_TowerGun_Mount / _Barrel / _FuelTank); without
+ * them, the team's head, twin guns and boiler (the boiler is then the fuel tank, the weak spot).
  * The tower is solid level geometry. With the basket inside Range and in line of sight (a sandstorm
  * blocks it) the cannon turns to the basket and aims for AimTime (a glow at the muzzle warns the
  * player), fires one shell straight at the basket (no drop), then reloads for ReloadTime.
@@ -157,6 +158,8 @@ private:
 	float Pitch = 0.f;
 	/** The team's model is in use (not the cubes). */
 	bool bModel = false;
+	/** Our TowerGun cannon and fuel tank stand on the team's tower (instead of its head / guns / boiler). */
+	bool bOwnGun = false;
 	/** Height of the gun deck, cm (the explosions run down from it). */
 	float DeckHeight = 0.f;
 	/** The model tower's vertical stretch (bDeckAtPlayerHeight). */

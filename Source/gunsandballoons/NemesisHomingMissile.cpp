@@ -61,7 +61,7 @@ ANemesisHomingMissile::ANemesisHomingMissile()
 	}
 	else if (NemesisModel::Use(Mesh, BodyMesh.Object))
 	{
-		NemesisModel::Use(Exhaust, FlameMesh.Object);
+		NemesisModel::Use(Exhaust, FlameMesh.Object, FVector(-131.f, 0.f, -0.5f) * 0.6f); // pivot at the nozzle
 		Mesh->SetRelativeScale3D(FVector(0.6f));
 		Exhaust->SetRelativeScale3D(FVector(0.6f));
 		NemesisCollision::Shootable(Mesh);

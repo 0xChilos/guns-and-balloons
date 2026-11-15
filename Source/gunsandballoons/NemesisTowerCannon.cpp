@@ -18,6 +18,10 @@ namespace
 	constexpr float CannonPlatformHeight = 40.f;
 	/** The team's turret meshes face −Y; the actor faces +X. */
 	const FRotator TurretModelToActor(0.f, 90.f, 0.f);
+	/** Our TowerGun model (Scripts/Blender/build_tower_gun.py, faces +X): the barrel's pivot (trunnion) in
+	 *  the mount, and the muzzle's distance from it along the barrel, cm. */
+	const FVector TowerGunTrunnion(15.f, 0.f, 135.f);
+	constexpr float TowerGunMuzzle = 430.f;
 
 	FVector TurretSocketInMesh(const UStaticMeshComponent* C, FName Socket)
 	{
@@ -122,6 +126,19 @@ ANemesisTowerCannon::ANemesisTowerCannon()
 		NemesisCollision::Solid(FuelTank); // blocks shots: a hit on the boiler counts like the TankHitBox
 		Platform->SetVisibility(false);
 		NemesisCollision::None(Platform);
+
+		// Our steampunk cannon and fuel tank (team decision 2026-11-15) replace the team's head, guns and
+		// boiler; the team's tower stays. Built facing +X, so no model rotation.
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnMount(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_Mount.SM_TowerGun_Mount"));
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnBarrel(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_Barrel.SM_TowerGun_Barrel"));
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> OwnTank(TEXT("/Game/Assets/Enemies/FBX/SM_TowerGun_FuelTank.SM_TowerGun_FuelTank"));
+		if (OwnMount.Object && OwnBarrel.Object && OwnTank.Object)
+		{
+			bOwnGun = true;
+			NemesisModel::Use(Carriage, OwnMount.Object);
+			NemesisModel::Use(Barrel, OwnBarrel.Object);
+			NemesisModel::Use(FuelTank, OwnTank.Object);
+		}
 	}
 }
 
@@ -142,16 +159,25 @@ void ANemesisTowerCannon::ApplyLayout()
 		const FVector HeadAt = TurretSocketInMesh(Tower, TEXT("head")) * Stretch;
 		DeckHeight = HeadAt.Z;
 		CannonYaw->SetRelativeLocation(HeadAt);
-		CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
-		const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
-		MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
+		if (bOwnGun)
+		{
+			CannonPitch->SetRelativeLocation(TowerGunTrunnion);
+			MuzzleGlow->SetRelativeLocation(FVector(TowerGunMuzzle + 20.f, 0.f, 0.f));
+		}
+		else
+		{
+			CannonPitch->SetRelativeLocation(TurretSocketInMesh(Carriage, TEXT("guns")));
+			const FVector Muzzle = TurretSocketInMesh(Barrel, TEXT("muzzle_1"));
+			MuzzleGlow->SetRelativeLocation(FVector(Muzzle.X + 20.f, 0.f, Muzzle.Z));
+		}
 		const FVector EngineAt = TurretSocketInMesh(Tower, TEXT("engine")) * Stretch;
 		FuelTank->SetRelativeLocation(EngineAt);
-		// Hit box around the boiler, a bit bigger than it.
+		// Hit box around the fuel tank, a bit bigger than it.
+		const FRotator TankRotation = bOwnGun ? FRotator::ZeroRotator : TurretModelToActor;
 		const FBox Box = FuelTank->GetStaticMesh()->GetBoundingBox();
 		TankHitBox->SetBoxExtent(Box.GetExtent().ComponentMax(FVector(1.f)) * FVector(1.1f, 1.1f, 1.05f));
-		TankHitBox->SetRelativeLocation(EngineAt + TurretModelToActor.RotateVector(Box.GetCenter()));
-		TankHitBox->SetRelativeRotation(TurretModelToActor);
+		TankHitBox->SetRelativeLocation(EngineAt + TankRotation.RotateVector(Box.GetCenter()));
+		TankHitBox->SetRelativeRotation(TankRotation);
 		return;
 	}
 	Tower->SetRelativeLocation(FVector(0.f, 0.f, TowerHeight * 0.5f));
@@ -272,7 +298,11 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 {
 	if (!ShellClass) return;
 	FVector Muzzle = CannonPitch->GetComponentLocation() + CannonPitch->GetForwardVector() * (CannonBarrelLength * 0.9f);
-	if (bModel)
+	if (bOwnGun)
+	{
+		Muzzle = CannonPitch->GetComponentTransform().TransformPosition(FVector(TowerGunMuzzle, 0.f, 0.f));
+	}
+	else if (bModel)
 	{
 		Muzzle = Barrel->GetSocketLocation(bSecondMuzzle ? TEXT("muzzle_2") : TEXT("muzzle_1"));
 		bSecondMuzzle = !bSecondMuzzle;
@@ -286,7 +316,7 @@ void ANemesisTowerCannon::Fire(const FVector& Basket)
 		Shell->Fire(Dir, ShellSpeed, Damage);
 		Shell->SetActorScale3D(FVector(2.5f)); // a cannon shell, not a bullet
 	}
-	NemesisFx::Explosion(GetWorld(), Muzzle, 0.35f); // muzzle blast
+	NemesisFx::FineExplosion(GetWorld(), Muzzle, 0.5f); // muzzle blast, fine-grained like the AA missile's
 	OnShot();
 }
 
@@ -307,8 +337,9 @@ void ANemesisTowerCannon::BlowUp()
 	SetState(ETowerCannonState::Destroyed);
 	UWorld* World = GetWorld();
 	// The tank goes up and takes the cannon with it; the tower stays with an empty deck.
-	NemesisFx::Explosion(World, FuelTank->GetComponentLocation(), 3.f);
-	NemesisFx::Explosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
+	// The AA missile's fine-grained blast (team decision 2026-11-15), not the shared cartoony one.
+	NemesisFx::FineExplosion(World, FuelTank->Bounds.Origin, 3.f);
+	NemesisFx::FineExplosion(World, CannonYaw->GetComponentLocation() + FVector(0.f, 0.f, 80.f), 2.f);
 	for (UStaticMeshComponent* Part : { FuelTank.Get(), Carriage.Get(), Barrel.Get() })
 	{
 		Part->SetVisibility(false);
