@@ -1,4 +1,5 @@
 #include "FirstPersonCameraPawn.h"
+#include "FuelHandComponent.h"
 
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -126,6 +127,7 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Extinguisher = CreateDefaultSubobject<UExtinguisherComponent>(TEXT("Extinguisher"));
 
+<<<<<<< HEAD
 	// --- Wrench ---
 	WrenchMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WrenchMesh"));
 	SetupViewmodelMesh(WrenchMesh, Camera);
@@ -140,6 +142,12 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	WrenchMesh->AnimClass = UGunAnimInstance::StaticClass();
 
 	Wrench = CreateDefaultSubobject<UWrenchComponent>(TEXT("Wrench"));
+=======
+	FuelHandMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FuelHandMesh"));
+	SetupViewmodelMesh(FuelHandMesh, Camera);
+	FuelHand = CreateDefaultSubobject<UFuelHandComponent>(TEXT("FuelHand"));
+	FuelHand->SetupWeapon(FuelHandMesh, Camera);
+>>>>>>> 17da491 (feat: added stove, fuel)
 
 	// The hand is empty by default: every item is hidden until it is taken (OnConstruction, BeginPlay).
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
@@ -163,12 +171,20 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 TArray<UGunComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGuns() const
 {
+<<<<<<< HEAD
 	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), Wrench.Get() };
+=======
+	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), FuelHand.Get() };
+>>>>>>> 17da491 (feat: added stove, fuel)
 }
 
 TArray<USkeletalMeshComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGunMeshes() const
 {
+<<<<<<< HEAD
 	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), WrenchMesh.Get() };
+=======
+	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), FuelHandMesh.Get() };
+>>>>>>> 17da491 (feat: added stove, fuel)
 }
 
 UGunComponent* AFirstPersonCameraPawn::FindGun(TSubclassOf<UGunComponent> GunClass) const
@@ -200,7 +216,11 @@ void AFirstPersonCameraPawn::OnConstruction(const FTransform& Transform)
 	// (none with an empty hand).
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
 	const TArray<USkeletalMeshComponent*, TInlineAllocator<6>> Meshes = GetGunMeshes();
+<<<<<<< HEAD
 	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1);
+=======
+	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, 4);
+>>>>>>> 17da491 (feat: added stove, fuel)
 	for (int32 i = 0; i < Guns.Num(); ++i)
 	{
 		if (USkeletalMeshComponent* Mesh = Meshes[i])
@@ -219,7 +239,11 @@ void AFirstPersonCameraPawn::BeginPlay()
 	Shotgun->SetupWeapon(ShotgunMesh, Camera);
 	Hook->SetupWeapon(HookMesh, Camera);
 	Extinguisher->SetupWeapon(ExtinguisherMesh, Camera);
+<<<<<<< HEAD
 	Wrench->SetupWeapon(WrenchMesh, Camera);
+=======
+	FuelHand->SetupWeapon(FuelHandMesh, Camera);
+>>>>>>> 17da491 (feat: added stove, fuel)
 
 	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
 	for (UGunComponent* Gun : Guns)
@@ -237,7 +261,7 @@ void AFirstPersonCameraPawn::BeginPlay()
 
 	// An empty hand still keeps a hidden item as ActiveGun, until the first one is taken from its rack.
 	const bool bStartEmpty = InitialHandState == EPlayerHandState::Empty;
-	ActiveGun = bStartEmpty ? Revolver.Get() : Guns[FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1)];
+	ActiveGun = bStartEmpty ? Revolver.Get() : Guns[FMath::Clamp(StartingGunIndex, 0, 4)];
 	PendingGun = nullptr;
 	for (UGunComponent* Gun : Guns)
 	{
@@ -924,10 +948,31 @@ void AFirstPersonCameraPawn::SetHandState(EPlayerHandState NewState)
 	OnHandStateChanged.Broadcast(HandState);
 }
 
+bool AFirstPersonCameraPawn::ConsumeHeldItem()
+{
+	if (IsHandEmpty() || !ActiveGun) return false;
+	ActiveGun->SetEquipped(false);
+	if (auto* Hand = Cast<UFuelHandComponent>(ActiveGun)) Hand->SetFuel(nullptr);
+	PendingGun = nullptr;
+	TransitionRack.Reset();
+	HeldItemRack.Reset();
+	RaiseAlpha = 0.f;
+	HandLowerAlpha = 1.f;
+	SetHandState(EPlayerHandState::Empty);
+	return true;
+}
+
+bool AFirstPersonCameraPawn::TakeHandItem(UGunComponent* Item)
+{
+	if (!IsHandEmpty() || !Item || !GetGuns().Contains(Item)) return false;
+	RaiseHandItem(Item, nullptr);
+	return true;
+}
+
 bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)
 {
 	// A rack takes its own kind of item only; nothing is put away while open for loading or mid-swap.
-	if (HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon()
+	if ((!HeldItemRack.IsValid() && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !IsValid(Rack) || Rack->HasWeapon()
 		|| !ActiveGun || ActiveGun != FindGun(Rack->ItemClass) || PendingGun || ActiveGun->IsReloading())
 	{
 		return false;
@@ -947,8 +992,14 @@ bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 	{
 		return false;
 	}
-	TransitionRack.Reset();
 	Rack->SetHasWeapon(false);
+	RaiseHandItem(Gun, Rack);
+	return true;
+}
+
+void AFirstPersonCameraPawn::RaiseHandItem(UGunComponent* Gun, UWeaponRackComponent* Rack)
+{
+	TransitionRack.Reset();
 	HeldItemRack = Rack;
 	ActiveGun = Gun;
 	RecoilAlpha = 0.f;
@@ -961,7 +1012,6 @@ bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 	UpdateWeaponSway(0.f);
 	ActiveGun->SetEquipped(true);
 	SetHandState(EPlayerHandState::Drawing);
-	return true;
 }
 
 bool AFirstPersonCameraPawn::SwapWeapon(UWeaponRackComponent* Rack)
@@ -969,7 +1019,7 @@ bool AFirstPersonCameraPawn::SwapWeapon(UWeaponRackComponent* Rack)
 	UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
 	const UWeaponRackComponent* HomeRack = HeldItemRack.Get();
 	// The item in hand goes back where it was taken from, so that rack has to be there and free.
-	if (HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
+	if ((!HomeRack && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
 		|| ActiveGun->IsReloading() || !HomeRack || HomeRack->HasWeapon())
 	{
 		return false;

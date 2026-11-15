@@ -5,6 +5,7 @@
 #include "FirstPersonCameraPawn.h"
 #include "GameFramework/Actor.h"
 #include "GunComponent.h"
+#include "FuelHandComponent.h"
 #include "RevolverComponent.h"
 
 UWeaponRackComponent::UWeaponRackComponent()
@@ -98,7 +99,8 @@ bool UWeaponRackComponent::AcceptsHit_Implementation(const FHitResult& Hit) cons
 bool UWeaponRackComponent::CanInteract_Implementation(APawn* InstigatorPawn) const
 {
 	// Consume rack clicks even when reloading or transitioning, to prevent accidental shots.
-	return IsValid(Cast<AFirstPersonCameraPawn>(InstigatorPawn));
+	const auto* Pawn = Cast<AFirstPersonCameraPawn>(InstigatorPawn);
+	return IsValid(Pawn) && (Pawn->IsHandEmpty() || Pawn->GetActiveGun() != Pawn->GetFuelHand());
 }
 void UWeaponRackComponent::Interact_Implementation(APawn* InstigatorPawn)
 {
