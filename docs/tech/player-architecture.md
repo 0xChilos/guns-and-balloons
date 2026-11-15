@@ -62,8 +62,8 @@ Set on `AFirstPersonCameraPawn` (its Blueprint class defaults or the placed pawn
 ### `ABalloonPlayerController`
 | Member | Kind | Behaviour |
 | --- | --- | --- |
-| `UseMenuInput()` | BlueprintCallable | Call after opening a menu: releases held gameplay actions, gives input to UI. No pause, no possession change |
-| `UseGameplayInput()` | BlueprintCallable | Call after closing a menu: restores mouse capture |
+| `UseMenuInput()` | BlueprintCallable | Call after opening a menu: releases held gameplay actions, gives input to UI, pauses the gameplay music. No world pause, no possession change |
+| `UseGameplayInput()` | BlueprintCallable | Call after closing a menu: restores mouse capture, resumes the gameplay music |
 | `IsGameplayInputEnabled()` | BlueprintPure | Current mode |
 
 ### `AFirstPersonCameraPawn`

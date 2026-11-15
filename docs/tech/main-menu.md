@@ -14,8 +14,8 @@ Design: [features/ui-menus.md](../features/ui-menus.md).
 | `/Game/UI/MainMenu/BP_MainMenuGameMode` | No pawn; `PlayerControllerClass` = `AMainMenuPlayerController` |
 | `UMainMenuWidget` | The menu, built in code: no box, game title and subtitle top left, items on a soft haze from the left edge, eased hover (slide, warm colour, marker, underline), fade-in, actions, Credits/Options pages, version label, pixel arrow cursor |
 | `AMainMenuScreen` | Puts the widget on an unlit, translucent panel `Distance` in front of the active camera, sized to fill its view, so the filter applies to the menu |
-| `UGameOptions` | The Options switches (Music, SFX, Tutorial): `IsOn` / `SetOn`, static, saved to GameUserSettings.ini on every change. Nothing reads them yet; future music/SFX should play through Sound Classes silenced while the switch is off |
-| `AMainMenuPlayerController` | Mouse only: system cursor hidden, mouse free, LMB forwarded to the screen's Widget Interaction Component |
+| `UGameOptions` | The Options switches (Music, SFX, Tutorial): `IsOn` / `SetOn`, static, saved to GameUserSettings.ini on every change; `OnChanged` (native multicast) is broadcast by `SetOn`. Future music/SFX should play through Sound Classes silenced while the switch is off |
+| `AMainMenuPlayerController` | Mouse only: system cursor hidden, mouse free, LMB forwarded to the screen's Widget Interaction Component. Also plays the menu music (`Music`, `MusicVolume`, `MusicFadeIn`, `MusicFadeOut`) on a 2D audio component, restarted from `OnAudioFinished` so it loops whether or not the sound wave's Looping flag is set; follows the Music switch through `UGameOptions::OnChanged` |
 
 ## Pause menu
 | Piece | What it does |
@@ -28,6 +28,7 @@ Design: [features/ui-menus.md](../features/ui-menus.md).
 
 - Resume can come from the panel's own click, so the panel is hidden at once and destroyed next tick.
 - Menu click sounds play while paused because `CreateSound2D` makes UI sounds.
+- Gameplay music: `ABalloonPlayerController` (`Music` = `/Game/Audio/Gameplay_OST`, `MusicVolume`, `MusicFadeIn`, `MusicFadeOut`) creates a 2D audio component in `BeginPlay` and starts it from 0 (`RestartMusic`, BlueprintCallable for a level that starts without a map reload). It is also a UI sound, so world pause doesn't stop it: `UpdateMusic` pauses it (`SetPaused`) whenever menu input is on, the pause menu is open or Music is off, and resumes it from `UseGameplayInput`. Looped from `OnAudioFinished`; `ShowDeath` fades it out and nothing restarts it until the level reloads.
 - `AMainMenuScreen::Brightness` scales the menu's colours through `UMainMenuWidget::ScaleColors` (the pause widget also scales its veil and smoke). The pause screen keeps 1.0 until tuned in a gameplay level.
 
 ## The script

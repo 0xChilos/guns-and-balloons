@@ -20,4 +20,11 @@ void UGameOptions::SetOn(EGameOption Option, bool bOn)
 	UGameOptions* Options = GetMutableDefault<UGameOptions>();
 	Options->Field(Option) = bOn;
 	Options->SaveConfig();
+	OnChanged().Broadcast(Option, bOn);
+}
+
+UGameOptions::FOnOptionChanged& UGameOptions::OnChanged()
+{
+	static FOnOptionChanged Delegate;
+	return Delegate;
 }

@@ -2,12 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameOptions.h"
 #include "InputCoreTypes.h"
 #include "BalloonPlayerController.generated.h"
 
 class ADeathScreen;
 class APauseHintScreen;
 class APauseMenuScreen;
+class UAudioComponent;
+class USoundBase;
 
 /**
  * Owns gameplay/UI input policy; the possessed pawn routes gameplay actions to equipment.
@@ -21,6 +24,11 @@ class APauseMenuScreen;
  * (UEngineHealthComponent) the world slows down for DeathSlowMoTime with a blast at the basket, then
  * pauses under an ADeathScreen (ENGINE DESTROYED, the cause, TRY AGAIN). The console command
  * "DeathScreen" plays it at once, to see it without dying.
+ *
+ * And the gameplay music (docs/features/ui-menus.md): Music plays from the top when the level
+ * starts (every map load: new run, TRY AGAIN, the next level) and loops. It pauses whenever a menu
+ * takes the input (UseMenuInput: the pause menu, a future shop) and resumes where it stopped on
+ * UseGameplayInput. It fades out for good on death, and follows the Music option.
  */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API ABalloonPlayerController : public APlayerController
@@ -67,9 +75,30 @@ public:
 	UFUNCTION(Exec)
 	void DeathScreen();
 
+	/** Plays the gameplay music from the top. Called at BeginPlay; call it if a new level ever starts without reloading the map. */
+	UFUNCTION(BlueprintCallable, Category="Player|Music")
+	void RestartMusic();
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
+
+	/** The gameplay soundtrack, played in order from its start on each level and looped. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Music")
+	TSoftObjectPtr<USoundBase> Music = TSoftObjectPtr<USoundBase>(FSoftObjectPath(TEXT("/Game/Audio/Gameplay_OST/Gameplay_OST.Gameplay_OST")));
+
+	/** Volume multiplier. TBD, tune by ear against the guns and the stove. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Music", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float MusicVolume = 0.25f;
+
+	/** Seconds to fade in when the level starts. TBD */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Music", meta=(ClampMin="0.0"))
+	float MusicFadeIn = 1.5f;
+
+	/** Seconds to fade out when the engine is destroyed. TBD */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Player|Music", meta=(ClampMin="0.0"))
+	float MusicFadeOut = 1.f;
 
 	/**
 	 * Keys that open and close the pause menu. In the editor, Esc stops Play In Editor before the game
@@ -118,4 +147,22 @@ private:
 	bool bDead = false;
 	FText DeathCause;
 	FTimerHandle DeathTimer;
+
+	/** Gameplay input on, no pause menu, alive, and the Music option on. */
+	bool ShouldMusicPlay() const;
+	/** Starts, pauses or resumes the music to match ShouldMusicPlay. */
+	void UpdateMusic();
+	void OnOptionChanged(EGameOption Option, bool bOn);
+
+	/** Restarts the track when it ends, so it loops even if the sound asset isn't set to loop. */
+	UFUNCTION()
+	void OnMusicFinished();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> MusicAudio;
+
+	/** Played since the last RestartMusic (so resuming continues instead of starting over). */
+	bool bMusicStarted = false;
+	bool bMusicPaused = false;
+	FDelegateHandle OptionChangedHandle;
 };
