@@ -8,6 +8,7 @@ and writes into the asset folder:
   T_Balloon_BaseColor.png   1024 atlas, ~1.5 cm per texel, AO grime + ordered dither (sRGB)
   T_Balloon_ORM.png         R = ambient occlusion, G = roughness, B = metallic (linear)
   T_Balloon_Radar.png       radar CRT (balloon icon, 3 range rings), fills the radar disc's 0..1 UV (sRGB)
+  SM_Fuel_Wood/Coal/Crystal.fbx  loose fuel pieces for the player's hand (static, same atlas: M_Balloon / M_Glow)
 Materials: M_Balloon (atlas), M_Glow (atlas as emissive), M_Display (radar screen),
            M_WarningLamp (warning lamp glass, atlas; colour/glow set in Unreal).
 Use Nearest filtering in Unreal for the PS1 look.
@@ -178,7 +179,7 @@ metal_img = new_img("BAKE_Metal", ATLAS, ATLAS, True)
 ao_img = new_img("BAKE_AO", ATLAS, ATLAS, True)
 disp_img = new_img("T_Balloon_Radar", 256, 256)
 dump_img = new_img("BAKE_Dump", 64, 64, True)          # display faces write here in data passes
-GLOW = {"AB_Fire", "AB_Lamp"}
+GLOW = {"AB_Fire", "AB_Lamp", "AB_Crystal", "AB_Ember"}
 
 bake_mats, metal_vals = [], []
 for i, m in enumerate(MATS):
@@ -239,7 +240,10 @@ for nt, out, src, e in saved:
 gs.cycles.samples = 48
 # Parts that open in game (ammo box lid) are lifted away during the AO bake, so what is under them
 # (the cartridges) isn't baked pitch-black as if the lid were always shut.
+# Fuel pieces and stove bullet holes come and go, so they're lifted 20 m and baked on their own.
 AO_LIFT = {"ammo_lid": Vector((0, 0, 1.0))}
+AO_LIFT.update({vg.name: Vector((0, 0, 20.0)) for vg in obj.vertex_groups
+                if vg.name.startswith(("fuel_wood_", "fuel_coal_", "fuel_crystal_", "stove_damage_"))})
 lifted = []
 for part, off in AO_LIFT.items():
     vg = obj.vertex_groups.get(part)
@@ -341,6 +345,39 @@ for im in (rough_img, metal_img, ao_img, dump_img):
 gs.world = None
 bpy.data.worlds.remove(bw)
 
+# ---------------------------------------------------------------- 5b. loose fuel items -> SM_Fuel_*.fbx, cut out of the balloon mesh
+item_parts = {it["part"]: (nm, Vector(it["origin"])) for nm, it in RIG.get("items", {}).items()}
+item_tris = {}
+for part, (nm, origin) in item_parts.items():
+    bm = bmesh.new(); bm.from_mesh(me_all)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if vpart[v.index] != part], context='VERTS')
+    bmesh.ops.translate(bm, vec=-origin, verts=bm.verts)
+    used = sorted({f.material_index for f in bm.faces})
+    for f in bm.faces:
+        f.material_index = used.index(f.material_index)
+    ime = bpy.data.meshes.new(nm)
+    bm.to_mesh(ime); bm.free()
+    for i in used:
+        ime.materials.append(me_all.materials[i])
+    for p in ime.polygons:
+        p.use_smooth = False
+    io = bpy.data.objects.new(nm, ime)
+    gs.collection.objects.link(io)
+    item_tris[nm] = sum(len(p.vertices) - 2 for p in ime.polygons)
+    with bpy.context.temp_override(window=win, scene=gs, view_layer=vl, active_object=io, selected_objects=[io]):
+        bpy.ops.export_scene.fbx(filepath=os.path.join(FOLDER, nm + ".fbx"), use_selection=True, object_types={'MESH'},
+                                 use_mesh_modifiers=True, mesh_smooth_type='FACE', bake_anim=False, apply_unit_scale=True,
+                                 path_mode='STRIP')
+    bpy.data.objects.remove(io)
+    bpy.data.meshes.remove(ime)
+bm = bmesh.new(); bm.from_mesh(me_all)
+bm.verts.ensure_lookup_table()
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if vpart[v.index] in item_parts], context='VERTS')
+bm.to_mesh(me_all); bm.free()
+for part in item_parts:
+    obj.vertex_groups.remove(obj.vertex_groups[part])
+
 # ---------------------------------------------------------------- 6. skeleton
 arm_data = bpy.data.armatures.new("SK_Balloon_Skeleton")
 arm = bpy.data.objects.new("Armature", arm_data)       # named "Armature" so Unreal doesn't add an extra root
@@ -386,4 +423,4 @@ tris = sum(len(p.vertices) - 2 for p in me_all.polygons)
 xs = [v.co for v in me_all.vertices]
 dims = [round(max(c[i] for c in xs) - min(c[i] for c in xs), 2) for i in range(3)]
 result = {"tris": tris, "bones": len(arm_data.bones), "size_m": dims,
-          "shrunk_islands": len(islands), "materials": [m.name for m in me_all.materials]}
+          "shrunk_islands": len(islands), "materials": [m.name for m in me_all.materials], "items": item_tris}

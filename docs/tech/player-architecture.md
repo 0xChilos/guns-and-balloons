@@ -5,12 +5,21 @@
 ## Responsibilities
 
 - `ABalloonPlayerController` manages input modes and the cursor. `UseMenuInput` releases held actions and gives input to UI; `UseGameplayInput` restores gameplay mouse capture. Neither method pauses the world or changes possession.
-- `AFirstPersonCameraPawn` remains the single possessed Pawn: camera, look, hand state, viewmodel, and forwarding commands to items. It has no movement component and can be attached to the balloon in the level.
+- `AFirstPersonCameraPawn` remains the single possessed Pawn: camera, look, hand state, viewmodel, and forwarding commands to items. `BP_Balloon` owns it through the `PlayerCamera` ChildActorComponent using `BP_BalloonPlayer` (a subclass with Player 0 auto-possession). Both test maps use this embedded player instead of a separately placed Pawn. Edit the shared seat transform on `BP_Balloon.PlayerCamera` (30, 0, 160 cm); edit player defaults on `BP_BalloonPlayer`. It has no movement component.
 - `UPlayerInteractionComponent` traces and dispatches `IInteractable` calls to components, the hit actor, or its owner. Components passing `AcceptsHit` and `CanInteract` take priority over the actor; ammunition remains on RMB. Grabbing and dragging use the existing `IGrabbable` path in the Pawn.
 - Guns, the hook, the extinguisher, and held fuel keep their state in their own Pawn components. The stove, supplies, levers, and flight live in components on their respective world actors. Items do not require separate possessed Pawns.
 - `UBalloonFlightComponent` is the only component that moves the balloon. The Pawn does not simulate temperature, ammunition, or flight.
 
 ## Integration
+
+All four project maps (`PostProcess`, `BalloonFlight_Test`, `LevelGeneration_Test`,
+`Movement_Scene1`) use `/Game/Assets/Balloon/BP_Balloon` and its embedded
+`BP_BalloonPlayer`. `Movement_Scene1`'s former bare skeletal balloon is replaced
+by the shared playable actor. Edit gameplay and camera settings in these shared
+Blueprints. `Scripts/Editor/share_balloon_all_levels.py` migrates/audits project
+maps and writes `Saved/SharedBalloonAllLevels.json`;
+`Scripts/Editor/test_shared_balloon_pie.py` checks unique possession and ownership
+in the open map. World-partition balloons must be loaded with their player.
 
 `AFirstPersonCameraGameMode` defaults to `ABalloonPlayerController` and `AFirstPersonCameraPawn`, preserving possession of an already placed Pawn. Set these classes manually when using another GameMode. Custom PlayerControllers must manage their own input modes.
 

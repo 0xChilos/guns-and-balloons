@@ -10,6 +10,7 @@ Flying should feel like piloting a heavy craft: speeding up and braking with ine
 - **Speed** is set on the control panel and depends on the state of the [stove engine](engine-stove.md).
 - **Turning/tilt:** the player pushes the lever on the chosen side of the basket → an iron panel extends on that side and brakes against the air (like a kayak paddle) → the balloon tilts and turns that way.
 - All changes of speed and direction have **inertia** (acceleration, not an instant change).
+- The **propeller** behind the basket spins all the time, even at minimum speed and with a cold stove; the faster the flight, the faster it spins.
 - Levers have a configurable array of states (4 by default). The lever and wing angles, effect, detent stiffness and slip chance are set per state.
 - **The lever is controlled by dragging, with an empty hand only** (put the weapon away first, see [weapons](weapons.md)): aim at the handle, hold LMB and move the mouse. The lever follows the hand from any angle; the view is frozen meanwhile. There is no tap-to-step.
 - **A detent at every state.** The handle stops in it; to go further you have to "pull" decisively with the mouse (slowly creeping doesn't break through). The end states are hard stops.
@@ -41,6 +42,7 @@ Flying should feel like piloting a heavy craft: speeding up and braking with ine
 | Slipping while held / seed | false / 0 | Prototype; if allowed, the grab is released first; 0 = random seed, other values reproducible |
 | Turn speed | TBD | |
 | Inertia (acceleration/braking) | TBD | |
+| Propeller idle spin | TBD (360°/s) | `PropellerIdleSpeed` in `ABP_Balloon`; a minimum, faster flight spins it faster |
 | Envelope spheres: centre Z / radius | 430/180, 550/290, 680/340, 810/300, 940/200, 1040/95 cm | Approximates the model's shape in Mesh space; needs visual tuning. |
 | Basket | 8 box walls, 8 box rim sections, 4 box floor sections | Model as of 2026-11-15: octagon radius 97.5 cm, wall thickness 7 cm; inner apothem ≈83.08 cm. Rim: Z 96…109 cm, 15 cm thick. Empty interior. Sizes are set by `BalloonCollisionSetupLibrary`. |
 | Stove / console: centre Y | +54.36 / −70.58 cm | Mesh space; stove block Z 7…121 cm. Checked against the current imported skeleton. |
