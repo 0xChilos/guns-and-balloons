@@ -1,6 +1,26 @@
 # Balloon level generation handoff
 
-Updated: 2026-11-15. Current milestone: M4. Stop before M5. M1–M4 implementation is present. Final verification PASSED: UE build and M1–M4 automation (4 tests, 0 failures), with all 19 feature/test copies byte-identical. Commands, logs and limitations are recorded in TEST_REPORT.md. Full-project integration remains blocked by existing FirstPersonCameraPawn.h merge markers (UHT line 335), reproduced during M4.
+Updated: 2026-11-15. Current milestone: M5. Stop before M6.
+
+## M5 horizontal route safety
+
+`BalloonHorizontalRouteValidator.h/.cpp` implements a progress/lateral 2D lattice and deterministic A* at one absolute world Z. Every node/edge is checked with a full 3D enclosing box, border-sphere flight-band projection, and conservative colliding-placement AABBs. Static-mesh bounds include render bounds and simple physics geometry. NoCollision HISM scenery is excluded. Missing collision bounds fail closed; Blueprint gameplay rows currently need an external certified bounds resolver before they can pass generation. Bounds must contain all physics shapes; visual size metadata is never treated as collision proof.
+
+Select a live balloon actor in `Generator.RoutePawn`. `InspectPawn` reads every query-enabled UShapeComponent and the actual BalloonFlightComponent authored limits, without changing movement. It encloses all shapes and all yaw orientations, including their offsets from the actor datum; hollow interiors are filled conservatively. Safety and wind inflate horizontal collision; safety also inflates height. No altitude state/neighbor exists. Tilted Pawns and nonzero initial yaw rate fail conservatively until a matching transition contract exists. For runtime validation, call InspectPawn on the current instance and pass its heading/rate plus exact current XYZ to Validate/TryBorders. A mismatched Z is rejected rather than snapped.
+
+Actual asset inspection through a transient editor instance of `/Game/Assets/Balloon/BP_Balloon.BP_Balloon_C`: 20 active shapes (four floors, eight walls, stove, console, six envelope spheres), all BlockAllDynamic, scale 1. Conservative radius from shape AABB corners approximately 480.833cm; symmetric half-height about actor datum 1140cm. Movement: MinSpeed=50, MaxSpeed=300, InitialSpeed=100 cm/s; MaxTurnRate=30 degrees/s; turn acceleration/deceleration=60 degrees/s^2; speed acceleration/deceleration=40 cm/s^2. The loaded asset has no Rim_* shapes and differs from the latest collision setup utility; M5 does not rewrite it. Evidence: Saved/M5PawnAudit.json and Saved/M5PawnAudit.py. The temporary actor was destroyed; no asset/map was saved.
+
+Candidate turns use C2 quintic Bezier corners. Recursive Bernstein derivative hulls bound continuous curvature and angular acceleration, including acceleration/deceleration of forward speed. Convex-hull deviation inflates each engine sweep so the complete curve is covered between proof points. Straight initial tangent is required; A* reserves the first edge. Minimum turning radius is the larger of config radius and inspected speed/yaw-rate ratio. Sampled proof points remain at fixed Z; they are a feasibility/debug result, never an autopilot.
+
+Width uses the global rich-curve minimum, clamped by MinWidthCm, and a Lipschitz distance guard between checks. This deliberately rejects some locally wide detours. The square sweep encloses a yaw-invariant circular envelope, and corridor/threat clearance includes its diagonal. World sweeps conservatively treat all query-enabled object types as blockers, ignoring only the balloon and its attached riders. Ground/terrain with query collision is checked at full height. These policies may reject valid routes, but do not accept a vertical bypass.
+
+Generator Ready now requires proof; failure clears the old plan/spline. Initial generation resolves rows once, then retries placement with stable per-attempt seed salt, preserving exact requested gameplay counts and geometry/border streams. No density relaxation. Config RouteAttempts is [1,12]; lattice limit 100000 states per attempt, combined occupancy/curve operations 500000 per validation, curve subdivision depth 10. Public pure validation may retry finer lattices; generator uses one lattice per placement attempt. Diagnostics include seed, attempt, cells visited and failure reason. `GetPlan().RoutePoints`, `PlacementAttempt`, and the green path from DrawBorderDebug expose the proof. TryBorders commits descriptors/proof only after validating from the current XY; failed proposals leave both unchanged. M6 still owns events and world-proxy transactions; M8 owns realization.
+
+Final verification: clean isolated UE 5.9 build PASSED; M1-M5 automation PASSED (5 tests, zero failures), 2026-11-15 10:44:52 Europe/Kyiv. All 24 source/test/flight-component copies match by SHA256. Verification evidence and commands are recorded in TEST_REPORT.md. Full-project integration remains blocked by the pre-existing FirstPersonCameraPawn.h merge markers at UHT line 335. No Pawn edits, event system, environment work, realization, PIE playtest, or profiling. Stop after M5.
+
+## Historical M4 handoff
+
+The following M1-M4 details describe the prior milestone; their references to absent route safety are superseded by M5 above.
 
 ## Build and scope
 
@@ -12,7 +32,7 @@ Actual module/export: gunsandballoons / GUNSANDBALLOONS_API. Engine: UE 5.9.0 at
 - BalloonLevelConfig.h adds independent SceneryEnabled/ObstaclesEnabled/EnemiesEnabled, exact category counts (-1 density, 0 none), row metadata, prototype cluster/street/ground settings requiring tuning. Borders remain independent. InteriorEnemy requires Hazard Blueprint rows; no category or Notes heuristics.
 - BalloonPlacementPlanner.h/.cpp: Resolve validates and measures assets on the game thread. Build never loads or spawns UObjects. Optional ground sampler and supplied field-border polylines; generator uses flat ground and sampled corridor edges. Failure leaves no partial placement list. Per-row errors name source table, row, rule, target, planned and region. Bounded packing/geometry failures are explicit.
 - Generator merges the existing shared/biome catalog, builds M3 borders, resolves rows and plans placements before committing the candidate. Read GetPlan().Placements in C++ and GetDiagnostics for preview results. Regeneration clears stale plans.
-- Tests/BalloonLevelM4Test.cpp covers all six rules; Scripts/Verify-BalloonLevelM4.ps1 copies all feature sources/tests into Saved/M4Verification, compiles and runs M1–M4. The script inspects JSON test results because Unreal can exit 0 despite failed assertions.
+- Source/gunsandballoons/Tests/BalloonLevelM4Test.cpp covers all six rules; Scripts/Verify-BalloonLevelM4.ps1 copies all feature sources/tests into Saved/M4Verification, compiles and runs M1–M4. The script inspects JSON test results because Unreal can exit 0 despite failed assertions.
 
 ## Rule behavior
 
@@ -25,6 +45,8 @@ Explicit FNV-1a UTF-8 seed hashing includes catalog version/biome/row/rule/item.
 Scenery meshes produce HISM descriptors; gameplay meshes produce MeshActor descriptors; Blueprint classes produce BlueprintActor descriptors, including the validated flock exception. Scenery collision is off; gameplay collision follows the validated row. Cull end annotations: clutter 15000, short trees 30000, decorative buildings/dunes 80000, mountains/gameplay Actors 0 (no distance cull). Conflicting same-mesh HISM profiles fail; no actual components or engine cull behavior are claimed before M8.
 
 ## Existing geometry and next milestone
+
+M4 re-verification: the requested implementation was already present in the checkout; review required no source changes. A fresh clean harness build and all four automation tests passed on 2026-11-15 at 10:22:57 Europe/Kyiv (08:22:57 UTC). All 19 source/test copies match by SHA256. Current report: Saved/M4Verification/TestReport/index.json; logs: Saved/Logs/M4-IsolatedBuild.log and M4-Automation.log. Full-project build again failed at FirstPersonCameraPawn.h:335; log: Saved/Logs/M4-RecheckProjectBuild.log. See TEST_REPORT.md for commands and limits. Stop before M5.
 
 M2 supplies canonical horizontal polyline, arc segments and snapshotted width profile. M3 supplies stationary sphere influences, fixed-envelope-Z projection, clipped union of unsafe intervals and debug/proxy APIs. See API.md and prior TEST_REPORT entries. Actual balloon envelope defaults still require tuning; no accepted route or playable-level guarantee exists.
 

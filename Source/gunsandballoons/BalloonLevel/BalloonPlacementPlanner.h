@@ -8,6 +8,7 @@ namespace BalloonPlacementPlanning
   FBalloonCatalogEntry Entry;
   FBalloonPlacementMetadata Metadata;
   bool BlueprintActor = false;
+  FBox LocalCollisionBounds = FBox(ForceInit);
  };
  struct FSurface { double Z = 0.; FVector Normal = FVector::UpVector; };
  using FGroundSampler = TFunction<bool(const FVector&, FSurface&)>;

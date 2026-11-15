@@ -69,3 +69,8 @@ Descriptors contain biome/row/rule/index/segment IDs, asset path, transform, clu
 Random seeds use explicit lowercase UTF-8 FNV-1a with seed, catalog version, biome, Placement/v1, row, rule and item index. Wind/flock budgets have independent streams. Rows are sorted lexically. Spacing reservations use a spatial hash and the larger spacing of two rows; adding a spatial conflict can change later rows through rejection without consuming their streams. Ring is exempt. Failure clears all placements. Limits: 10000 descriptors, 256 attempts per item, 500000 planning/reservation operations and 100000 street grid cells. Diagnostics identify table, row, rule, target/planned count and region for row failures. These are preview safeguards, not profiled gameplay budgets. Cluster/street/ground settings remain editable prototype tuning values.
 
 Verification: `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`. See [handoff](../../../docs/tech/BalloonLevel/HANDOFF.md). Native-schema biome DataTables and visual PIE results are not supplied by this milestone.
+
+Re-verification on 2026-11-15 passed a clean UE 5.9 harness build and all four
+M1–M4 automation tests, including the six-rule and row-error checks. Current report:
+`Saved/M4Verification/TestReport/index.json`. Full-project compilation remains
+blocked by existing Pawn header merge markers; M5 has not started.

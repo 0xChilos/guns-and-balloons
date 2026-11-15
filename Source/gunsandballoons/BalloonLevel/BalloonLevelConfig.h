@@ -10,6 +10,11 @@ class GUNSANDBALLOONS_API UBalloonLevelConfig : public UDataAsset
 {
 	GENERATED_BODY()
 public:
+ /** M5 preview safeguards, require tuning. Collision and movement come from the selected live Pawn. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route") float RouteCellMeters = 10.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route") float RouteSafetyMeters = 1.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route") float RouteWindMeters = 0.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Route", meta=(ClampMin="1", ClampMax="12")) int32 RouteAttempts = 12;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry") int32 Seed = 12345;
 	/** Prototype authoring values, require tuning; not approved gameplay defaults. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Geometry", meta=(Units="m")) float LengthMeters = 1500.f;

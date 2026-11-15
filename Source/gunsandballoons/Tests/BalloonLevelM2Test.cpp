@@ -58,9 +58,9 @@ bool FBalloonLevelM2Test::RunTest(const FString& Parameters)
  if(TestNotNull(TEXT("Editor world"),World))
  {
   auto* G=World->SpawnActor<ABalloonLevelGenerator>(); G->LevelConfig=C;
-  TestTrue(TEXT("Generate curved reference"),G->GenerateLevel());
-  TestTrue(TEXT("Real spline arc length"),FMath::Abs(G->Spline->GetSplineLength()-162000.f)<1.f);
-  TestEqual(TEXT("Normalized finish"),G->GetNormalizedProgress(G->GetFinishTransform().GetLocation()),1.f);
+  TestFalse(TEXT("M5 rejects uninspected curved reference"),G->GenerateLevel());
+  TestTrue(TEXT("No unproved reference spline"),G->Spline->GetNumberOfSplinePoints()==0);
+  TestEqual(TEXT("Unproved finish has no progression"),G->GetNormalizedProgress(G->GetFinishTransform().GetLocation()),0.f);
   G->UpdateProgress(G->GetFinishTransform().GetLocation(),true); G->RegenerateLevel();
   TestEqual(TEXT("Regenerate resets progression"),G->GetMaxReachedProgressCm(),0.f);
   World->DestroyActor(G);

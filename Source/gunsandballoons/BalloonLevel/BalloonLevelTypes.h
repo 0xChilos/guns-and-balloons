@@ -79,6 +79,8 @@ enum class EBalloonPlacementRepresentation : uint8 { HISM, MeshActor, BlueprintA
 
 struct FBalloonPlacementDescriptor
 {
+ // Conservative full 3D physical bounds; invalid means collision cannot be certified.
+ FBox CollisionBounds = FBox(ForceInit);
  FName Biome, RowName, Rule;
  int32 InstanceIndex = 0, SegmentId = 0, ClusterId = 0, BirdsPerFlock = 1;
  FSoftObjectPath Asset;
@@ -101,6 +103,8 @@ struct FBalloonLevelSegment
 /** Descriptors only; no UObject ownership, collision proof or realized content in M1. */
 struct FBalloonLevelPlan
 {
+ TArray<FVector> RoutePoints;
+ int32 PlacementAttempt = 0;
 	int32 Seed = 0;
 	FName BiomeId;
 	FString CatalogVersion;

@@ -117,3 +117,45 @@ Coverage: all six rules replay deterministically; scatter density on 0.9km², cl
 Intermediate evidence: sandboxed engine/toolchain startup exited -532462766 before compilation; approved engine access succeeded. Initial clean build compiled, but M4 assertions failed on an oversized ring-footprint fixture and a negative-coordinate lamp modulo assertion (M1–M3 passed). Unreal exited 0 despite that test failure. Fixtures/assertions were corrected, and the harness now checks the JSON report for failures/incomplete coverage in addition to process exit. A subsequent all-four-tests pass is retained in M4-Automation-IntermediatePass.log; final tests additionally include expanded polyline, back-to-back, cull-conflict and replay checks. First test-build numeric-conversion warnings were removed with explicit float literals. One intermediate incremental build retained an old planner object because Copy-Item preserved a source timestamp older than the object; the new high-density/exact-count regression exposed this (M4-TimestampStaleAutomation.log). Touching the harness planner source forced recompilation; the final run above passes. The default verification script always uses a clean rebuild. Existing MCP port 8000 startup bind conflict does not prevent automation completion.
 
 Limitations: content-free harness validates resolved flock Actor descriptors using synthetic class-kind inputs; it does not load the project's BP_BirdFlock or native biome tables. Actual flock-class validation remains in the real catalog resolver, including generated-class ancestry checking; positive project asset integration is unverified. Terrain tests inject a pure sampler; generator uses a flat preview surface. No PIE, profiling, actual component culling/collision or fixed-height route safety is claimed. M4 gate passes in isolation; stop before M5.
+
+## M4 re-verification — 2026-11-15
+
+The requested M4 implementation and tests were already present. Reviewed the identical three attached specification copies, sections 4, 7, 11.4 and M4 against the existing catalog/planners/tests; no implementation edits were needed. Updated README and handoff evidence only, including the corrected M4 test source path.
+
+Commands rerun:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1
+& 'G:/UE/UE_5.9/Engine/Build/BatchFiles/Build.bat' gunsandballoonsEditor Win64 Development 'G:/UE/gunsandballoons/gunsandballoons.uproject' -WaitMutex -NoHotReloadFromIDE -NoUBA -nocache -Log=G:/UE/gunsandballoons/Saved/Logs/M4-RecheckProjectBuild.log
+git diff --check
+```
+
+The sandboxed harness attempt exited -532462766 before compilation; the approved toolchain run exited 0. Clean isolated build reported `Result: Succeeded` (124.69s local actions). Automation completed at 10:22:57 Europe/Kyiv (08:22:57 UTC): M1, M2, M3 and M4 each `Result={Success}`, four tests performed. Parsed Saved/M4Verification/TestReport/index.json: succeeded=4, failed=0, notRun=0, inProcess=0. Logs: Saved/Logs/M4-IsolatedBuild.log and M4-Automation.log. SHA256 comparison of all 19 source/test files against harness copies found zero mismatches. Whitespace check passed.
+
+Full-project build exited 1, reproducing FirstPersonCameraPawn.h:335 `Member variable declaration: Expected name` with existing merge markers. No unrelated fixes, native asset creation, PIE or profiling. Existing M4 limitations above still apply. Stop before M5.
+
+
+## M5 horizontal route safety - 2026-11-15
+
+Scope: section 8 and M5 only. No movement/asset edits, vertical neighbors, M6 events or M8 realization. Inspected source movement and actual loaded BP_Balloon through a temporary editor actor; saved numeric evidence to Saved/M5PawnAudit.json, destroyed the actor and saved no assets/maps. Actual authored limits and 20-shape discrepancy from the collision setup utility are recorded in HANDOFF.md.
+
+Commands:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM5.ps1
+# During iteration, retain PCH but force refreshed source timestamps:
+powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM5.ps1 -Incremental
+& 'G:/UE/UE_5.9/Engine/Build/BatchFiles/Build.bat' gunsandballoonsEditor Win64 Development 'G:/UE/gunsandballoons/gunsandballoons.uproject' -WaitMutex -NoHotReloadFromIDE -NoUBA -nocache -Log=G:/UE/gunsandballoons/Saved/Logs/M5-ProjectBuild.log
+git diff --check
+```
+
+The sandboxed compiler startup exited -532462766; the approved engine/toolchain run compiled. Full project build again failed at pre-existing FirstPersonCameraPawn.h:335 UHT merge-conflict syntax, exit 1. Source conflict markers remain untouched. Log: Saved/Logs/M5-ProjectBuild.log.
+
+Initial iteration compiled but older M1/M2 generator tests still expected Ready without a Pawn; M5 intentionally forbids that. Their negative assertions now cover the stronger safety gate, and M5 owns positive generation/regeneration coverage. An initial new test incorrectly initialized a newly created UWorld twice, causing a WorldSettings unique-name fatal; removed the second initialization and terminated that hung test process. Another compile exposed protected flight properties; the validator now reads their reflected authored values without changing movement. The first positive detour fixture exposed missing initial-heading and smoothing reservations in A*; fixed both. Retained logs: M5-InitialAutomation.log and M5-IntermediateAutomation.log. Intermediate verification then passed all five tests at 10:40:55 Europe/Kyiv (08:40:55 UTC), log M5-IntermediatePass.log.
+
+M5 coverage: open route, full wall closure with no high/low bypass, obstacle intersecting only the lower full-height envelope, obstacle strictly below it, narrow/wide gap, wind-closing gap, excessive turning radius, successful smoothed A* detour with fixed-Z points, deterministic retry/replay and exact gameplay-count preservation, missing collision bounds, NoCollision HISM exemption, allocation bounds and invalid envelope. Runtime tests cover exact current position, altitude mismatch, nonzero initial yaw rejection, unsafe-border rollback including previous proof, safe visual-only update and an accepted border behind the current position. Engine-world tests exercise swept box vs thin wall, nonintersection below flight band, initial overlap, actual flight-component/shape inspection, generator Ready proof, regeneration without duplicate spline points, and stale-proof removal after a new world wall closes the route. Existing M1-M4 tests retain catalog/schema, geometry/progress, border and placement-rule coverage.
+
+Limits: conservative full enclosure may reject hollow-space/local-width opportunities; no search-completeness or performance claim. Nonzero initial yaw and unresolved Blueprint gameplay collision bounds fail closed. No live BP route-generation/PIE integration is claimed because full-project compilation is blocked; isolated tests use the real flight component with synthetic registered shapes and actual engine physics. Static collision/world/envelope snapshots must remain unchanged until commit; moving hazards are outside M5. No visual playtest or profiling.
+
+
+Final M5 result: PASSED in isolation. Clean UE 5.9 rebuild reported `Result: Succeeded` (131.48s local actions); harness/automation process exited 0. At 10:44:52 Europe/Kyiv (08:44:52 UTC), M1, M2, M3, M4 and M5 all reported Success. Saved/M5Verification/TestReport/index.json: succeeded=5, failed=0, notRun=0, inProcess=0. Logs: Saved/Logs/M5-IsolatedBuild.log and M5-Automation.log. SHA256 comparison: all 24 feature/test/flight-component files byte-identical to harness copies, zero mismatches. No source changes after the final clean run. Whitespace review passed. The nonfatal MCP port 8000 bind conflict is shared with the open editor and did not affect the automation result. Full-project integration remains blocked as described above. No commit; stop before M6.

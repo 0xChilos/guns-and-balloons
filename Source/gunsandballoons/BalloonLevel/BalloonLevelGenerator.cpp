@@ -2,6 +2,7 @@
 #include "BalloonAssetCatalog.h"
 #include "BalloonBorderPlanner.h"
 #include "BalloonPlacementPlanner.h"
+#include "BalloonHorizontalRouteValidator.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
 
@@ -51,10 +52,31 @@ bool ABalloonLevelGenerator::GenerateLevel()
   Status = EBalloonLevelGenerationStatus::InsufficientSpace;
   return false;
  }
+ BalloonHorizontalRoute::FEnvelope Envelope;
+ FString EnvelopeError;
+ if(!RoutePawn || !GetWorld() || !BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,EnvelopeError))
+ { Diagnostics.Add(RoutePawn?EnvelopeError:TEXT("M5: RoutePawn instance is required for collision/movement inspection")); Status=EBalloonLevelGenerationStatus::Unreachable;return false; }
+ Envelope.Safety=LevelConfig->RouteSafetyMeters*100.;Envelope.Wind=LevelConfig->RouteWindMeters*100.;
+ Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(LevelConfig->MinimumTurningRadiusMeters)*100.);
+ Candidate.BalloonRadiusCm=(Envelope.Radius+Envelope.Safety+Envelope.Wind)*UE_DOUBLE_SQRT_2;
+ Candidate.BalloonHalfHeightCm=Envelope.HalfHeight+Envelope.Safety;
+ BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=LevelConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
+ if(LevelConfig->RouteAttempts<1 || LevelConfig->RouteAttempts>12)
+ {Diagnostics.Add(TEXT("M5: RouteAttempts must be [1,12]"));Status=EBalloonLevelGenerationStatus::InvalidConfig;return false;}
  TArray<BalloonPlacementPlanning::FResolvedRow> Rows;
- if (!BalloonPlacementPlanning::Resolve(*LevelConfig, Candidate.Catalog, Rows, Diagnostics) ||
-  !BalloonPlacementPlanning::Build(*LevelConfig, Candidate, Rows, Diagnostics))
- { Status = EBalloonLevelGenerationStatus::InsufficientSpace; return false; }
+ if(!BalloonPlacementPlanning::Resolve(*LevelConfig,Candidate.Catalog,Rows,Diagnostics))
+ {Status=EBalloonLevelGenerationStatus::InvalidConfig;return false;}
+ const auto Sweep=BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn);
+ bool Reachable=false;
+ for(int32 Attempt=0;Attempt<LevelConfig->RouteAttempts;++Attempt)
+ {
+  Candidate.PlacementAttempt=Attempt;
+  if(!BalloonPlacementPlanning::Build(*LevelConfig,Candidate,Rows,Diagnostics))continue;
+  const auto Result=BalloonHorizontalRoute::Validate(Candidate,Envelope,Settings,Sweep);
+  Diagnostics.Add(FString::Printf(TEXT("M5 seed=%d placement attempt=%d visited=%d: %s"),Candidate.Seed,Attempt+1,Result.CellsVisited,Result.Reachable?TEXT("fixed-Z route proved"):*Result.FailureReason));
+  if(Result.Reachable) {Candidate.RoutePoints=Result.Points;Reachable=true;break;}
+ }
+ if(!Reachable) {Status=EBalloonLevelGenerationStatus::Unreachable;return false;}
  Plan = MoveTemp(Candidate);
 	for (const FVector& Point : Plan.SplineSamples)
 	{
@@ -64,7 +86,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
 	}
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
-	Diagnostics.Add(TEXT("M4 Ready: XY geometry, border and placement descriptors only; horizontal reachability is NOT validated and no gameplay content is realized."));
+	Diagnostics.Add(TEXT("M5 Ready: fixed-Z horizontal route certified against conservative Pawn/placement bounds and current world; descriptors only, realization remains M8."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
 }
@@ -84,6 +106,8 @@ TArray<FBalloonBorderInfluence> ABalloonLevelGenerator::GetBorderInfluences() co
 void ABalloonLevelGenerator::DrawBorderDebug(float Duration) const
 {
  if(!GetWorld() || Plan.SplineSamples.Num()<2 || !FMath::IsFinite(Duration) || Duration<0.f) return;
+ for(int32 I=1;I<Plan.RoutePoints.Num();++I)
+  DrawDebugLine(GetWorld(),Plan.RoutePoints[I-1],Plan.RoutePoints[I],FColor::Green,false,Duration,0,3.f);
  for(int32 I=1;I<Plan.LeftBoundary.Num();++I)
  {
   DrawDebugLine(GetWorld(),Plan.LeftBoundary[I-1],Plan.LeftBoundary[I],FColor::Cyan,false,Duration);

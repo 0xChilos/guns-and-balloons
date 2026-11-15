@@ -106,10 +106,10 @@ bool FBalloonLevelM1Test::RunTest(const FString& Parameters)
 		auto* Generator = World->SpawnActor<ABalloonLevelGenerator>();
 		Config->MaxHeadingDegrees = 0.f;
 		Generator->LevelConfig = Config;
-		TestTrue(TEXT("Generator builds"), Generator->GenerateLevel());
-		TestTrue(TEXT("Ready only"), Generator->GetGenerationStatus() == EBalloonLevelGenerationStatus::Ready);
-		TestEqual(TEXT("Spline exact metric length"), Generator->Spline->GetSplineLength(), 150000.f);
-		TestTrue(TEXT("Regenerate"), Generator->RegenerateLevel());
+		TestFalse(TEXT("M5 generator requires inspected Pawn envelope"), Generator->GenerateLevel());
+		TestTrue(TEXT("Unsafe plan cannot become Ready"), Generator->GetGenerationStatus() == EBalloonLevelGenerationStatus::Unreachable);
+		TestEqual(TEXT("No unvalidated spline"), Generator->Spline->GetNumberOfSplinePoints(), 0);
+		TestFalse(TEXT("Regenerate still requires Pawn"), Generator->RegenerateLevel());
 		TestEqual(TEXT("No duplicate spline points"), Generator->Spline->GetNumberOfSplinePoints(), Generator->GetPlan().SplineSamples.Num());
 		Config->LengthMeters = 0.f;
 		TestFalse(TEXT("Invalid regeneration fails"), Generator->GenerateLevel());

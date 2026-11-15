@@ -38,3 +38,7 @@ Build/test evidence and next milestone: [handoff](docs/tech/BalloonLevel/HANDOFF
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`
 for the isolated UE 5.9 build and M1–M4 automation. Full project integration is blocked
 by existing merge markers in `FirstPersonCameraPawn.h`.
+
+M4 was re-verified on 2026-11-15: clean isolated compilation and all four M1–M4
+automation tests passed. The full-project build reproduced the Pawn header blocker.
+See the handoff for current report and log paths. Stop before M5.

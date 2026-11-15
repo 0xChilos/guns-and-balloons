@@ -3,6 +3,7 @@
 #include "BalloonBorderPlanner.h"
 #include "BalloonAssetCatalog.h"
 #include "Engine/StaticMesh.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "Math/RotationMatrix.h"
 
 namespace
@@ -11,7 +12,7 @@ namespace
  uint32 Seed(const FBalloonLevelPlan& P, const FString& Tag)
  {
   const FTCHARToUTF8 Bytes(*(P.BiomeId.ToString()+TEXT("|")+P.CatalogVersion+TEXT("|Placement/v1|")+Tag).ToLower());
-  uint32 H = 2166136261u ^ uint32(P.Seed);
+  uint32 H = 2166136261u ^ uint32(P.Seed) ^ (uint32(P.PlacementAttempt)*0x9E3779B9u);
   for (int32 I=0; I<Bytes.Length(); ++I) { H ^= uint8(Bytes.Get()[I]); H *= 16777619u; }
   return H;
  }
@@ -45,7 +46,15 @@ bool BalloonPlacementPlanning::Resolve(const UBalloonLevelConfig& C, const TArra
   UObject* Asset=E.Row.Asset.TryLoad();
   R.BlueprintActor=Cast<UClass>(Asset)!=nullptr;
   if(auto* Mesh=Cast<UStaticMesh>(Asset))
+  {
+   R.LocalCollisionBounds=Mesh->GetBoundingBox();
+   if(const UBodySetup* Body=Mesh->GetBodySetup())
+   {
+    const FBox Simple=Body->AggGeom.CalcAABB(FTransform::Identity);
+    if(Simple.IsValid) R.LocalCollisionBounds+=Simple;
+   }
    if(R.Metadata.SizeMeters.IsNearlyZero()) R.Metadata.SizeMeters=Mesh->GetBoundingBox().GetSize()/100.;
+  }
   if(!Asset) { D.Add(FString::Printf(TEXT("Table %s row %s rule %s: asset unresolved"),*E.SourceTable,*E.RowName.ToString(),*E.Row.Rule.ToString())); Rows.Reset(); return false; }
   Rows.Add(R);
  }
@@ -310,6 +319,7 @@ bool BalloonPlacementPlanning::Build(const UBalloonLevelConfig& C, FBalloonLevel
    int32 Edge=INDEX_NONE; S=BalloonSplinePlanning::NearestDistance(P,V,Edge,true);
    Desc.SegmentId=BalloonSplinePlanning::SegmentAt(P,S); Desc.ClusterId=Flock?I:I/R.ClusterSize; Desc.BirdsPerFlock=R.ClusterSize;
    Desc.Asset=R.Asset; Desc.Transform=FTransform(Rotation,V,FVector(Scale)); Desc.Collision=R.Collision; Desc.InteriorEnemy=M.InteriorEnemy;
+   if(Res.LocalCollisionBounds.IsValid) Desc.CollisionBounds=Res.LocalCollisionBounds.TransformBy(Desc.Transform);
    Desc.Representation=Res.BlueprintActor?EBalloonPlacementRepresentation::BlueprintActor:(Group(Res)?EBalloonPlacementRepresentation::MeshActor:EBalloonPlacementRepresentation::HISM);
    Desc.CullEndCm=Group(Res)||Ring?0:(R.Rule==TEXT("wind_aligned") || Street?80000:M.CullEndCm);
    if(Desc.Representation==EBalloonPlacementRepresentation::HISM)

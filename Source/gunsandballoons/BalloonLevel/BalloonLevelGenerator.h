@@ -15,7 +15,9 @@ public:
 	ABalloonLevelGenerator();
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<UBalloonLevelConfig> LevelConfig;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<USplineComponent> Spline;
-	/** M3 succeeds at Ready (abstract geometry/catalog only), never Complete/playable. */
+ /** Selected balloon instance: active shape bounds and authored flight limits are inspected at generation. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<AActor> RoutePawn;
+	/** Ready requires M5 fixed-Z route proof; world realization remains M8. */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") bool GenerateLevel();
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") void ClearGeneratedLevel();
 	UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level") bool RegenerateLevel();
