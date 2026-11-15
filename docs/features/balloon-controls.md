@@ -1,52 +1,52 @@
-# Керування кулею
+# Balloon controls
 
-> **Статус:** In progress (крила-гальма — Done; зісковзування C++ — Done; pawn: хват C++ — Done; керування важелем перетягуванням — In progress, [план](../wing-lever-drag-plan.md)) · **Власник:** Сокін · **Оновлено:** 2026-11-14
+> **Status:** In progress (wing brakes: Done; slipping C++: Done; pawn grab C++: Done; lever control by dragging: In progress, [plan](../wing-lever-drag-plan.md)) · **Owner:** Sokin · **Updated:** 2026-11-14
 
-## Навіщо
-Політ має відчуватися як керування важким апаратом: розгін і гальмування з інерцією, маршрут планується наперед.
+## Why
+Flying should feel like piloting a heavy craft: speeding up and braking with inertia, the route planned ahead.
 
-## Як працює
-- Куля **завжди рухається вперед**; зупинитися повністю не можна.
-- **Швидкість** регулюється на панелі керування і залежить від стану [двигуна-пічки](engine-stove.md).
-- **Поворот/нахил:** гравець тисне важіль з потрібного боку корзини → з того боку висувається залізна панель, яка гальмує об повітря (як весло байдарки) → куля нахиляється і повертає в цей бік.
-- Усі зміни швидкості і напрямку — з **інерцією** (прискорення, а не миттєва зміна).
-- Важелі мають налаштовуваний масив станів (типово 4). Кути важеля й крила, вплив, тугість насічки і шанс зісковзування задаються для кожного стану.
-- **Керування важелем — перетягуванням, лише порожньою рукою** (спершу сховати зброю, див. [зброя](weapons.md)): приціл на ручку, затиснути ЛКМ і рухати мишею. Важіль іде за рукою з будь-якого ракурсу, погляд у цей час заморожено. Тапу-кроку немає.
-- **Насічка на кожному стані.** Ручка в ній зупиняється; щоб піти далі, треба рішуче «натягнути» мишею (повільне підповзання не пробиває). Крайні стани — упори.
-- **Не дотягнув до наступної насічки** і відпустив — важіль повертається до попередньої (останньої, де стояв).
-- **Зісковзування:** відпущений відкритий важіль може сам зірватися й одразу повністю закритися, навіть стоячи в насічці. Шанс залежить лише від стану (у «закрито» — 0), не від швидкості. Інші системи (вітер, влучання) можуть викликати зісковзування зі своїм шансом. Поки гравець тримає важіль, той не зісковзує.
-- Вплив плавно змінюється разом із фактичним кутом крила (крило доганяє важіль з інерцією) і стабільний, поки кут не змінюється. Сила повороту не залежить від швидкості. Обидва крила гасять повороти й перемножують гальмування, зберігаючи мінімальну швидкість. Запит швидкості панелі зберігається.
-- Корзина має **8 кутів (восьмикутна)**.
-- Колізія повторює модель примітивами: сфери оболонки, окремі стінки й підлога порожнистої корзини, блоки пічки та консолі. Поступальний рух перевіряє всі активні примітиви; суцільний кореневий `BalloonCollision` вимкнений. Поворот поки без перевірки колізій.
+## How it works
+- The balloon **always moves forward**; it can't stop completely.
+- **Speed** is set on the control panel and depends on the state of the [stove engine](engine-stove.md).
+- **Turning/tilt:** the player pushes the lever on the chosen side of the basket → an iron panel extends on that side and brakes against the air (like a kayak paddle) → the balloon tilts and turns that way.
+- All changes of speed and direction have **inertia** (acceleration, not an instant change).
+- Levers have a configurable array of states (4 by default). The lever and wing angles, effect, detent stiffness and slip chance are set per state.
+- **The lever is controlled by dragging, with an empty hand only** (put the weapon away first, see [weapons](weapons.md)): aim at the handle, hold LMB and move the mouse. The lever follows the hand from any angle; the view is frozen meanwhile. There is no tap-to-step.
+- **A detent at every state.** The handle stops in it; to go further you have to "pull" decisively with the mouse (slowly creeping doesn't break through). The end states are hard stops.
+- **Didn't reach the next detent** and let go: the lever returns to the previous one (the last one it rested in).
+- **Slipping:** a released open lever can slip on its own and close completely at once, even while resting in a detent. The chance depends only on the state (0 in "closed"), not on speed. Other systems (wind, hits) can trigger a slip with their own chance. While the player holds the lever, it doesn't slip.
+- The effect changes smoothly with the wing's actual angle (the wing follows the lever with inertia) and is stable while the angle doesn't change. Turning force doesn't depend on speed. Both wings cancel turning and multiply braking, keeping the minimum speed. The panel's speed request is kept.
+- The basket has **8 corners (octagonal)**.
+- Collision follows the model with primitives: envelope spheres, separate walls and floor of the hollow basket, blocks for the stove and the console. Translation checks all active primitives; the solid root `BalloonCollision` is disabled. Rotation is not collision-checked yet.
 
-## Взаємодія (дієгетика)
-| Об'єкт | Дія | Результат |
+## Interaction (diegetic)
+| Object | Action | Result |
 | --- | --- | --- |
-| Панель керування перед гравцем | Змінити швидкість | Плавна зміна швидкості |
-| Важіль на боці корзини | Порожньою рукою затиснути ЛКМ і тягнути | Ручка йде від насічки до насічки, висувається гальмівна панель, куля повертає й гальмує |
+| Control panel in front of the player | Change speed | Smooth change of speed |
+| Lever on the side of the basket | Hold LMB with an empty hand and drag | The handle moves from detent to detent, the brake panel extends, the balloon turns and brakes |
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Мінімальна швидкість | TBD | Коли паливо = 0 |
-| Масштаб перетягування / дистанція обриву | TBD: 0.5 см/од. миші / InteractRange × 1.25 | Прототип у pawn; `GrabDragScale`, `GrabBreakDistance` (0 = автоматично від InteractRange), потребує тюнінгу |
-| Швидкість висування панелі | 60 °/с | Прототип, потребує тюнінгу; 0→90° за 1.5 с |
-| Стани / кути крила | 4 / 0…90° | Масив редагується; генератор рівномірний |
-| Кути важеля від rest / швидкість | −20…+70° / 400 °/с | Прототип, потребує тюнінгу |
-| Поворот / множник швидкості крила | 0…1 / 1…0.8 | Прототип; обидва крила дають ×0.64, не нижче MinSpeed |
-| Тугість насічки | 12° натягу | Прототип, для кожного стану окремо |
-| Шанс зісковзування | 0…0.05 за перевірку, раз на 1 с | Прототип; у «закрито» = 0 |
-| Швидкість зісковзування ручки | 600 °/с | Прототип; повністю в стан 0, без зупинок на насічках; крило закривається з власною швидкістю |
-| Зісковзування в руці / seed | false / 0 | Прототип; якщо дозволено — спершу завершується хват; 0 = випадковий seed, інші значення відтворювані |
-| Швидкість повороту | TBD | |
-| Інерція (розгін/гальмування) | TBD | |
-| Сфери оболонки: центр Z / радіус | 430/180, 550/290, 680/340, 810/300, 940/200, 1040/95 см | Наближення форми моделі в просторі Mesh; потребує візуального тюнінгу. |
-| Корзина | 8 box-стінок, 4 box-секції підлоги | Порожній внутрішній простір. Розміри задає `BalloonCollisionSetupLibrary`. |
+| Minimum speed | TBD | When fuel = 0 |
+| Drag scale / break-off distance | TBD: 0.5 cm/mouse unit / InteractRange × 1.25 | Prototype in the pawn; `GrabDragScale`, `GrabBreakDistance` (0 = automatic from InteractRange), needs tuning |
+| Panel extension speed | 60 °/s | Prototype, needs tuning; 0→90° in 1.5 s |
+| States / wing angles | 4 / 0…90° | The array is editable; the generator is uniform |
+| Lever angles from rest / speed | −20…+70° / 400 °/s | Prototype, needs tuning |
+| Turn / wing speed multiplier | 0…1 / 1…0.8 | Prototype; both wings give ×0.64, not below MinSpeed |
+| Detent stiffness | 12° of pull | Prototype, per state |
+| Slip chance | 0…0.05 per check, once per 1 s | Prototype; 0 in "closed" |
+| Handle slip speed | 600 °/s | Prototype; all the way to state 0, no stops at detents; the wing closes at its own speed |
+| Slipping while held / seed | false / 0 | Prototype; if allowed, the grab is released first; 0 = random seed, other values reproducible |
+| Turn speed | TBD | |
+| Inertia (acceleration/braking) | TBD | |
+| Envelope spheres: centre Z / radius | 430/180, 550/290, 680/340, 810/300, 940/200, 1040/95 cm | Approximates the model's shape in Mesh space; needs visual tuning. |
+| Basket | 8 box walls, 4 box floor sections | Empty interior. Sizes are set by `BalloonCollisionSetupLibrary`. |
 
-## Залежності
-[Двигун-пічка](engine-stove.md), [Навігаційна панель](ui-menus.md), [Біоми](biomes.md).
+## Dependencies
+[Stove engine](engine-stove.md), [Navigation panel](ui-menus.md), [Biomes](biomes.md).
 
-## Відкриті питання
-- [ ] Що означають «8 кутів»: лише форма корзини чи 8 точок взаємодії (важелів)?
-- [ ] Чи є керування висотою (вгору/вниз)?
-- [ ] Чи впливає вага (вантаж, ресурси) на інерцію? У нотатках згадано «Вага».
+## Open questions
+- [ ] What do "8 corners" mean: just the basket's shape, or 8 interaction points (levers)?
+- [ ] Is there altitude control (up/down)?
+- [ ] Does weight (cargo, resources) affect inertia? The notes mention "Weight".

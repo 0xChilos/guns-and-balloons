@@ -1,25 +1,25 @@
-# <Назва фічі>
+# <Feature name>
 
-> **Статус:** Draft | Agreed | In progress | Done · **Власник:** <ім'я> · **Оновлено:** YYYY-MM-DD
+> **Status:** Draft | Agreed | In progress | Done · **Owner:** <name> · **Updated:** YYYY-MM-DD
 
-<!-- Обсяг: максимум одна сторінка (~60 рядків). Якщо секція порожня — видали її. -->
+<!-- Length: one page at most (~60 lines). Delete any section that is empty. -->
 
-## Навіщо
-Одне-два речення: яку проблему вирішує фіча і що гравець має відчути.
+## Why
+One or two sentences: what problem the feature solves and what the player should feel.
 
-## Як працює
-Правила механіки короткими пунктами. Тільки факти, без історії обговорень.
+## How it works
+The mechanic's rules as short bullets. Facts only, no history of the discussion.
 
-## Взаємодія (дієгетика)
-Що гравець фізично робить у світі гри: який об'єкт, яка дія, який фідбек.
+## Interaction (diegetic)
+What the player physically does in the game world: which object, which action, what feedback.
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
 | ... | TBD | ... |
 
-## Залежності
-Посилання на інші сторінки: `[Двигун-пічка](engine-stove.md)`.
+## Dependencies
+Links to other pages: `[Stove engine](engine-stove.md)`.
 
-## Відкриті питання
-- [ ] Питання, яке ще треба вирішити (хто вирішує).
+## Open questions
+- [ ] A question that still needs deciding (who decides).

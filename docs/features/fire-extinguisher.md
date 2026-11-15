@@ -1,40 +1,40 @@
-# Вогнегасник
+# Fire extinguisher
 
-> **Статус:** In progress · **Власник:** Сокін · **Оновлено:** 2026-11-14
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-14
 
-## Навіщо
-Утиліта в руці: гасити пожежі в корзині й на кулі. Запас обмежений і видно на самому вогнегаснику — кожна секунда піни важить.
+## Why
+A hand-held utility for putting out fires in the basket and on the balloon. The supply is limited and shown on the extinguisher itself, so every second of foam counts.
 
-## Як працює
-- Вогнегасник — спорядження, що лежить на своєму місці, як і [зброя](weapons.md): ЛКМ по ньому порожньою рукою — взяти, ЛКМ по його порожньому місцю — покласти назад. У руці він там само, де зброя; виймається й ховається власними анімаціями (Equip / Unequip).
-- **Запас видно на механічному лічильнику** на балоні: три барабани з цифрами 000–100, крутяться як одометр. Вогнегасник видається **повним (100)**; запас зберігається, коли його ховаєш.
-- **ЛКМ затиснута** — вогнегасник працює: важіль натиснуто (Spray_Start → Spray_Loop, поки тримаєш), з сопла б'є піна. Відпустив — важіль повертається (Spray_Stop).
-- Поки працює, витрачає **5 одиниць за секунду** (безперервно; повного вистачає на 20 с). Лічильник відраховує по одиниці.
-- **Порожній (0):** закінчився під час роботи або натиснув ЛКМ на 0 — анімація Empty (суха спроба), піни немає.
-- **Піна** (лише поки запас > 0) — велика, як зі справжнього вогнегасника: густий білий струмінь, що одразу розбухає в клуби завширшки ~45 см, довкола нього — хмара, що розходиться й тане за ~1 с. Струмінь падає дугою під вагою і **налипає, де впав** (на корзину — їде разом із кулею), лежить купами ~5 с і зникає.
-- **Вигляд піни** — за [арт-стилем](../art-style.md): кожен клуб — грудка бульбашок (низька роздільність, nearest), чотири пласкі тони (тінь між бульбашками, обідок, бульбашка, піксель-відблиск з одного боку), прозорість — Bayer-дизеринг (згасаючи, клуб розсипається на бульбашки), рух ~20 кадрів/с.
+## How it works
+- The extinguisher is gear that sits in its own place, like the [weapons](weapons.md): LMB on it with an empty hand takes it; LMB on its empty place puts it back. In the hand it sits where the weapons do; it is drawn and put away with its own animations (Equip / Unequip).
+- **The supply is shown on a mechanical counter** on the cylinder: three digit drums 000–100 that roll like an odometer. The extinguisher is issued **full (100)**; the supply is kept when you put it away.
+- **LMB held:** the extinguisher works: the lever is pressed (Spray_Start → Spray_Loop while held) and foam shoots from the nozzle. On release the lever returns (Spray_Stop).
+- While working it uses **5 units per second** (continuously; a full one lasts 20 s). The counter counts down one unit at a time.
+- **Empty (0):** if it runs out while spraying, or LMB is pressed at 0, the Empty animation plays (a dry attempt) and there is no foam.
+- **Foam** (only while the supply > 0) is big, like from a real extinguisher: a dense white jet that immediately swells into ~45 cm wide puffs, surrounded by a cloud that spreads and melts away in ~1 s. The jet falls in an arc under its weight and **sticks where it lands** (on the basket it rides along with the balloon), lies in heaps for ~5 s and disappears.
+- **Foam look**, per the [art style](../art-style.md): each puff is a clump of bubbles (low resolution, nearest), four flat tones (shadow between the bubbles, rim, bubble, a pixel highlight on one side), transparency via Bayer dithering (as it fades, a puff breaks into bubbles), motion at ~20 fps.
 
-## Взаємодія (дієгетика)
-| Дія | Результат |
+## Interaction (diegetic)
+| Action | Result |
 | --- | --- |
-| ЛКМ по вогнегаснику (порожня рука) | Взяти вогнегасник у руку; лічильник показує запас |
-| Затиснути ЛКМ (запас > 0) | Піна з сопла, лічильник іде вниз |
-| ЛКМ на порожньому | Суха спроба (анімація Empty) |
+| LMB on the extinguisher (empty hand) | Take the extinguisher; the counter shows the supply |
+| Hold LMB (supply > 0) | Foam from the nozzle, the counter goes down |
+| LMB when empty | Dry attempt (Empty animation) |
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Запас на старті | 100 | `InitialAmount` |
-| Витрата | 5 / с | `UsePerSecond` |
-| Струмінь піни | TBD | `FoamSpray`: 90 клубів/с, 9–12 м/с, конус 7°, клуб 8→44 см, гравітація ×1, лежить ~5 с (заглушки) |
-| Хмара довкола струменя | TBD | `FoamMist`: 25 клубів/с, 4.5–8 м/с, конус 18°, клуб 16→90 см, живе ~1 с (заглушки) |
-| Вигляд піни | TBD | `AExtinguisherFoam`: бульбашки (`BubblesPerPuff` 10, тони `GapShade`…`HighlightShade`), текстура 32 px, до 450 клубів, 20 Гц (заглушки) |
-| Поза в руці | TBD | `ViewOffset` (34, 16, −3), поворот −4° (заглушка) |
+| Starting supply | 100 | `InitialAmount` |
+| Use rate | 5 / s | `UsePerSecond` |
+| Foam jet | TBD | `FoamSpray`: 90 puffs/s, 9–12 m/s, 7° cone, puff 8→44 cm, gravity ×1, lies ~5 s (placeholders) |
+| Cloud around the jet | TBD | `FoamMist`: 25 puffs/s, 4.5–8 m/s, 18° cone, puff 16→90 cm, lives ~1 s (placeholders) |
+| Foam look | TBD | `AExtinguisherFoam`: bubbles (`BubblesPerPuff` 10, tones `GapShade`…`HighlightShade`), 32 px texture, up to 450 puffs, 20 Hz (placeholders) |
+| Pose in the hand | TBD | `ViewOffset` (34, 16, −3), rotation −4° (placeholder) |
 
-## Залежності
-[Зброя](weapons.md) (перемикання, спільна база), [Двигун-пічка](engine-stove.md) і [біоми](biomes.md) (що горить), [Безпечна зона](safe-zone.md) (поповнення).
+## Dependencies
+[Weapons](weapons.md) (switching, shared base), [Stove engine](engine-stove.md) and [biomes](biomes.md) (what burns), [Safe zone](safe-zone.md) (refills).
 
-## Відкриті питання
-- [ ] Що саме гасить піна (пожежі в корзині, пічка, оболонка)? Поки піна лише візуальна, гасіння немає.
-- [ ] Де поповнювати запас: безпечна зона, ящик у корзині, ресурс з хука?
-- [ ] Чи відкидає струмінь кулю / гравця (віддача)?
+## Open questions
+- [ ] What exactly does the foam put out (fires in the basket, the stove, the envelope)? For now the foam is visual only; nothing is extinguished.
+- [ ] Where is the supply refilled: the safe zone, a crate in the basket, a resource from the hook?
+- [ ] Does the jet push the balloon / the player (recoil)?

@@ -12,6 +12,6 @@
 | `UI` | Widgets, menus, HUDs, UI graphics |
 | `VFX` | Niagara effects, particles, visual-effect materials |
 
-## Документація
+## Documentation
 
-Дизайн гри — у [docs/](docs/README.md). Інструкції для AI-агентів — [AGENTS.md](AGENTS.md).
+Game design is in [docs/](docs/README.md). Instructions for AI agents are in [AGENTS.md](AGENTS.md).

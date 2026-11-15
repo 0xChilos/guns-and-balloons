@@ -1,35 +1,35 @@
-# Приціл
+# Crosshair
 
-> **Статус:** In progress · **Власник:** Сокін · **Оновлено:** 2026-11-14
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-14
 
-## Навіщо
-Простий динамічний приціл: показує, куди піде постріл і наскільки він зараз точний, і відчувається «живим» — реагує на кулю, хитання, віддачу, зміну зброї й повороти камери.
+## Why
+A simple dynamic crosshair: it shows where the shot will go and how accurate it is right now, and feels "alive": it reacts to the balloon, sway, recoil, weapon switches and camera turns.
 
-## Як працює
-- Вигляд — в [арт-стилі](../art-style.md): великі low-res пікселі (2× апскейл), темний контур, квантизація кольору з Bayer-дизерингом, дизерингові напівпрозорості, зерно. Кістяно-білий колір.
-- Форма: чотири риски й крапка в центрі.
-- **Крапка завжди там, куди летить постріл** (віддача, хитання й куля повертають сам погляд).
-- Риски розходяться (зазор):
-  - на розкид зброї у справжньому масштабі (револьвер ширше, гвинтівка майже зімкнута, дробовик — найширше з віялом дробу);
-  - від віддачі кожного пострілу;
-  - від повороту камери (мишка, поворот кулі, хитання);
-  - від швидкості й ривків кулі;
-  - при зміні зброї: розходяться й зникають, поки зброя опускається, і сходяться з новою.
-- **Інерція:** риски висять на пружині. При повороті камери відстають, коли поворот зупиняється — проскакують далі й осідають. Прискорення кулі (розгін, гальмування, підйом, спуск) відкидає їх у протилежний бік.
-- Порожня рука — лише крапка; над тим, з чим можна взаємодіяти, крапка більшає.
-- Зброя без набою (або хук нижче 100) — риски напівпрозорі; під час перезарядки — теж.
+## How it works
+- Look: in the [art style](../art-style.md): big low-res pixels (2× upscale), a dark outline, colour quantisation with Bayer dithering, dithered translucency, grain. Bone-white colour.
+- Shape: four ticks and a dot in the centre.
+- **The dot is always where the shot goes** (recoil, sway and the balloon turn the view itself).
+- The ticks spread apart (the gap):
+  - by the weapon's spread at true scale (revolver wider, rifle almost closed, shotgun widest with the pellet fan);
+  - from the recoil of each shot;
+  - from camera turns (mouse, balloon turning, sway);
+  - from the balloon's speed and jolts;
+  - on a weapon switch: they spread and fade while the weapon is lowered, and close in with the new one.
+- **Inertia:** the ticks hang on a spring. When the camera turns they lag behind; when the turn stops they overshoot and settle. The balloon's acceleration (speeding up, braking, climbing, descending) throws them the opposite way.
+- Empty hand: just the dot; over something you can interact with, the dot gets bigger.
+- A weapon with no round loaded (or the hook below 100): the ticks are translucent; also while reloading.
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Розмір пікселя прицілу | висота екрана / 540 | `VirtualHeight`, 2× апскейл з арт-стилю |
-| Кольори, довжина/товщина рисок, зерно | кістяно-білий / темно-оливковий контур, 5 / 1, 6 % | `MI_Crosshair` |
-| Розкриття від віддачі, поворотів, кулі, зміни зброї | TBD | `ACrosshairHUD`, стартові значення в [decisions](../decisions.md) |
-| Інерція: відставання, частота пружини, загасання, максимум | TBD | `TurnInertia` 0.05 пікс/(°/с), `InertiaFrequency` 1.8 Гц, `InertiaDamping` 0.35, `MaxInertia` 16 пікс |
+| Crosshair pixel size | screen height / 540 | `VirtualHeight`, 2× upscale from the art style |
+| Colours, tick length/thickness, grain | bone white / dark olive outline, 5 / 1, 6 % | `MI_Crosshair` |
+| Spread from recoil, turns, balloon, weapon switch | TBD | `ACrosshairHUD`, starting values in [decisions](../decisions.md) |
+| Inertia: lag, spring frequency, damping, maximum | TBD | `TurnInertia` 0.05 px/(°/s), `InertiaFrequency` 1.8 Hz, `InertiaDamping` 0.35, `MaxInertia` 16 px |
 
-## Залежності
-[Зброя](weapons.md), [Граплінг-хук](grappling-hook.md), [Керування кулею](balloon-controls.md), [Арт-стиль](../art-style.md).
+## Dependencies
+[Weapons](weapons.md), [Grappling hook](grappling-hook.md), [Balloon controls](balloon-controls.md), [Art style](../art-style.md).
 
-## Відкриті питання
-- [ ] Чи має хитатися з інерцією і крапка (тоді вона не показує точно, куди піде постріл)? Зараз — лише риски (`bInertiaMovesDot`).
-- [ ] Окрема форма прицілу для хука / дробовика?
+## Open questions
+- [ ] Should the dot also sway with inertia (then it no longer shows exactly where the shot goes)? Right now only the ticks do (`bInertiaMovesDot`).
+- [ ] A separate crosshair shape for the hook / shotgun?

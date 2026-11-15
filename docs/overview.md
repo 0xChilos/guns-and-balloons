@@ -1,45 +1,45 @@
-# Огляд гри
+# Game overview
 
-> **Статус:** Draft · **Оновлено:** 2026-11-13
+> **Status:** Draft · **Updated:** 2026-11-13
 
-## Концепт
-Стімпанк-роуглайт від першої особи. Гравець керує повітряною кулею, тікаючи від непереможного дирижабля через ланцюг рівнів-біомів. Усе керування — дієгетичне: важелі, пічка, зброя лежать у корзині кулі, HUD мінімальний або відсутній.
+## Concept
+A first-person steampunk roguelite. The player flies a hot-air balloon, fleeing an invincible airship through a chain of biome levels. All controls are diegetic: levers, the stove and the weapons are in the balloon's basket; the HUD is minimal or absent.
 
-Прототип у рамках геймджему, механіки робимо так, як вони працюватимуть у майбутній повній грі.
+A game-jam prototype; mechanics are built the way they will work in a future full game.
 
 | | |
 | --- | --- |
-| **Жанр** | Roguelike / roguelite |
-| **Сетинг** | Стімпанк |
-| **Камера** | Від першої особи, всередині корзини |
-| **Рушій** | Unreal Engine (C++ + Blueprints) |
-| **Стиль** | Low-poly PS1 ([art-style.md](art-style.md)) |
+| **Genre** | Roguelike / roguelite |
+| **Setting** | Steampunk |
+| **Camera** | First person, inside the basket |
+| **Engine** | Unreal Engine (C++ + Blueprints) |
+| **Style** | Low-poly PS1 ([art-style.md](art-style.md)) |
 
-## Стовпи дизайну
-1. **Дієгетика.** Кожна дія — фізична взаємодія з об'єктом у корзині. Інформація — з приладів, а не з HUD.
-2. **Інерція і вага.** Куля розганяється і гальмує повільно; маршрут треба планувати заздалегідь.
-3. **Незручна зброя.** Мало набоїв, ручна перезарядка, падіння кулі — кожен постріл важить.
-4. **Постійна втеча.** Гравець завжди рухається вперед, зупинка = смерть.
+## Design pillars
+1. **Diegesis.** Every action is a physical interaction with an object in the basket. Information comes from gauges, not a HUD.
+2. **Inertia and weight.** The balloon speeds up and slows down slowly; the route has to be planned ahead.
+3. **Awkward weapons.** Few rounds, manual reloading, bullet drop: every shot matters.
+4. **Constant escape.** The player always moves forward; stopping = death.
 
-## Ігровий цикл
+## Game loop
 ```
-Рівень (політ, ухилення, бій, збір ресурсів)
-   → Безпечна зона (дирижабль тягне кулю: ремонт, б/к, апгрейди, магазин)
-      → Наступний рівень (інший біом) → ...
+Level (flying, dodging, fighting, gathering resources)
+   → Safe zone (the airship tows the balloon: repairs, ammo, upgrades, shop)
+      → Next level (another biome) → ...
 ```
-- **Хвилинний цикл:** керувати швидкістю/нахилом → підкидати паливо → відстрілюватись → хапати ресурси хуком.
-- **Цикл рівня:** пролетіти рівень, вижити, зібрати ресурси.
-- **Мета-цикл:** апгрейди кулі і спорядження між рівнями; прогрес між забігами — див. `Legacy` у [ui-menus.md](features/ui-menus.md).
+- **Minute-to-minute loop:** manage speed/tilt → feed the stove → shoot back → grab resources with the hook.
+- **Level loop:** fly through the level, survive, gather resources.
+- **Meta loop:** upgrades for the balloon and gear between levels; progress between runs: see `Legacy` in [ui-menus.md](features/ui-menus.md).
 
-## Фічі
-Див. зміст у [README.md](README.md).
+## Features
+See the contents in [README.md](README.md).
 
-## Команда
-| Хто | Зона відповідальності |
+## Team
+| Who | Area |
 | --- | --- |
-| Сокін | Базові 3C (камера, керування, взаємодія), куля, зброя |
-| Вано | AI (дирижабль, вороги) |
-| Ростік | Двигун-пічка, документація, меню, арт |
+| Sokin | Core 3C (camera, controls, interaction), balloon, weapons |
+| Vano | AI (airship, enemies) |
+| Rostik | Stove engine, documentation, menus, art |
 
-## Поза скоупом (поки)
-Мультиплеєр, сюжет, озвучка.
+## Out of scope (for now)
+Multiplayer, story, voice-over.

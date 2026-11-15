@@ -1,38 +1,38 @@
-# Рівні та біоми
+# Levels and biomes
 
-> **Статус:** Draft · **Власник:** TBD · **Оновлено:** 2026-11-15
+> **Status:** Draft · **Owner:** TBD · **Updated:** 2026-11-15
 
-## Навіщо
-Різноманіття забігів: кожен біом змушує по-іншому будувати маршрут і пріоритети.
+## Why
+Variety between runs: each biome forces a different route and different priorities.
 
-## Як працює
-- Рівень = проліт через один біом. Після нього — [безпечна зона](safe-zone.md).
-- Кожен біом має свої перешкоди і небезпеки.
-- На всіх рівнях є ресурси для [граплінг-хука](grappling-hook.md).
+## How it works
+- A level = a flight through one biome. After it comes the [safe zone](safe-zone.md).
+- Each biome has its own obstacles and hazards.
+- Every level has resources for the [grappling hook](grappling-hook.md).
 
-## Біоми
-| Біом | Перешкоди | Особливі небезпеки |
+## Biomes
+| Biome | Obstacles | Special hazards |
 | --- | --- | --- |
-| Скелястий | Високі й широкі скелі — облітати завчасно | — |
-| Джунглі | Високі тонкі дерева, щільно розташовані | — |
-| Місто | Високі будинки | Туман; перешкоди на радарі (глушилки) + мініігра для відновлення радара |
-| Пустеля | Високі вежі з охоронцями, що стріляють | Піщані бурі (періодичні); маяки: шукають кулю жовтогарячим променем; якщо світло впало на кулю — промінь червоніє, тримається на кулі, доки лампу не розбито, і викликає додаткових ворогів (уникати світла або розбити лампу) |
-| Поле | Немає природних перешкод | Птахи — уникати або збивати |
-| Зимовий | Сніжні пагорби | Випадкові вітри; двигун треба постійно підігрівати |
-| Лавовий | — | Раптові стовпи лави вгору; висока температура |
+| Rocky | Tall, wide rocks: fly around them early | — |
+| Jungle | Tall thin trees, densely packed | — |
+| City | Tall buildings | Fog; radar interference (jammers) + a minigame to restore the radar |
+| Desert | Tall towers with guards who shoot | Sandstorms (periodic); beacons: search for the balloon with an orange beam; if the light falls on the balloon, the beam turns red, stays on the balloon until the lamp is broken, and calls extra enemies (avoid the light or break the lamp) |
+| Field | No natural obstacles | Birds: avoid or shoot them |
+| Winter | Snowy hills | Random winds; the engine has to be kept warm all the time |
+| Lava | — | Sudden lava pillars shooting up; high temperature |
 
-**ППО (усі біоми).** Літаюча міні-куля з туреллю й ліхтарем під гондолою. Висить ближче до країв карти на висоті гравця (підлаштовується під неї). Поза радіусом дії світить жовтогарячим прожектором, що кружляє небом. Коли куля в радіусі й на лінії видимості — прожектор червоніє, турель наводиться (з упередженням) і стріляє чергами. Покидає ціль за радіусом. Радіус невеликий (~50 м): ППО вздовж краю карти позначають межу, за яку гравцю не можна залітати, а не обстрілюють його постійно; довжина пошукового променя = радіус. Незнищенна — від неї лише ухилятися. Радіус, черги й урон — TBD; розставляти так, щоб коридор польоту між ППО був вільним.
+**AA gun (all biomes).** A small flying balloon with a turret and a searchlight under its gondola. It hangs near the map edges at the player's altitude (follows it). Outside its range it shines an orange searchlight that circles around. When the balloon is within range and in line of sight, the light turns red, the turret aims (with lead) and fires bursts. It lets go once the balloon is out of range. The range is small (~50 m): AA guns along the map edge mark a line the player must not cross; they don't shoot at the player all the time. The searching beam is as long as the range. Indestructible: the player can only avoid it. Range, bursts and damage are TBD; place them so the flight corridor between AA guns stays clear.
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Довжина рівня (час прольоту) | TBD | |
-| Кількість рівнів за забіг | TBD | |
-| Порядок біомів | TBD | Випадковий / фіксований |
+| Level length (flight time) | TBD | |
+| Levels per run | TBD | |
+| Biome order | TBD | Random / fixed |
 
-## Залежності
-[Керування кулею](balloon-controls.md), [Двигун-пічка](engine-stove.md) (зимовий, лавовий), [Навігаційна панель](ui-menus.md) (радар у місті).
+## Dependencies
+[Balloon controls](balloon-controls.md), [Stove engine](engine-stove.md) (winter, lava), [Navigation panel](ui-menus.md) (radar in the city).
 
-## Відкриті питання
-- [ ] Як висока температура лавового біому впливає на двигун (швидше перегрівається)?
-- [ ] Які біоми входять у джем-версію?
+## Open questions
+- [ ] How does the lava biome's high temperature affect the engine (overheats faster)?
+- [ ] Which biomes are in the jam version?
