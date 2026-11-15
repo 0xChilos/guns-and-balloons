@@ -10,6 +10,7 @@
 #include "BalloonBorderThreat.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
@@ -24,11 +25,17 @@
 
 ABalloonLevelGenerator::ABalloonLevelGenerator()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
  Realizer = CreateDefaultSubobject<UBalloonLevelRealizer>(TEXT("Realizer"));
  EventManager = CreateDefaultSubobject<UBalloonLevelEventManager>(TEXT("EventManager"));
 	Spline = CreateDefaultSubobject<USplineComponent>(TEXT("ProgressionSpline"));
 	SetRootComponent(Spline);
+ CompletionZone = CreateDefaultSubobject<UBoxComponent>(TEXT("CompletionZone"));
+ CompletionZone->SetupAttachment(Spline);
+ CompletionZone->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+ CompletionZone->SetGenerateOverlapEvents(false);
+ CompletionZone->SetBoxExtent(FVector::ZeroVector);
+ CompletionZone->ShapeColor = FColor::Green;
 	Spline->ClearSplinePoints();
  const auto* Defaults = GetDefault<ABalloonEnvironmentPresetController>();
  Day = Defaults->Day; Night = Defaults->Night; BiomeFog = Defaults->BiomeFog;
@@ -64,6 +71,22 @@ T* ControllerActor(ABalloonLevelGenerator& Controller, T* Assigned, TArray<TObje
  }
  return Result;
 }
+}
+
+void ABalloonLevelGenerator::Tick(float DeltaSeconds)
+{
+ Super::Tick(DeltaSeconds);
+ if (!GetWorld()->IsGameWorld() || Status != EBalloonLevelGenerationStatus::Ready || LevelCompleted || !IsValid(RoutePawn)) return;
+ const FVector Local = CompletionZone->GetComponentTransform().InverseTransformPosition(RoutePawn->GetActorLocation());
+ if (FBox(-CompletionZone->GetUnscaledBoxExtent(), CompletionZone->GetUnscaledBoxExtent()).IsInsideOrOn(Local)) CompleteLevel();
+}
+
+void ABalloonLevelGenerator::CompleteLevel()
+{
+ if (Status != EBalloonLevelGenerationStatus::Ready || LevelCompleted) return;
+ LevelCompleted = true;
+ EventManager->PauseEventTimeline(true);
+ OnLevelCompleted.Broadcast();
 }
 
 bool ABalloonLevelGenerator::ConfigureEnvironment()
@@ -132,6 +155,8 @@ void ABalloonLevelGenerator::BeginPlay()
 
 void ABalloonLevelGenerator::ClearGeneratedLevel()
 {
+ LevelCompleted = false;
+ CompletionZone->SetBoxExtent(FVector::ZeroVector);
  Realizer->Clear();
  EventManager->ResetEventTimeline();
  BorderProxies.Reset();
@@ -158,6 +183,11 @@ bool ABalloonLevelGenerator::GenerateLevel()
  for(auto& Ref : Realizer->Actors) if(Ref.IsValid()) { Collision.Emplace(Ref,Ref->GetActorEnableCollision()); Ref->SetActorEnableCollision(false); }
  if(BuildAndRealizeLevel())
  {
+  LevelCompleted = false;
+  CompletionZone->SetWorldLocationAndRotation(Plan.Finish.GetLocation(), Plan.Finish.GetRotation());
+  CompletionZone->SetWorldScale3D(FVector::OneVector);
+  CompletionZone->SetBoxExtent(FVector(FMath::Max(1.f, CompletionZoneHalfDepthMeters) * 100.f,
+   GetWidthAtDistanceCm(Plan.LengthCm) * .5f, FMath::Max(1000., Plan.BalloonHalfHeightCm)));
   EventManager->ResetEventTimeline();
   BorderProxies.Reset();
   for (const auto& Actor : Realizer->Actors)
