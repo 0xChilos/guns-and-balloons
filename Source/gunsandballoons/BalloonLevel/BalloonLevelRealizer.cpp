@@ -4,6 +4,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "HAL/PlatformTime.h"
+#include "BalloonBorderThreat.h"
 
 namespace
 {
@@ -17,7 +18,7 @@ void Remove(TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& Group
 void UBalloonLevelRealizer::Clear() { Remove(Groups,Actors); }
 void UBalloonLevelRealizer::EndPlay(const EEndPlayReason::Type Reason) { Clear(); Super::EndPlay(Reason); }
 void UBalloonLevelRealizer::OnComponentDestroyed(bool Hierarchy) { Clear(); Super::OnComponentDestroyed(Hierarchy); }
-bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString>& Diagnostics)
+bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString>& Diagnostics,UClass* BorderActorClass)
 {
  check(IsInGameThread());
  const double Start=FPlatformTime::Seconds();
@@ -73,6 +74,40 @@ bool UBalloonLevelRealizer::Realize(const FBalloonLevelPlan& Plan,TArray<FString
     HasCollision |= P->IsQueryCollisionEnabled();
    }
    if(D.Collision && !HasCollision) return Fail(TEXT("M8: gameplay Actor requires authored query collision"));
+  }
+ }
+ // Border descriptors use the same staged ownership and rollback as other generated actors.
+ if (BorderActorClass && (!BorderActorClass->IsChildOf(AActor::StaticClass()) || BorderActorClass->HasAnyClassFlags(CLASS_Abstract)))
+  return Fail(TEXT("Borders: selected threat class must be a concrete Actor"));
+ for (const auto& Border : Plan.Borders)
+ {
+  const FTransform Transform(FQuat::Identity, Border.Center);
+  auto* Proxy = GetWorld()->SpawnActorDeferred<ABalloonBorderThreat>(ABalloonBorderThreat::StaticClass(), Transform,
+      GetOwner(), nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+  if (!Proxy) return Fail(TEXT("Borders: influence proxy spawn failed"));
+  NewActors.Add(Proxy);
+  Proxy->SetFlags(RF_Transient | RF_DuplicateTransient);
+  Proxy->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
+  if (!Proxy->InitializeInfluence(Border)) return Fail(TEXT("Borders: invalid influence descriptor"));
+  Proxy->FinishSpawning(Transform);
+  if (!IsValid(Proxy)) return Fail(TEXT("Borders: proxy destroyed during construction"));
+  Proxy->AttachToActor(GetOwner(), FAttachmentTransformRules::KeepWorldTransform);
+  if (BorderActorClass)
+  {
+   auto* Threat = GetWorld()->SpawnActorDeferred<AActor>(BorderActorClass, Transform, GetOwner(), nullptr,
+       ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+   if (!Threat) return Fail(TEXT("Borders: rocket balloon spawn failed"));
+   NewActors.Add(Threat);
+   Threat->SetFlags(RF_Transient | RF_DuplicateTransient);
+   Threat->Tags.AddUnique(TEXT("BalloonLevel.Generated"));
+   // Set before construction/BeginPlay so no frame uses the Blueprint's wider default range.
+   if (!Proxy->BindThreatActor(Threat)) return Fail(TEXT("Borders: rocket class requires floating-point AggroRangeM and DriftRangeM"));
+   Threat->FinishSpawning(Transform);
+   if (!IsValid(Threat) || !Proxy->BindThreatActor(Threat)) return Fail(TEXT("Borders: rocket balloon initialization failed"));
+   Threat->AttachToActor(Proxy, FAttachmentTransformRules::KeepWorldTransform);
+   // The certified influence supplies collision. Decorative mesh bounds must not add unplanned blockers.
+   Threat->SetActorEnableCollision(false);
+   if (Border.Policy != EBalloonBorderInfluencePolicy::Damaging) Threat->SetActorTickEnabled(false);
   }
  }
  Clear(); Groups=MoveTemp(NewGroups); Actors=MoveTemp(NewActors);

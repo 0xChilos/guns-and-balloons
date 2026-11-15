@@ -1,5 +1,46 @@
 # Level generation preview
 
+## Curved route and generated borders (2026-11-15)
+
+`LevelGeneration_Test` generates eight rocket balloons on both edges of its curved
+corridor with every generation, including BeginPlay. `RandomizeSeed` is enabled:
+each generation picks new geometry and border positions. Disable it to reproduce
+the config's seed. The fixtures use a 500 m route, 600 m corridor, 25 degree heading
+limit and 100 m minimum turn radius. Flight height is 100 m to clear rolling ground.
+These are preview tuning values, except the approved 600 m corridor width.
+
+Configure the fixture and migrate away from the old saved markers with:
+
+```text
+py G:/UE/gunsandballoons/Scripts/Editor/setup_curved_level_borders.py
+```
+
+The script sets the config's `BorderActorClass` to `BP_RocketBalloon`, enables
+randomized seeds, removes old authored markers, verifies generated actor counts,
+and saves the settings. Borders are transient generator-owned output. Regenerate
+replaces them; Clear and deletion remove them. Failed regeneration preserves the
+previous level. Influence proxies are registered automatically for border events;
+validated radius changes also update the rocket's engagement radius. Drift is
+disabled to keep the rocket within its certified influence. The proxy supplies
+collision; decorative rocket meshes do not add unplanned collision blockers.
+An empty BorderActorClass creates influence proxies without rocket visuals.
+
+Run `py G:/UE/gunsandballoons/Scripts/Editor/test_generated_level_borders.py` for
+nonvisual checks of seeded layouts, randomized positions, actor/range matching,
+replacement, rollback and Clear. Visual acceptance is left to the user.
+
+Verification: full project build passed; all 12 BalloonLevel native tests passed.
+The separate headless integration check passed with zero errors/warnings, covering
+fixed-seed replay, fresh random layouts, actual proxy/rocket counts and ranges,
+replacement, failure rollback and Clear. Build and integration logs are in
+`Saved/Logs/GeneratedBorders-Build.log` and `GeneratedBorders-Integration.log`.
+The PIE smoke test also passed with eight generated proxies, eight rocket balloons,
+Ready status, possession and 300.6 cm travel over three seconds. No visual test was performed.
+Startup correction: the map's generator was set to Manual, which the earlier
+smoke test masked by calling GenerateLevel itself. The map and setup script now
+explicitly select Every Level Start. The smoke test requires Ready and eight
+actual border balloons from BeginPlay without invoking generation.
+
 ## M7 environment integration (2026-11-15)
 
 `LevelGeneration_Test` now contains `LevelGeneration_Environment`, bound to

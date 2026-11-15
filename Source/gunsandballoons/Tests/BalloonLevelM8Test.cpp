@@ -1,5 +1,7 @@
 #include "../BalloonLevel/BalloonLevelGenerator.h"
 #include "../BalloonLevel/BalloonLevelRealizer.h"
+#include "../BalloonLevel/BalloonBorderThreat.h"
+#include "Components/SphereComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -50,6 +52,30 @@ bool FBalloonLevelM8Test::RunTest(const FString& Parameters)
  TestEqual(TEXT("rollback retains actor count"),G->Realizer->Actors.Num(),OldActors.Num());
  for(int32 I=0;I<OldActors.Num();++I)
   TestTrue(TEXT("rollback retains exact colliding Actors"),OldActors[I].IsValid() && G->Realizer->Actors[I]==OldActors[I] && OldActors[I]->GetActorEnableCollision());
+ // Borders are realized and replaced transactionally, even without optional visual content.
+ Plan.Placements.Reset();
+ FBalloonBorderInfluence Border; Border.InstanceId=7; Border.Center=FVector(10000.,30000.,10000.); Border.RadiusCm=2500.f;
+ Plan.Borders={Border};
+ TestTrue(TEXT("realize generated border"),G->Realizer->Realize(Plan,Diag));
+ TestEqual(TEXT("one border proxy"),G->Realizer->Actors.Num(),1);
+ auto* Proxy=Cast<ABalloonBorderThreat>(G->Realizer->Actors[0].Get());
+ TestNotNull(TEXT("border influence actor"),Proxy);
+ if(Proxy)
+ {
+  TestTrue(TEXT("border at planned location"),Proxy->GetActorLocation().Equals(Border.Center));
+  TestEqual(TEXT("border at planned radius"),Proxy->InfluenceCollision->GetUnscaledSphereRadius(),Border.RadiusCm);
+ }
+ const auto OldBorder=G->Realizer->Actors[0];
+ TestFalse(TEXT("incompatible rocket class rolls back"),G->Realizer->Realize(Plan,Diag,AActor::StaticClass()));
+ TestTrue(TEXT("failed border replacement retains old proxy"),OldBorder.IsValid() && G->Realizer->Actors[0]==OldBorder);
+ Plan.Borders[0].RadiusCm=-1.f;
+ TestFalse(TEXT("invalid border rolls back"),G->Realizer->Realize(Plan,Diag));
+ TestTrue(TEXT("invalid border retains old proxy"),OldBorder.IsValid());
+ Plan.Borders[0]=Border; Plan.Borders[0].Center.X+=5000.;
+ TestTrue(TEXT("regenerate borders"),G->Realizer->Realize(Plan,Diag));
+ TestFalse(TEXT("regeneration destroys old border"),OldBorder.IsValid());
+ TestEqual(TEXT("regeneration does not accumulate borders"),G->Realizer->Actors.Num(),1);
+ Plan.Borders.Reset();
  // Representative content-free workload: actual component allocation and insertion, no GPU claim.
  D.Collision=false;D.Representation=EBalloonPlacementRepresentation::HISM;D.CullEndCm=30000;
  Plan.Placements.Reset();for(int32 I=0;I<10000;++I){D.Transform.SetLocation(FVector(I%100*200,I/100*200,0));Plan.Placements.Add(D);}

@@ -160,6 +160,8 @@ bool ABalloonLevelGenerator::GenerateLevel()
  {
   EventManager->ResetEventTimeline();
   BorderProxies.Reset();
+  for (const auto& Actor : Realizer->Actors)
+   if (auto* Proxy = Cast<ABalloonBorderThreat>(Actor.Get())) RegisterBorderProxy(Proxy);
   // All entry points share this path: Details, Blueprint, BeginPlay and regeneration.
   // Use the successful snapshot, including the config chosen by Random mode.
   if (ManageEnvironment) ConfigureEnvironment();
@@ -349,7 +351,18 @@ bool ABalloonLevelGenerator::BuildAndRealizeLevel()
   Status = EBalloonLevelGenerationStatus::Failed;
   return false;
  }
- if(!Realizer->Realize(Plan,Diagnostics)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
+ UClass* BorderClass = nullptr;
+ if (!Plan.Borders.IsEmpty() && !ActiveConfig->BorderActorClass.IsNull())
+ {
+  BorderClass = ActiveConfig->BorderActorClass.LoadSynchronous();
+  if (!BorderClass)
+  {
+   Diagnostics.Add(TEXT("Borders: configured rocket-balloon class could not be loaded"));
+   Status = EBalloonLevelGenerationStatus::Failed;
+   return false;
+  }
+ }
+ if(!Realizer->Realize(Plan,Diagnostics,BorderClass)) {Status=EBalloonLevelGenerationStatus::Failed; return false;}
  BalloonPlacementCommitted = true;
  if (StagedTerrain)
  {

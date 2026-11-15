@@ -1,6 +1,7 @@
 #include "BalloonEventTestObserver.h"
 #include "../BalloonLevel/BalloonLevelGenerator.h"
 #include "../BalloonLevel/BalloonBorderThreat.h"
+#include "../BalloonLevel/BalloonLevelRealizer.h"
 #include "../BalloonFlightComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
@@ -60,7 +61,10 @@ bool FBalloonLevelM6SafetyTest::RunTest(const FString& Parameters)
  G->LevelConfig=C;G->RoutePawn=Pawn;TestTrue(TEXT("generate"),G->GenerateLevel());Pawn->SetActorLocation(G->GetPlan().Start.GetLocation()+FVector(1000.,0.,0.));
  if(G->GetPlan().Borders.Num()!=2) {AddError(TEXT("missing border fixtures"));W->DestroyWorld(false);return false;}
  const auto Old=G->GetPlan().Borders;
- auto* Proxy=W->SpawnActor<ABalloonBorderThreat>();TestTrue(TEXT("initialize proxy"),Proxy->InitializeInfluence(Old[0]));Proxy->Tags.Add(TEXT("selected"));TestTrue(TEXT("register proxy"),G->RegisterBorderProxy(Proxy));
+ auto* Proxy=Cast<ABalloonBorderThreat>(G->Realizer->Actors[0].Get());
+ TestNotNull(TEXT("generation realizes border proxy"),Proxy);
+ if(!Proxy) {W->DestroyWorld(false);return false;}
+ Proxy->Tags.Add(TEXT("selected"));TestFalse(TEXT("generated proxy already registered"),G->RegisterBorderProxy(Proxy));
  FBalloonLevelEventDefinition E;E.EventId=TEXT("expand");E.Action=EBalloonEventAction::SetBorderRadius;E.Value=1000.;FString Reason;
  const auto Proof=G->GetPlan().RoutePoints;
  TestFalse(TEXT("unsafe whole-group expansion rejected"),G->TryEventBorderChange(E,Reason));TestTrue(TEXT("explicit safety result"),!Reason.IsEmpty());
