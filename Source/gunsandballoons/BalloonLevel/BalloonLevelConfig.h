@@ -49,6 +49,21 @@ public:
  /** Conservative envelope authoring inputs; TBD tune to actual Pawn collider in M5. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders", meta=(Units="m")) float BalloonRadiusMeters = 0.f;
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Borders", meta=(Units="m")) float BalloonHalfHeightMeters = 0.f;
+ /** M4 technical annotations by stable row name. Defaults are preview values requiring tuning. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") TMap<FName, FBalloonPlacementMetadata> PlacementMetadata;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool SceneryEnabled = true;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool ObstaclesEnabled = false;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") bool EnemiesEnabled = false;
+ /** -1 retains row density; override replaces total budget, allocated by relative row density. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 ObstacleExactCount = -1;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement") int32 EnemyExactCount = -1;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float ClusterRadiusMeters = 30.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetCellMeters = 100.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetRoadMeters = 20.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetLotDepthMeters = 30.f;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float StreetLampIntervalMeters = 20.f;
+ /** Ground sampling fallback is a flat plane; unrelated to fixed flight height. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Placement", meta=(Units="m")) float PlacementGroundZMeters = 0.f;
  bool Validate(TArray<FString>& Errors) const;
 };
 

@@ -62,6 +62,32 @@ struct FBalloonCatalogEntry
 	FBalloonLevelAssetRow Row;
 };
 
+/** Optional technical annotations; never serialized as DataTable columns. Dimensions are unscaled meters. */
+USTRUCT(BlueprintType)
+struct GUNSANDBALLOONS_API FBalloonPlacementMetadata
+{
+ GENERATED_BODY()
+ UPROPERTY(EditAnywhere, BlueprintReadOnly) bool InteriorEnemy = false;
+ UPROPERTY(EditAnywhere, BlueprintReadOnly) bool StreetLamp = false;
+ /** Zero dimensions are measured from a mesh before planning; Actor rows require authored dimensions. */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly) FVector SizeMeters = FVector::ZeroVector;
+ /** clutter=15000, short trees=30000, buildings/dunes=80000, mountains=0 (disabled). */
+ UPROPERTY(EditAnywhere, BlueprintReadOnly) int32 CullEndCm = 15000;
+};
+
+enum class EBalloonPlacementRepresentation : uint8 { HISM, MeshActor, BlueprintActor };
+
+struct FBalloonPlacementDescriptor
+{
+ FName Biome, RowName, Rule;
+ int32 InstanceIndex = 0, SegmentId = 0, ClusterId = 0, BirdsPerFlock = 1;
+ FSoftObjectPath Asset;
+ FTransform Transform;
+ EBalloonPlacementRepresentation Representation = EBalloonPlacementRepresentation::HISM;
+ bool Collision = false, InteriorEnemy = false;
+ int32 CullEndCm = 0;
+};
+
 struct FBalloonLevelSegment
 {
 	int32 SegmentId = 0;
@@ -90,6 +116,8 @@ struct FBalloonLevelPlan
 	double MinWidthCm = 0.;
 	TArray<FBalloonLevelSegment> Segments;
 	TArray<FBalloonCatalogEntry> Catalog;
+ TArray<FBalloonPlacementDescriptor> Placements;
+ double PrevailingWindYaw = 0.;
  double BalloonRadiusCm = 0.;
  double BalloonHalfHeightCm = 0.;
  TArray<FBalloonBorderInfluence> Borders;

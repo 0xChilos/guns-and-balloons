@@ -27,3 +27,14 @@ Unreal Python; it refuses to overwrite an existing sandbox.
 ## Документація
 
 Дизайн гри — у [docs/](docs/README.md). Інструкції для AI-агентів — [AGENTS.md](AGENTS.md).
+
+## Native procedural planner (M4)
+
+The C++ BalloonLevel generator now plans the biome catalog and six placement rules,
+with independent optional obstacle/enemy budgets and deterministic Actor/HISM
+**descriptors**. It does not yet realize content or prove a safe flight route.
+Authoring details: [catalog and rules](Content/BalloonLevel/Rules/README.md).
+Build/test evidence and next milestone: [handoff](docs/tech/BalloonLevel/HANDOFF.md).
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`
+for the isolated UE 5.9 build and M1–M4 automation. Full project integration is blocked
+by existing merge markers in `FirstPersonCameraPawn.h`.

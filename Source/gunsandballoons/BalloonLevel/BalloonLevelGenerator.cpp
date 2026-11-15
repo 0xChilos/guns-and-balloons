@@ -1,6 +1,7 @@
 #include "BalloonLevelGenerator.h"
 #include "BalloonAssetCatalog.h"
 #include "BalloonBorderPlanner.h"
+#include "BalloonPlacementPlanner.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
 
@@ -50,6 +51,10 @@ bool ABalloonLevelGenerator::GenerateLevel()
   Status = EBalloonLevelGenerationStatus::InsufficientSpace;
   return false;
  }
+ TArray<BalloonPlacementPlanning::FResolvedRow> Rows;
+ if (!BalloonPlacementPlanning::Resolve(*LevelConfig, Candidate.Catalog, Rows, Diagnostics) ||
+  !BalloonPlacementPlanning::Build(*LevelConfig, Candidate, Rows, Diagnostics))
+ { Status = EBalloonLevelGenerationStatus::InsufficientSpace; return false; }
  Plan = MoveTemp(Candidate);
 	for (const FVector& Point : Plan.SplineSamples)
 	{
@@ -59,7 +64,7 @@ bool ABalloonLevelGenerator::GenerateLevel()
 	}
 	Spline->SetClosedLoop(false, false);
 	Spline->UpdateSpline();
-	Diagnostics.Add(TEXT("M3 Ready: XY geometry and border descriptors only; horizontal reachability is NOT validated and no gameplay content is realized."));
+	Diagnostics.Add(TEXT("M4 Ready: XY geometry, border and placement descriptors only; horizontal reachability is NOT validated and no gameplay content is realized."));
 	Status = EBalloonLevelGenerationStatus::Ready;
 	return true;
 }
