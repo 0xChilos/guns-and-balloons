@@ -532,6 +532,15 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 			Player->ResumeGame();
 		}
 		break;
+	case EMainMenuAction::Retry:
+		// During a run: back to the shop at the last checkpoint, then the failed biome again (docs/features/safe-zone.md).
+		// Otherwise (a level played on its own) restart it. Level changes are deferred to the end of the frame, so
+		// both work from a paused world.
+		if (UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this); !Run || !Run->FailLevel(this))
+		{
+			UGameplayStatics::OpenLevel(this, FName(*UGameplayStatics::GetCurrentLevelName(this)));
+		}
+		break;
 	case EMainMenuAction::QuitToMenu:
 		if (MainMenuLevel.IsNull())
 		{

@@ -1,7 +1,18 @@
 #include "EngineHealthComponent.h"
 
 #include "BalloonFlightComponent.h"
+#include "BalloonPlayerController.h"
 #include "BalloonRunSubsystem.h"
+#include "NemesisAirship.h"
+#include "NemesisBirdFlock.h"
+#include "NemesisBomber.h"
+#include "NemesisBullet.h"
+#include "NemesisCropDuster.h"
+#include "NemesisFlak.h"
+#include "NemesisHomingMissile.h"
+#include "NemesisMine.h"
+#include "NemesisRocket.h"
+#include "NemesisTowerCannon.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -25,8 +36,32 @@ void UEngineHealthComponent::BeginPlay()
 
 void UEngineHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser)
 {
+	if (Damage > 0.f && !IsDead() && DamageCauser) LastCauser = DamageCauser;
 	ApplyEngineDamage(Damage);
 }
+
+#define LOCTEXT_NAMESPACE "EngineHealth"
+
+FText UEngineHealthComponent::GetDeathCause() const
+{
+	// Walk up the owners: a bullet is owned by the tower or crop duster that fired it.
+	for (const AActor* A = LastCauser.Get(); A; A = A->GetOwner())
+	{
+		if (A->IsA<ANemesisRocket>()) return LOCTEXT("Rocket", "HIT BY THE AIRSHIP'S ROCKET");
+		if (A->IsA<ANemesisHomingMissile>()) return LOCTEXT("Missile", "HIT BY AN AA MISSILE");
+		if (A->IsA<ANemesisMine>()) return LOCTEXT("Mine", "BLOWN UP BY A PARACHUTE MINE");
+		if (A->IsA<ANemesisBirdFlock>()) return LOCTEXT("Birds", "BROUGHT DOWN BY A FLOCK OF BIRDS");
+		if (A->IsA<ANemesisTowerCannon>()) return LOCTEXT("Tower", "SHOT DOWN BY A TOWER CANNON");
+		if (A->IsA<ANemesisCropDuster>()) return LOCTEXT("CropDuster", "SHOT DOWN BY A CROP DUSTER");
+		if (A->IsA<ANemesisBomber>()) return LOCTEXT("Bomber", "BOMBED BY THE AIRSHIP'S BOMBER");
+		if (A->IsA<ANemesisFlak>()) return LOCTEXT("Flak", "SHOT DOWN BY AN AA GUN");
+		if (A->IsA<ANemesisAirship>()) return LOCTEXT("Airship", "CAUGHT BY THE NEMESIS AIRSHIP");
+		if (A->IsA<ANemesisBullet>()) continue; // its owner is checked next
+	}
+	return LOCTEXT("Unknown", "THE ENGINE GAVE OUT");
+}
+
+#undef LOCTEXT_NAMESPACE
 
 void UEngineHealthComponent::ApplyEngineDamage(float Amount)
 {
@@ -43,7 +78,7 @@ void UEngineHealthComponent::ApplyEngineDamage(float Amount)
 	if (IsDead()) Die();
 }
 
-void UEngineHealthComponent::Kill()
+void UEngineHealthComponent::Kill(AActor* Causer)
 {
 	if (IsDead()) return;
 	if (bInvulnerable)
@@ -51,6 +86,7 @@ void UEngineHealthComponent::Kill()
 		UE_LOG(LogTemp, Log, TEXT("Engine kill ignored (invulnerable)"));
 		return;
 	}
+	if (Causer) LastCauser = Causer;
 	const float Old = Health;
 	Health = 0.f;
 	OnHealthChanged.Broadcast(Health, -Old);
@@ -65,6 +101,12 @@ void UEngineHealthComponent::Die()
 	if (UBalloonFlightComponent* Flight = GetOwner()->FindComponentByClass<UBalloonFlightComponent>())
 	{
 		Flight->SetComponentTickEnabled(false);
+	}
+	// The player controller plays the death sequence and shows the death screen.
+	if (ABalloonPlayerController* Player = Cast<ABalloonPlayerController>(GetWorld()->GetFirstPlayerController()))
+	{
+		Player->ShowDeath(GetDeathCause());
+		return;
 	}
 	if (bRestartLevelOnDeath)
 	{
