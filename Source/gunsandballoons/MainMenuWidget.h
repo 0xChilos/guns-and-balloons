@@ -25,7 +25,12 @@ enum class EMainMenuAction : uint8
 	NewRun,
 	Credits,
 	Options,
-	Quit
+	/** Leave the game (the main menu's QUIT, the pause menu's LEAVE THE GAME). */
+	Quit,
+	/** Pause menu: close it and unpause. */
+	Resume,
+	/** Pause menu: open MainMenuLevel; the run is lost. */
+	QuitToMenu
 };
 
 /** One row of the main menu. */
@@ -120,7 +125,8 @@ public:
  *
  * Drawn on AMainMenuScreen's panel in the 3D scene, so the game's filter (MI_OilyDepths) applies to
  * it too. No box: the items float over the scene on a soft dark haze that fades in from the left
- * edge. The top left stays empty for the title and subtitle; a small version label sits bottom right.
+ * edge. The game's name (GUNS AND BALLOONS) and a subtitle (DIRECTOR'S CUT) sit top left, above the
+ * items; a small version label sits bottom right.
  *
  * Mouse only: hovering a row selects it, LMB confirms. The selected row eases to the right, warms
  * to the colour of the stove and searchlights, a small lamp marker fades in and an underline draws
@@ -171,6 +177,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
 	TSoftObjectPtr<UWorld> NewRunLevel;
 
+	/** Level Quit to Menu opens. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
+	TSoftObjectPtr<UWorld> MainMenuLevel;
+
 	/** Continue is clickable only when true. There is no save system yet. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
 	bool bContinueAvailable = false;
@@ -191,6 +201,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Pages")
 	FText BackLabel;
 
+	/** The game's name, top left above the item list. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Title", meta = (MultiLine = "true"))
+	FText GameTitle;
+
+	/** Smaller line under the game's name. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Title")
+	FText GameSubtitle;
+
 	/** Shown after the project version (Project Settings > Description > Project Version). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Version")
 	FText VersionSuffix;
@@ -205,6 +223,20 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
 	FSlateFontInfo VersionFont;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
+	FSlateFontInfo GameTitleFont;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
+	FSlateFontInfo GameSubtitleFont;
+
+	/** The game's name: the items' muted parchment, a touch brighter so it reads as the title. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
+	FLinearColor GameTitleColor = FLinearColor(0.56f, 0.55f, 0.44f, 1.f);
+
+	/** The subtitle: a dim brass, the selected warmth turned down. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
+	FLinearColor GameSubtitleColor = FLinearColor(0.52f, 0.43f, 0.27f, 1.f);
 
 	/** Resting item text: a muted parchment that sits in the fog. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Look")
@@ -239,6 +271,14 @@ public:
 	/** Top-left corner of the item list. Everything above it stays empty for the title. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Layout")
 	FVector2D ListPosition = FVector2D(136.f, 480.f);
+
+	/** Top-left corner of the title block (the game's name and the subtitle under it). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Layout")
+	FVector2D GameTitlePosition = FVector2D(136.f, 72.f);
+
+	/** Gap between the game's name and the subtitle. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Layout", meta = (ClampMin = "0.0"))
+	float GameSubtitleGap = 12.f;
 
 	/** Width of the item list and of the pages' text. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu|Layout", meta = (ClampMin = "100.0"))
@@ -298,11 +338,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void PlayClick();
 
+	/** Multiplies the menu's colours (not their opacity). Call before the widget is built. */
+	virtual void ScaleColors(float Brightness);
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual void NativeDestruct() override;
 
-private:
 	/** The widgets of one clickable row, and how far it has eased toward the selected look (0..1). */
 	struct FRow
 	{
@@ -316,23 +359,24 @@ private:
 		float Emphasis = 0.f;
 	};
 
-	void BuildTree();
+	/** Builds the whole widget tree. A menu with another layout (UPauseMenuWidget) overrides it. */
+	virtual void BuildTree();
+	/** Makes HazeTexture and CursorTexture. */
 	void MakeTextures();
 	FRow MakeRow(UVerticalBox* Parent, const FText& Label, EMainMenuRowKind Kind, int32 Index);
-	UVerticalBox* MakePage(const FName& Name, UTextBlock*& OutTitle);
-	void ShowOptions();
-	void RefreshToggleValue(int32 Index);
 	UTextBlock* MakeText(const FText& Text, const FSlateFontInfo& Font, const FLinearColor& Color);
-	void ShowPage(const FText& Title, const FText& Body);
-	void EaseRow(FRow& Row, bool bSelected, bool bEnabled, float DeltaTime) const;
-	UButton* FindHoveredButton() const;
-	void PlaySlice(const FMainMenuSound& Effect, TObjectPtr<UAudioComponent>& Audio, float& TimeLeft);
-	void TickSlice(const FMainMenuSound& Effect, UAudioComponent* Audio, float& TimeLeft, float DeltaTime) const;
+	/** Adds the pixel arrow cursor to Root. Call last, so it is drawn on top. */
+	void AddCursor();
+	/** Selects the first enabled row and restarts the fade-in. Call at the end of BuildTree. */
+	void ResetOpenState();
+
+	/** A small runtime texture, filled pixel by pixel. */
+	static UTexture2D* MakeRuntimeTexture(int32 Width, int32 Height, TextureFilter Filter, TFunctionRef<FColor(int32, int32)> Pixel);
+
+	/** Where each row's marker and word sit in the row: left (main menu) or centred (pause menu). */
+	TEnumAsByte<EHorizontalAlignment> RowAlignment = HAlign_Fill;
 
 	TArray<FRow> Rows;
-	TArray<FRow> ToggleRows;
-	FRow BackRow;
-	FRow OptionsBackRow;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMainMenuClickRelay>> Relays;
@@ -347,6 +391,26 @@ private:
 	TObjectPtr<UCanvasPanel> Root;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UImage> ArrowCursor;
+
+	int32 Selected = INDEX_NONE;
+	float OpenTime = 0.f;
+
+private:
+	UVerticalBox* MakePage(const FName& Name, UTextBlock*& OutTitle);
+	void ShowOptions();
+	void RefreshToggleValue(int32 Index);
+	void ShowPage(const FText& Title, const FText& Body);
+	void EaseRow(FRow& Row, bool bSelected, bool bEnabled, float DeltaTime) const;
+	UButton* FindHoveredButton() const;
+	void PlaySlice(const FMainMenuSound& Effect, TObjectPtr<UAudioComponent>& Audio, float& TimeLeft);
+	void TickSlice(const FMainMenuSound& Effect, UAudioComponent* Audio, float& TimeLeft, float DeltaTime) const;
+
+	TArray<FRow> ToggleRows;
+	FRow BackRow;
+	FRow OptionsBackRow;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UWidgetSwitcher> Pages;
 
 	UPROPERTY(Transient)
@@ -357,9 +421,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> OptionsPageTitle;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UImage> ArrowCursor;
 
 	/** Click and hover play on their own audio components, so a hover never cuts a click short. */
 	UPROPERTY(Transient)
@@ -374,7 +435,4 @@ private:
 
 	/** The row button under the cursor last frame, to play the hover sound once per row entered. */
 	TWeakObjectPtr<UButton> LastHovered;
-
-	int32 Selected = INDEX_NONE;
-	float OpenTime = 0.f;
 };

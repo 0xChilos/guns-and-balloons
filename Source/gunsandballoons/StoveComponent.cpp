@@ -153,6 +153,11 @@ bool UStoveComponent::AcceptsCoolingHit(const FHitResult& Hit) const
 		|| (!Hit.BoneName.IsNone() && CoolingBones.Contains(Hit.BoneName));
 }
 
+float UStoveComponent::ApplyRepair(float Amount, AActor* Repairer)
+{
+	return IsValid(Health) ? Health->Repair(Amount, Repairer) : 0.f;
+}
+
 float UStoveComponent::ApplyCooling(float Degrees)
 {
 	if (!FMath::IsFinite(Degrees) || Degrees <= 0.f) return 0.f;

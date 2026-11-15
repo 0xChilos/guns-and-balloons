@@ -5,8 +5,9 @@
 ## Files
 | File | Role |
 | --- | --- |
-| `Source/gunsandballoons/WrenchComponent.h/.cpp` | `UWrenchComponent : UGunComponent`: equip/ready/fix state machine, rest-pose search in the Fix clip |
-| `Source/gunsandballoons/Tests/WrenchTest.cpp` | `GunsAndBalloons.Wrench.FixCycle` (rest times, hold/release, release during ToFix, holster/cancel) |
+| `Source/gunsandballoons/WrenchComponent.h/.cpp` | `UWrenchComponent : UGunComponent`: equip/ready/fix state machine, rest-pose search in the Fix clip, stove repair trace |
+| `Source/gunsandballoons/StoveComponent.h/.cpp` | `ApplyRepair` / `AcceptsRepairHit`: the stove-only repair entry point the wrench calls |
+| `Source/gunsandballoons/Tests/WrenchTest.cpp` | `GunsAndBalloons.Wrench.FixCycle` (rest times, hold/release, release during ToFix, holster/cancel); `GunsAndBalloons.Wrench.StoveRepair` (turn ends, LMB priority on the stove, repair per turn on target, in reach, up to full); `.BalloonStoveTarget` (real `BP_Balloon`: aimed from the basket at every hole, the trace hits a stove bone); `.BalloonHoles` (real `BP_Balloon` and its pawn in a playing world: damage opens holes, 3 s of turning closes two, the finished turn after release the third) |
 | `Scripts/Editor/import_wrench.py` | Imports `T_Wrench` (nearest / no mips / UserInterface2D), `SK_Wrench`, `M_Wrench` (DiffuseColorMap = `T_Wrench`) and the four clips. Safe to re-run |
 | `Scripts/Editor/fbx_takes.py` | Splits a binary FBX into one file per take (pure Python, byte-exact round trip) |
 | `Content/Assets/Wrench` | `Wrench.fbx` (artist's source), `SK_Wrench`, `SK_Wrench_Skeleton`, `SK_Wrench_PhysicsAsset`, `M_Wrench` |
@@ -28,8 +29,16 @@ The artist works in Blender with a wall plane (XZ, Y = 0, not exported) that the
 - **FinishTurn:** at BeginPlay the Fix clip is sampled at 60 Hz; samples within `FixRestTolerance` (0.1° / 0.1 cm) of its first frame are rest times (here ~0, 1.25, 2.25, 3.25, 4.25 s, plus the end). On release the clip plays on to the next one.
 - **Crosshair pin:** `GetCrosshairPin()` (override of `UGunComponent`'s, 0 for other items): 0 in Equip/Idle/Unequip, SmoothStep of ToFix's time through ToFix and FromFix, 1 in Fix and FinishTurn. The pawn (`UpdateWeaponSway`) scales the hold's Y/Z by `1 − pin` and the look lag and idle bob by the same, so at 1 the component's origin (the nut, where the Fix clip keeps the jaw) is on the camera's forward line, under the crosshair dot (`ACrosshairHUD` always draws it at the screen centre). The sway rotation stays; it pivots on that origin.
 - **Swap:** `AnimatesOwnSwap()` = true; `PrepareToHolster` releases, the wrench returns to Idle, then plays Equip backwards; `IsReadyToHolster` at time 0. `CancelHolster` plays Equip forward from where it got.
+- **Repair, one hole per turn:** `FindFixRestTimes` also finds `FixTurnEndTimes`, where a rest starts after a swing (a gap in the rest samples; here ~1.25, 2.25, 3.25, 4.25 s; the opening hold isn't one; no clip data → the clip end). Each tick in `Fix` or `FinishTurn` (up to `FinishTime`) counts the turn ends passed (`CountTurnsEnded`, wrap-safe) and for each calls `ApplyTurnRepair`: a line trace from the camera along its forward vector (the jaw is pinned there) for `RepairRange` on `RepairTraceChannel`, ignoring the owner. The first blocking hit, if the hit actor has a `UStoveComponent` whose `AcceptsRepairHit` accepts it (same rule as the extinguisher's cooling: `CoolingBones` `stove` / `furnace_door`, or `FireboxShape`), calls `Stove->ApplyRepair(RepairPerTurn, Owner)` → `UHealthComponent::Repair`; `OnTurnRepaired` fires if health came back. `OnHealthChanged` then drives BP_Balloon's `UpdateDamageHoles` (10 HP per hole, so exactly one hole closes, newest first) and `UStoveVfxComponent`'s hole smoke.
+- **LMB priority:** `ShouldUseInsteadOfInteract` is true on a stove repair hit, so the pawn skips `TryInteract` (no door toggle) and passes the held LMB to the wrench.
+
+| Property | Default | Notes |
+| --- | --- | --- |
+| `RepairPerTurn` | TBD 10 HP | One bullet hole per ratchet turn (BP_Balloon: a hole per 10 HP lost) |
+| `RepairRange` | TBD 200 cm | From the camera; the pawn's `InteractRange` is 400 cm, so a click on the stove between 2 and 4 m turns the wrench without repairing |
+| `RepairTraceChannel` | Visibility | Must be blocked by the stove bones and `StoveFirebox` |
 
 ## Known limitations
-- No repair gameplay yet (design open question); hook it to `OnFixStarted` / `OnFixStopped` and a trace from the camera.
+- Repair has no sound or VFX of its own yet; hook them to `OnTurnRepaired` (and `OnFixStarted` / `OnFixStopped`). Repair uses nothing up.
 - View pose (`ViewOffset` (28, 8, −4), yaw +90°) is first-pass; no sound. At Equip's first frame the handle's tip is already inside the view (the clip starts with the jaw below the screen and the handle raised); it pops in and out with the swap. Lower `ViewOffset.Z`, or have the artist start Equip lower, if that shows.
 - The rack shows `SK_Wrench` in its reference pose, which is the node's rest pose as exported (now a Fix pose, face-on). `place_item_pickups.py` places the pickup from the mesh bounds, so re-run it (`ITEM_PICKUP_ONLY=Wrench`) after a re-import that moves the rest pose.

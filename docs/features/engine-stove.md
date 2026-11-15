@@ -25,7 +25,7 @@ The same bucket takes a piece back; another bucket returns it to its own bucket 
 **Other**
 - **Fire extinguisher:** a jet aimed at the body, the door or the firebox lowers the current and the target temperature, keeping the burn time. Obstacles block the jet; at 0 the stove goes out. Strength and range are TBD in the [fire extinguisher](fire-extinguisher.md).
 - **Door:** fuel can be thrown in only while it is open; open, heat is lost faster; it has to be closed. In `BP_Balloon` it opens with `DoorOpenAngle = -100°`.
-- **The engine body = the balloon's health.** Damage comes from overheating and from hits on **any part of the basket** (stove, door, bucket, panel, walls and floor); hits on the envelope don't reduce this pool. **The balloon can only be repaired through the stove.** Damage shows on the casing: every **10 HP lost** adds a new bullet hole: black soot, torn bright edges and a red glow in the centre, as if you see into the engine. Up to 10 holes (0 HP), all on the stove faces and lid the player sees from inside the basket, appearing in a random order. Repairs remove them again (one per 10 HP restored, newest first).
+- **The engine body = the balloon's health.** Damage comes from overheating and from hits on **any part of the basket** (stove, door, bucket, panel, walls and floor); hits on the envelope don't reduce this pool. **The balloon can only be repaired through the stove.** Damage shows on the casing: every **10 HP lost** adds a new bullet hole: black soot, torn bright edges and a red glow in the centre, as if you see into the engine. Up to 10 holes (0 HP), all on the stove faces and lid the player sees from inside the basket, appearing in a random order. Repairs remove them again (one per 10 HP restored, newest first). **The player repairs with the [wrench](wrench.md):** every ratchet turn on the stove (body, door or firebox) closes one hole (TBD +10 HP), so more holes take more turns.
   The shared `UHealthComponent` has public `ApplyDamage` / `Repair`; point damage is taken by the `basket` bone with all its children except the envelope branch `balloon`, and by basket collisions tagged `BasketDamage`. At 0 health: the `OnDepleted` event ("balloon destroyed"), no game over yet.
 - **VFX:** accepted fuel gives a short orange flash of embers in the firebox; overheating gives dark smoke above the stove; every visible bullet hole gives off a thin stream of dark smoke. After cooling down no new smoke appears and the existing smoke disperses. Style: blocky PS1 sprites; the `StoveVFX` parameters are TBD for tuning.
 
@@ -39,7 +39,7 @@ The same bucket takes a piece back; another bucket returns it to its own bucket 
 ## Interaction (diegetic)
 | Element | Where | Action |
 | --- | --- | --- |
-| Engine body | Back of the basket | Shows health (decals); the only place to repair the balloon |
+| Engine body | Back of the basket | Shows health (bullet holes); the only place to repair the balloon: hold LMB on it with the [wrench](wrench.md) |
 | Stove door | On the engine body | LMB: open / close (animated) |
 | Firebox | Behind the door | LMB with fuel in hand: throw it in, only while the door is open; clicking the firebox doesn't open the door |
 | Temperature and burn-time gauges | On the engine body | Read the state |
@@ -75,7 +75,7 @@ With fuel in hand, clicking a weapon rack or an item does nothing, and levers ca
 | Door angle / speed in `BP_Balloon` | -100° / TBD (300°/s) |
 
 ## Dependencies
-[Balloon controls](balloon-controls.md), [Weapons](weapons.md) (the player's hand), [Navigation panel](ui-menus.md), [Safe zone](safe-zone.md) (repairs, fuel), [Winter/Lava biome](biomes.md).
+[Balloon controls](balloon-controls.md), [Weapons](weapons.md) (the player's hand), [Wrench](wrench.md) (repairs), [Navigation panel](ui-menus.md), [Safe zone](safe-zone.md) (repairs, fuel), [Winter/Lava biome](biomes.md).
 
 ## Open questions
 - [x] Is the 0 / >0–90 / >90 scale in degrees of temperature? Yes.

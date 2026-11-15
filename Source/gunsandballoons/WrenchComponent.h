@@ -33,8 +33,11 @@ enum class EWrenchAction : uint8
  *   with Equip played backwards (AnimatesOwnSwap; the wrench has no Unequip clip).
  * - LMB held: ToFix brings it onto the work, then Fix (four ratchet turns) loops while held. Letting go finishes
  *   the turn under way (to the clip's next rest pose, found by sampling the clip), then ToFix plays backwards.
- * - What it repairs is not designed yet: it only animates. OnFixStarted / OnFixStopped mark the turning for
- *   the gameplay to hook into.
+ * - Repairs the stove (= the balloon's health) one bullet hole per ratchet turn: each turn of the Fix clip that
+ *   comes back to rest (also the one finished after letting go), with the trace from the camera along the
+ *   crosshair (where the jaw is pinned) on the stove within RepairRange, restores RepairPerTurn HP through
+ *   UStoveComponent::ApplyRepair. 10 HP = one hole: BP_Balloon closes the newest hole as the health comes back.
+ *   With the wrench in hand, LMB on the stove turns the wrench instead of using the door.
  *
  * SK_Wrench is a rigid mesh: its one bone (`wrench`) carries the whole wrench, and every clip keys it absolutely.
  */
@@ -58,6 +61,39 @@ public:
 	/** Once it has gone down out of view (Equip backwards). */
 	virtual bool IsReadyToHolster() const override;
 	virtual bool AnimatesOwnSwap() const override { return true; }
+
+	/** LMB on the stove (body, door, firebox) turns the wrench on it instead of opening the door. */
+	virtual bool ShouldUseInsteadOfInteract(const FHitResult& Hit) const override;
+
+	/**
+	 * A turn just came back to rest: repairs the stove the trace from Start along Direction hits first within
+	 * RepairRange by RepairPerTurn. Returns HP restored. TickComponent calls it from the camera; public for tests.
+	 */
+	float ApplyTurnRepair(const FVector& Start, const FVector& Direction);
+
+	/** A ratchet turn on the stove restored health (a bullet hole closed). For sound and sparks. */
+	UPROPERTY(BlueprintAssignable, Category = "Wrench")
+	FOnGunEvent OnTurnRepaired;
+
+	/** Seconds into the Fix clip at which each ratchet turn is back at rest (in order). */
+	const TArray<float>& GetFixTurnEndTimes() const { return FixTurnEndTimes; }
+
+	// --- Repair -------------------------------------------------------------------------------
+
+	/**
+	 * HP restored by each ratchet turn on the stove. 10 = one bullet hole per turn (BP_Balloon: a hole per
+	 * 10 HP lost), so the more holes, the more turns. TBD: prototype value, needs tuning.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wrench|Repair", meta = (ClampMin = "0.0"))
+	float RepairPerTurn = 10.f;
+
+	/** How far from the camera (cm) the jaw reaches the work. TBD: prototype value, needs tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wrench|Repair", meta = (ClampMin = "0.0", Units = "cm"))
+	float RepairRange = 200.f;
+
+	/** Channel the repair trace runs on (the stove's bones and firebox block it). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wrench|Repair")
+	TEnumAsByte<ECollisionChannel> RepairTraceChannel = ECC_Visibility;
 
 	UFUNCTION(BlueprintPure, Category = "Wrench")
 	EWrenchAction GetAction() const { return Action; }
@@ -84,7 +120,7 @@ public:
 	/** Seconds into the Fix clip at which the turn under way at Time is back at rest (Time itself if it is). */
 	float GetNextFixRestTime(float Time) const;
 
-	/** Samples the Fix clip for its rest poses (BeginPlay does; GetNextFixRestTime needs it). */
+	/** Samples the Fix clip for its rest poses and turn ends (BeginPlay does; GetNextFixRestTime needs it). */
 	void FindFixRestTimes();
 
 protected:
@@ -133,6 +169,12 @@ private:
 
 	bool bTriggerHeld = false;
 	bool bHolstering = false;
+
+	/** Fix clip times where a turn comes back to rest (the start of each rest after a swing). */
+	TArray<float> FixTurnEndTimes;
+
+	/** How many turns end in the Fix clip between From (exclusive) and To (inclusive); To may run past its end. */
+	int32 CountTurnsEnded(float From, float To) const;
 
 	/** Times in the Fix clip where it is at rest (its first frame's pose), in order; ends with its length. */
 	TArray<float> FixRestTimes;
