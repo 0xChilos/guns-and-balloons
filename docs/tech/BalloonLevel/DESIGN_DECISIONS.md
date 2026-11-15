@@ -1,0 +1,51 @@
+# Implementation decisions
+
+| ID | Date | Decision | Reason / tradeoff |
+| --- | --- | --- | --- |
+| M1-01 | 2026-11-15 | Use actual project UE 5.9 (installed build 60351404), module gunsandballoons. | Specification's 5.8 target yields to observed repository. |
+| M1-02 | 2026-11-15 | Native schema/catalog separate from existing S_LevelAsset tables. | Existing tables include Creature and Blueprint scenery incompatible with the exact contract; no silent conversion or asset rewrites. |
+| M1-03 | 2026-11-15 | Null catalogs allowed for geometry-only authoring; validate all rows before whole-row overlay. | Empty preview is useful; invalid overridden rows remain visible authoring errors. |
+| M1-04 | 2026-11-15 | M1 ends at Ready, never Complete. | Neither reachability nor realization exists yet. Explicit GenerateLevel; no automatic BeginPlay generation or Pawn changes. |
+| M1-05 | 2026-11-15 | Config StartTransform supplies absolute XY/yaw; FlightHeightMeters supplies absolute world Z. | Ignore transform pitch/roll/scale/Z so they cannot introduce vertical steering or distort metric dimensions. |
+| M1-06 | 2026-11-15 | Width default 600m from current biome design; length 1500m, target 250m and height 100m are editable prototype values requiring tuning. | Preserve approved width; do not present specification examples as settled TBD design. |
+| M1-07 | 2026-11-15 | At most 100000 logical segments; fail rather than clamp. | Bound preview allocation for extreme finite inputs. Curvature/width profiles and other subsystem settings arrive with their owning milestones, not placeholder assets. |
+| M1-08 | 2026-11-15 | Isolate M1 build/tests in Saved/M1Verification while full project UHT is blocked. | FirstPersonCameraPawn.h has existing committed conflict markers. Harness compiles copies of exact M1 sources and engine tests, but cannot establish full project integration. |
+
+| M2-01 | 2026-11-15 | Geometry/v1 independent stream; bounded smooth heading field sampled to a canonical metric polyline. | Strict forward projection proves no self crossings, avoiding retry/fallback and hairpins. Discrete turn-radius bound, not a continuous cubic spline claim. |
+| M2-02 | 2026-11-15 | Snapshot rich width curve in pure plan; evaluate exact normalized profile and clamp minimum. | Later asset edits cannot mutate an existing plan; broad conservative bounds include narrow width peaks. |
+| M2-03 | 2026-11-15 | Explicit per-player progression with current and monotonic maximum; local logical-segment search with explicit teleport full-search flag. | No Pawn coupling or per-frame generator tick; reset on regeneration, leave one-shot event dispatch to its milestone. |
+| M2-04 | 2026-11-15 | Prototype heading 25 degrees, radius 100m, sample 10m, minimum width 40m are editable tuning parameters. | Specification does not settle gameplay defaults; actual collision/turnability proof deferred to M5. |
+| M2-05 | 2026-11-15 | Retain BuildStraightPlan as M1 compatibility helper; generator exclusively uses M2 Build. | Preserve existing callers/tests without implementing further milestones. Full integration remains blocked by unrelated committed Pawn conflicts. |
+
+| M3-01 | 2026-11-15 | Stationary sphere threats, projected onto the fixed flight envelope Z slab and inflated horizontally. | Sphere is a section 6 permitted shape; conservative cylindrical balloon envelope has editable radius/half-height, both TBD until actual Pawn tuning in M5. No vertical routing. |
+| M3-02 | 2026-11-15 | Border enable/count are independent of interior enemies (M4). -1 exact count selects density per combined edge kilometer; odd count gives left one extra. | Exact zero means zero. Stable per-item Border/v1 streams, 128 bounded spacing attempts, failure clears partial border list. Overlap allowed only by explicit config. |
+| M3-03 | 2026-11-15 | Blueprint proxy initializes only before BeginPlay; no runtime radius setter. | M5/M6 own route-safe runtime transactions; M3 cannot safely authorize expansion. Actors are not automatically realized before M8. Damage/pushback are Blueprint extension events, not invented combat rules. |
+| M3-04 | 2026-11-15 | Unsafe width is union of exact line/disc intervals clipped to each queried cross section. Sampled closure is a diagnostic, not route acceptance. | Handles opposite-side/overlapping threats and curved local borders; does not claim a connected safe route or physical sweep proof. Out-of-bounds gameplay remains a design open question. |
+
+| M4-01 | 2026-11-15 | Preserve the M1 twelve-column schema and merger; technical metadata lives in a config map keyed by row name. | InteriorEnemy distinguishes Hazard Blueprint enemy rows without inventing a Creature column or parsing Notes; StreetLamp identifies edge placement. Mesh bounds resolve before the pure planner; Blueprint dimensions are authored. |
+| M4-02 | 2026-11-15 | Pure deterministic dispatcher, optional ground sampler and supplied field borders; generator uses flat-ground and corridor-edge preview fallbacks. | No world tracing/spawning before later milestones. Explicit UTF-8 FNV-1a per-system/row/item streams, bounded spatial-hash reservations, transactional failure. |
+| M4-03 | 2026-11-15 | Density uses canonical sampled corridor area; ring uses annulus area. Exact totals replace density and use largest-remainder weights. | Flock reserves one shared 3–6 Field budget; gameplay flock counts participate in category totals. Contradictory positive budgets fail. Disabled/exact-zero categories emit nothing. |
+| M4-04 | 2026-11-15 | Ring uses equal angular stations, fixed seeded annulus radius, inward local X and local Y silhouette overlap check. | Fail uncovered/intersecting bounds without expanding annulus or violating NoCollision. Cull conflicts per mesh are errors; actual HISM/cull engine behavior remains M8. |
+| M4-05 | 2026-11-15 | Street grid uses world axes/origin, paired rear-touching buildings and separately annotated lamps; line chains use polyline circle intersections and overlapping final remainders. | No executable row-name/Notes heuristics. Config cluster radius/street dimensions/ground are prototype authoring settings requiring tuning, not settled game-design defaults. Route proof remains M5. |
+
+| M5-01 | 2026-11-15 | Inspect selected live Pawn; use conservative yaw-invariant full-height enclosure, not zero-valued M3 preview radius. | Actual loaded BP has 20 active shapes and differs from current setup utility. No Pawn/asset rewrite. |
+| M5-02 | 2026-11-15 | Fixed-Z progress/lateral A*, C2 quintic smoothing, derivative-hull curvature/inertia bounds and swept convex-hull tubes. | No vertical bypass, no point-only or sample-only curve acceptance. Conservative rejection is allowed. |
+| M5-03 | 2026-11-15 | Global minimum width and all-query-object world collision; missing gameplay bounds and nonzero initial yaw fail closed. | Avoid unproved narrow profile dips, collision-channel omissions and instantaneous yaw transitions. May reject feasible routes. |
+| M5-04 | 2026-11-15 | Up to 12 deterministic placement retries; no count reduction, no geometry/border reseeding; border proposals validate exact current XY before commit. | Preserve requested density/count contracts and prevent unsafe live descriptor updates. Event/world proxy wiring stays M6. |
+| M5-05 | 2026-11-15 | Route cell=10m, safety=1m, wind=0m are editable prototype tuning values. | Not settled gameplay design; actual movement and collision are measured rather than invented. |
+# M6 implementation decisions — 2026-11-15
+
+- Explicit gameplay start after generator Ready: generation is still descriptor-only until M8, so neither generation nor BeginPlay implicitly consumes gameplay time.
+- One ActorComponent game-time clock; no real-time opt-in, per-event timers, or pause catch-up. Missed repeat cooldowns coalesce to bound dispatch work.
+- Stable per-domain threshold/priority/ID dispatch; normalized progress, meters, then time on automatic ticks. Multiple native actions commit sequentially; each group selection is one safety transaction.
+- Exact-once means one attempt, including rejection. Reset retains authored definitions and persistent BP delegate bindings, resets all per-run state, and cancels an in-flight batch. Recursive dispatch is suppressed.
+- Reuse M5's exact-current-position route validator; apply registered native sphere changes only after proof and publish one BorderChanged notification. No automatic world realization or enemy spawning; optional encounters are Blueprint receiver signals pending M8 ownership/safe spawn integration.
+- MVP radius updates are instantaneous Set/Add/Scale only. No unvalidated animation/interpolation API. Fixed lighting is snapshotted at start and never changed by events; invalid transition requests fail registration.
+
+## M8 implementation decisions — 2026-11-15
+
+- Preserve Ready as the gameplay/event-ready state, now requiring realization. Keep M6 consumers compatible rather than introducing a new terminal status.
+- A default realizer ActorComponent owns exact component references and weak Actor references. Cleanup never searches by class/tag; transient generated content is not authored level content.
+- Use existing cull metadata, reject conflicts, disable Cull Distance Volume overrides. UE 5.9 HISM source tests end distance > 0 before applying distance limits; zero disables the authored limit. NullRHI tests check API/component state, not GPU visibility.
+- Synchronous staged realization and rollback retain the previous successful level. Old owned collision is suppressed only during generation. Blueprint callback side effects cannot be rolled back; no claim of atomic external gameplay behavior.
+- M7 environment work remains outside the requested milestone. Existing authored border proxies remain explicit, with no invented enemy/visual assets or gameplay effects.
