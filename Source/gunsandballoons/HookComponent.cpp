@@ -9,9 +9,14 @@
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "GameOptions.h"
 #include "GunAnimInstance.h"
 #include "HookPickup.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -56,6 +61,8 @@ UHookComponent::UHookComponent()
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> RopeAsset(TEXT("/Game/Assets/Hook/SM_HK_Rope.SM_HK_Rope"));
 	static ConstructorHelpers::FObjectFinder<UTexture> Texture(TEXT("/Game/Textures/Hook/T_Hook_256.T_Hook_256"));
 	static ConstructorHelpers::FObjectFinder<UTexture> RopeTex(TEXT("/Game/Textures/Hook/T_Hook_Rope_64.T_Hook_Rope_64"));
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> GrabBurst(TEXT("/Game/Assets/Locations/Blueprints/NS_BurstSpark.NS_BurstSpark"));
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> ArrivalPuff(TEXT("/Game/Assets/Locations/Blueprints/NS_BurstPuff.NS_BurstPuff"));
 
 	IdleAnim = Idle.Object;
 	ThrowAnim = Throw.Object;
@@ -66,6 +73,8 @@ UHookComponent::UHookComponent()
 	RopeMesh = RopeAsset.Object;
 	WeaponTexture = Texture.Object;
 	RopeTexture = RopeTex.Object;
+	GrabEffect = GrabBurst.Object;
+	ArrivalEffect = ArrivalPuff.Object;
 
 	// Pneumatic: no powder smoke, no casings, no bullets.
 	SmokeClass = nullptr;
@@ -120,7 +129,7 @@ void UHookComponent::BeginPlay()
 
 void UHookComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	DeliverPickup();
+	DeliverPickup(/*bArrived=*/false);
 	if (HeadMesh)
 	{
 		HeadMesh->DestroyComponent();
@@ -460,6 +469,7 @@ void UHookComponent::UpdateFlight(float DeltaTime)
 				Pickup->OnHooked();
 				Pickup->AttachToComponent(HeadMesh, FAttachmentTransformRules::KeepWorldTransform);
 				CarriedPickup = Pickup;
+				PlayGrabFeedback(Pickup);
 				OnPickupGrabbed.Broadcast(Pickup);
 			}
 			else
@@ -504,7 +514,7 @@ void UHookComponent::UpdateFlight(float DeltaTime)
 		UpdateHeadAndRope();
 		if (bCarrying && NewDistance <= CatchDistance + KINDA_SMALL_NUMBER)
 		{
-			DeliverPickup();
+			DeliverPickup(/*bArrived=*/true);
 		}
 		if (NewDistance <= KINDA_SMALL_NUMBER)
 		{
@@ -523,6 +533,24 @@ void UHookComponent::UpdateFlight(float DeltaTime)
 	}
 }
 
+void UHookComponent::PlayGrabFeedback(AHookPickup* Pickup)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	if (GrabEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, GrabEffect, HeadLocation);
+	}
+	// Not attenuated: heard at full volume however far out the hook caught it.
+	if (USoundBase* Sound = Pickup ? Pickup->GetGrabSound() : nullptr; Sound && UGameOptions::IsOn(EGameOption::Sfx))
+	{
+		UGameplayStatics::PlaySoundAtLocation(World, Sound, HeadLocation);
+	}
+}
+
 void UHookComponent::StartReturning()
 {
 	State = EHookState::Returning;
@@ -535,18 +563,41 @@ void UHookComponent::StartReturning()
 
 void UHookComponent::StowHead()
 {
-	DeliverPickup();
+	// Normally the pickup was already let go at the catch point; this only drops one when the hook is put
+	// away mid-reel.
+	DeliverPickup(/*bArrived=*/false);
 	State = EHookState::Stowed;
 	HeadVelocity = FVector::ZeroVector;
 	OnHookReturned.Broadcast();
 }
 
-void UHookComponent::DeliverPickup()
+void UHookComponent::DeliverPickup(bool bArrived)
 {
 	AHookPickup* Pickup = CarriedPickup.Get();
 	CarriedPickup.Reset();
 	if (!Pickup)
 	{
+		return;
+	}
+	if (!bArrived)
+	{
+		// It never reached the player: it just falls from where the head let go. Not delivered, not counted.
+		Pickup->OnDelivered(FVector::ZeroVector);
+		return;
+	}
+	UWorld* World = GetWorld();
+	if (Pickup->IsConsumedOnDelivery())
+	{
+		// Taken: listeners (the resource count) see it once more, then it is gone, with a puff.
+		OnPickupDelivered.Broadcast(Pickup);
+		if (World && !World->bIsTearingDown)
+		{
+			if (ArrivalEffect)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, ArrivalEffect, Pickup->GetMesh()->Bounds.Origin);
+			}
+			Pickup->Destroy();
+		}
 		return;
 	}
 	// Let go in front of the player: it keeps a little of the pull toward them, and drops.

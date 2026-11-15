@@ -225,6 +225,10 @@ protected:
 	UFUNCTION()
 	void HandleWeaponFired();
 
+	/** The hook brought a pickup in: it counts toward its resource (UResourceLedger). */
+	UFUNCTION()
+	void HandleHookDelivered(AActor* Pickup);
+
 	/** How far from the camera (cm) the player can interact. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", meta = (ClampMin = "0.0"))
 	float InteractRange = 400.f;

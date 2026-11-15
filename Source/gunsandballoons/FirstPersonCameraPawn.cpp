@@ -15,6 +15,8 @@
 #include "GunAnimInstance.h"
 #include "HookComponent.h"
 #include "HookDebugMenu.h"
+#include "HookPickup.h"
+#include "ResourceLedger.h"
 #include "Engine/GameViewportClient.h"
 #include "Interactable.h"
 #include "RevolverAnimInstance.h"
@@ -236,6 +238,7 @@ void AFirstPersonCameraPawn::BeginPlay()
 	{
 		Gun->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
 	}
+	Hook->OnPickupDelivered.AddDynamic(this, &AFirstPersonCameraPawn::HandleHookDelivered);
 
 	Super::BeginPlay();
 
@@ -269,6 +272,14 @@ void AFirstPersonCameraPawn::SetupBalloonTickPrerequisite()
 		{
 			AddTickPrerequisiteComponent(Flight);
 		}
+	}
+}
+
+void AFirstPersonCameraPawn::HandleHookDelivered(AActor* Pickup)
+{
+	if (UResourceLedger* Ledger = GetWorld() ? GetWorld()->GetSubsystem<UResourceLedger>() : nullptr)
+	{
+		Ledger->CollectPickup(Cast<AHookPickup>(Pickup));
 	}
 }
 

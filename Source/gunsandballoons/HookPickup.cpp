@@ -5,7 +5,19 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+	/** BasicShapeMaterial's tint. */
+	const FName ShapeColorParameter(TEXT("Color"));
+	/** MI_Loot / MI_Loot_Glow rim colour. */
+	const FName HighlightColorParameter(TEXT("HighlightColor"));
+	/** NS_LootSparkle user parameter. */
+	const FName SparkColorParameter(TEXT("SparkColor"));
+}
 
 AHookPickup::AHookPickup()
 {
@@ -28,35 +40,68 @@ AHookPickup::AHookPickup()
 	}
 	// A 30cm box: a small crate of resources.
 	Mesh->SetRelativeScale3D(FVector(0.3f));
+
+	Sparkle = CreateDefaultSubobject<UNiagaraComponent>(TEXT("Sparkle"));
+	Sparkle->SetupAttachment(Mesh);
+	Sparkle->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Sparkle->SetAutoActivate(true);
 }
 
 void AHookPickup::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	ApplyColor();
+	ApplySparkle();
 }
 
 void AHookPickup::BeginPlay()
 {
 	Super::BeginPlay();
 	ApplyColor();
+	ApplySparkle();
 	ApplyPhysics();
 }
 
 void AHookPickup::ApplyColor()
 {
-	if (!Mesh || !Mesh->GetMaterial(0))
+	if (!Mesh)
 	{
 		return;
 	}
-	UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(0));
-	if (!Material)
+	for (int32 Index = 0; Index < Mesh->GetNumMaterials(); ++Index)
 	{
-		Material = Mesh->CreateDynamicMaterialInstance(0);
+		if (!Mesh->GetMaterial(Index))
+		{
+			continue;
+		}
+		UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Mesh->GetMaterial(Index));
+		if (!Material)
+		{
+			Material = Mesh->CreateDynamicMaterialInstance(Index);
+		}
+		if (Material)
+		{
+			// Each material has at most one of these; setting a missing parameter does nothing.
+			Material->SetVectorParameterValue(ShapeColorParameter, Color);
+			Material->SetVectorParameterValue(HighlightColorParameter, Color);
+		}
 	}
-	if (Material)
+}
+
+void AHookPickup::ApplySparkle()
+{
+	if (!Sparkle)
 	{
-		Material->SetVectorParameterValue(TEXT("Color"), Color);
+		return;
+	}
+	if (Sparkle->GetAsset() != SparkleSystem)
+	{
+		Sparkle->SetAsset(SparkleSystem);
+	}
+	Sparkle->SetVisibility(SparkleSystem != nullptr && !bCarried);
+	if (SparkleSystem)
+	{
+		Sparkle->SetVariableLinearColor(SparkColorParameter, Color);
 	}
 }
 
@@ -71,6 +116,10 @@ void AHookPickup::OnHooked()
 	bCarried = true;
 	Mesh->SetSimulatePhysics(false);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (Sparkle)
+	{
+		Sparkle->Deactivate();
+	}
 }
 
 void AHookPickup::OnDelivered(const FVector& Velocity)
@@ -80,4 +129,18 @@ void AHookPickup::OnDelivered(const FVector& Velocity)
 	Mesh->SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetPhysicsLinearVelocity(Velocity);
+	if (Sparkle && SparkleSystem)
+	{
+		Sparkle->Activate(/*bReset=*/true);
+	}
+}
+
+bool AHookPickup::MarkCollected()
+{
+	if (bCollected)
+	{
+		return false;
+	}
+	bCollected = true;
+	return true;
 }
