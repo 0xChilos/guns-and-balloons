@@ -1,5 +1,6 @@
 #include "NemesisBirdFlock.h"
 
+#include "NemesisRadarSubsystem.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -225,6 +226,7 @@ void ANemesisBirdFlock::Scatter(const FVector& From)
 {
 	if (bScared) return;
 	bScared = true;
+	UNemesisRadarSubsystem::RemoveFromRadar(this); // fleeing for good
 	ScareFrom = From;
 	UE_LOG(LogTemp, Log, TEXT("%s: scared off, fleeing for good"), *GetName());
 	OnScattered();

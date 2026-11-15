@@ -97,7 +97,18 @@ The speedometer reads the current speed from the flight component, which already
 | --- | --- | --- |
 | `SpeedometerMaxSpeed` | 0 | 0 = use `MaxSpeed`; a positive value sets the full scale in cm/s. Needs tuning. |
 
-**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
+**Enemies on the radar** (2026-11-15). Every enemy in the level shows: small dot = rockets, mines, AA missiles, bird flocks, beacons; larger dot = crop dusters, bombers, cannon towers, AA balloons; an oval about four times a plane dot = the nemesis airship (it filled the whole screen and hid the planes; shrunk 2026-11-15, then enlarged a little the same day). Distance is on a square-root scale, so enemies close to the balloon sit clearly off the centre icon (a crop duster 30 m away is at a third of the radius, the airship 250 m behind near the rim). This covers the C++ enemies and the team's Blueprint enemies the level generator places (BP_TurretTower, BP_Lighthouse, BP_BirdFlock, BP_RocketBalloon). An enemy leaves the radar the moment it stops being a threat, not when its wreck is gone: a plane as soon as it is shot down (it still falls for a few seconds), a cannon tower when its cannon or fuel tank blows up (the tower keeps standing), a beacon when its lamp is shot out, a bird flock when it is scared off. Checked 2026-11-15 in PIE: the dot is gone within 0.6 s for a crop duster and a tower. The team's Blueprint enemies (BP_TurretTower etc.) still drop off only when their actor is destroyed. Each enemy also drives the warning lamp:
+
+| Enemy | Lamp orange / red within | Note |
+| --- | --- | --- |
+| Rocket, mine, AA missile, birds | 60 / 25 m | TBD |
+| Crop duster, bomber | 200 / 80 m | TBD |
+| Nemesis airship | 300 / 150 m | TBD |
+| Cannon tower | 180 / 60 m | its range is 180 m. TBD |
+| AA balloon | 40 / 25 m | engages within 25 m. TBD |
+| Beacon / lighthouse | never | does no damage itself |
+
+**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. Checked 2026-11-15 in PIE: `BP_JammerTower` writes `RadarJam` (0.75 at 65 m from a 250 m jammer), with two jammers the stronger one wins, and the level generator places `BP_JammerTower` in the City (`DT_City_Placement`). In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
 
 ## Open questions
 - [ ] A detailed breakdown of the navigation panel: the full set of elements and how they look (TODO in the Director's Cut).

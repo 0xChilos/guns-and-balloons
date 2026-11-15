@@ -1,5 +1,6 @@
 #include "NemesisBeacon.h"
 
+#include "NemesisRadarSubsystem.h"
 #include "Components/BoxComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -279,6 +280,7 @@ void ANemesisBeacon::HandlePointDamage(AActor* DamagedActor, float InDamage, ACo
 {
 	if (bBroken || (HitComponent != Lamp && HitComponent != LampHitBox)) return;
 	bBroken = true;
+	UNemesisRadarSubsystem::RemoveFromRadar(this);
 	if (bLit)
 	{
 		bLit = false;

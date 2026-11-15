@@ -1,5 +1,8 @@
 """Place the player's hand items (AHandItemPickup) in Movement_Scene1, in front of the player start.
 
+Superseded where there is a balloon: the items now live in the basket (Scripts/Editor/add_basket_item_racks.py),
+which also removed these pickups from Movement_Scene1. Running this again would show every item twice there.
+
 The player starts with an empty hand and takes an item with LMB, so every item has to lie within reach
 (AFirstPersonCameraPawn.InteractRange, 400 cm) of the stationary camera. The items hang side-on in columns
 around the eyes, below the horizon so they do not cover the view ahead: revolver over hook to the left,
