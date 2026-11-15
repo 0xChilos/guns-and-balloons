@@ -1,5 +1,6 @@
 #include "NemesisTowerCannon.h"
 
+#include "NemesisRadarSubsystem.h"
 #include "Components/BoxComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -374,6 +375,7 @@ FVector ANemesisTowerCannon::DeckLocation() const
 void ANemesisTowerCannon::BlowUp()
 {
 	SetState(ETowerCannonState::Destroyed);
+	UNemesisRadarSubsystem::RemoveFromRadar(this); // the tower keeps standing
 	UWorld* World = GetWorld();
 	// The tank goes up and takes the cannon with it; the tower stays with an empty deck.
 	// The AA missile's fine-grained blast (team decision 2026-11-15), not the shared cartoony one.

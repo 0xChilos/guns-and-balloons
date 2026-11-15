@@ -5,7 +5,8 @@ You are connected to my Unreal Engine 5 editor (project "gunsandballoons"). Upgr
 - It shows up to 16 enemies as bright green blips, viewed top-down, with the balloon in the centre and its flight direction pointing up the screen. There are 3 blip kinds:
   1. **Small dot:** rockets, mines (radius about 3 px of the 256 px screen).
   2. **Larger dot:** planes (about 6 px).
-  3. **Big oval:** zeppelins (about 240 × 115 px: nearly the full width of the 256 px screen), with its long axis turned to the zeppelin's heading.
+  3. **Oval:** zeppelins (about 41 × 18 px of the 256 px screen, about three times a plane dot; it was 240 × 115 px and hid everything near it, changed 2026-11-15), with its long axis turned to the zeppelin's heading.
+- Distance is shown on a square-root scale (2026-11-15): an enemy at a tenth of the range sits at a third of the radius, so the close ones aren't hidden under the balloon icon; the range rings are no longer even steps in metres.
 - Enemies move in and out of range. A blip fades in as it crosses the edge of the screen and fades out as it leaves. Anything further out isn't drawn.
 - Blips are pixel-crisp: snapped to the radar texture's pixel grid, to match the PS1 look.
 - The rotating sweep stays. Blips stay visible all the time and flash brighter when the sweep passes over them. BlipAfterglow = 1 gives a classic radar look, where blips only show after the sweep.
@@ -55,9 +56,12 @@ float blip = 0.0;
 for (int i = 0; i < 16; i++) {
     float kind = E[i].z;
     if (kind < 0.5) continue;                                   // empty slot
-    float2 e = E[i].xy * 0.9;                                   // 1.0 = radar range = outer ring (0.9 of the screen)
+    float2 e = E[i].xy;                                          // 1.0 = radar range
+    float er0 = length(e);
+    e *= (er0 > 0.0001) ? sqrt(er0) / er0 : 1.0;                // square-root scale: near enemies move off the centre icon (2026-11-15)
+    e *= 0.9;                                                    // outer ring = 0.9 of the screen
     float er = length(e);
-    float reach = (kind < 2.5) ? 0.05 : 0.945;                  // blip radius (zeppelin = half its length)
+    float reach = (kind < 2.5) ? 0.05 : 0.22;                   // blip radius (zeppelin = half its length)
     if (er > 0.97 + reach) continue;                            // completely outside the screen
     float2 d = p - e;
     float inside;
@@ -67,7 +71,7 @@ for (int i = 0; i < 16; i++) {
         inside = step(length(d), 0.05);                          // plane: larger dot
     } else {                                                     // zeppelin: oval along its heading
         float s = sin(E[i].w), co = cos(E[i].w);
-        float2 q = float2(d.x * co - d.y * s, d.x * s + d.y * co) / float2(0.45, 0.945);
+        float2 q = float2(d.x * co - d.y * s, d.x * s + d.y * co) / float2(0.10, 0.22);  // airship oval ~4x a plane dot (enlarged 2026-11-15) (was 0.45 x 0.945: it hid the planes, 2026-11-15)
         inside = step(dot(q, q), 1.0);
     }
     inside *= step(r, 0.97);                                    // never draw over the screen's rim

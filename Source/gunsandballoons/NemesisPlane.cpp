@@ -1,5 +1,6 @@
 #include "NemesisPlane.h"
 
+#include "NemesisRadarSubsystem.h"
 #include "Components/PointLightComponent.h"
 #include "EngineUtils.h"
 #include "Components/StaticMeshComponent.h"
@@ -357,6 +358,7 @@ void ANemesisPlane::Fall(float DeltaSeconds)
 void ANemesisPlane::GoDown(bool bEngine)
 {
 	bDown = true;
+	UNemesisRadarSubsystem::RemoveFromRadar(this); // it still falls for FallTime, but is no threat
 	StateTime = 0.f;
 	SmokeStream.Start(GetWorld(), NemesisFx::EKind::EngineSmoke, bEngine ? 32.f : 20.f); // dense: the plane falls fast
 	if (!bEngine)
