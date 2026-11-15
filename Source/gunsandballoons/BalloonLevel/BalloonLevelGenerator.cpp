@@ -1,5 +1,6 @@
 #include "BalloonLevelGenerator.h"
 #include "BalloonEnvironmentPresetController.h"
+#include "../BalloonRunSubsystem.h"
 #include "EngineUtils.h"
 #include "BalloonLevelRealizer.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -110,6 +111,8 @@ void ABalloonLevelGenerator::CompleteLevel()
  LevelCompleted = true;
  EventManager->PauseEventTimeline(true);
  OnLevelCompleted.Broadcast();
+ // Banks the level and opens the shop (or the victory screen after the last level).
+ if (UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this)) Run->CompleteLevel(this);
 }
 
 bool ABalloonLevelGenerator::ConfigureEnvironment()

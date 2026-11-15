@@ -5,12 +5,14 @@
 #include "LevelShopScreen.generated.h"
 
 class ULevelShopWidget;
+class UMainMenuWidget;
 
 /**
- * Shows the shop between levels (ULevelShopWidget) the way AMainMenuScreen shows the main menu: on an unlit,
- * translucent panel in front of the camera, sized to fill the view, so the game's filter applies to it.
- * Spawned by UBalloonRunSubsystem::CompleteLevel while the game is paused, so it ticks and takes LMB while paused.
- * It floats closer than the item in hand (Distance 15 cm) so nothing in the basket covers it.
+ * Shows the shop between levels (ULevelShopWidget) the way AMainMenuScreen shows the main menu: on an unlit panel
+ * in front of the camera, sized to fill the view, so the game's filter applies to it.
+ * Placed in the shop level (/Game/Scenes/Shop), which UBalloonRunSubsystem::CompleteLevel opens. That level uses
+ * BP_MainMenuGameMode, whose AMainMenuPlayerController forwards LMB to this screen. Once the run is won
+ * (UBalloonRunSubsystem::IsRunWon) it shows the victory screen (VictoryClass) instead of the shop.
  */
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API ALevelShopScreen : public AMainMenuScreen
@@ -32,7 +34,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
 	TSubclassOf<ULevelShopWidget> ShopClass;
 
-private:
-	void PointerPressed();
-	void PointerReleased();
+	/** Shown instead of the shop after the last level of the run (UVictoryWidget or a Blueprint child of it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop")
+	TSubclassOf<UMainMenuWidget> VictoryClass;
 };

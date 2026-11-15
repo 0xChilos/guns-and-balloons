@@ -48,7 +48,7 @@ public:
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="1", Units="m")) float CompletionZoneHalfDepthMeters = 10.f;
  UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="Balloon Level|Completion") bool LevelCompleted = false;
  UPROPERTY(BlueprintAssignable, Category="Balloon Level|Completion") FBalloonBorderChanged OnLevelCompleted;
- /** Idempotent completion hook. Bind OnLevelCompleted for the safe-zone transition. */
+ /** Idempotent completion hook: broadcasts OnLevelCompleted, then UBalloonRunSubsystem::CompleteLevel opens the shop. */
  UFUNCTION(BlueprintCallable, Category="Balloon Level|Completion") void CompleteLevel();
  virtual void Tick(float DeltaSeconds) override;
  /** Disable before generation to omit functional enemies (including catalog enemies). Border proxies remain independent. */
