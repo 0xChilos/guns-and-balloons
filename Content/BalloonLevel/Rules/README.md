@@ -4,7 +4,41 @@ Create DataTables using `FBalloonLevelAssetRow` (native `BalloonLevelAssetRow` i
 `DT_BalloonAssets_Shared` and `DT_BalloonAssets_Forest/Field/City/Desert`.
 Assign shared and exactly one selected biome table to a `BalloonLevelConfig` DataAsset.
 These tables are separate from the legacy `S_LevelAsset` placement tables; M1 does not migrate those assets.
-No native-schema .uasset tables have been authored yet.
+Native tables are now authored in this folder. Reimport and bind the nine preview
+configs with `py G:/UE/gunsandballoons/Scripts/Editor/setup_biome_asset_catalogs.py`.
+The editable JSON sources are `BalloonAssets_Shared/Forest/Field/City/Desert.json`.
+Shared contains two rock meshes; each biome supplies its location mesh palette.
+Scenery and mesh obstacles are enabled. Biome rows still override shared names.
+
+Prototype tuning for the 500 m preview: shared rocks 30/km2 each, small pines
+500/km2 each, positive sparse scatter densities at least 4/km2, street buildings
+at most 50/km2, general spacing at most 50 m and obstacle spacing at most 20 m
+with single-item obstacle clusters. Forest mountain rings use 3/km2 per row with
+reduced maximum scales to stay outside the corridor. City uses 60 m street cells,
+12 m roads and 24 m lots. These values require gameplay/visual tuning.
+
+Catalogs cover static meshes plus the two tall skeletal landmarks as Blueprint Actor
+rows: `SK_Windmill` (`BP_Windmill_C`, Field) and `SK_Lighthouse` (`BP_Lighthouse_C`,
+Desert). Actor rows cannot be measured from a mesh, so their unscaled `SizeMeters` is
+authored in `Scripts/Editor/setup_biome_asset_catalogs.py`; loot comes from their
+`loot_01`/`loot_02` sockets, which must exist on the Skeleton; a Skeleton socket and a
+mesh socket with the same name are one spot. Collision bounds come
+from the components the Blueprint constructs (native components and
+`SimpleConstructionScript` templates), so at least one of them must have a query
+collision profile. Birds and other functional hazard Blueprints still require
+separate actor integration; static factories/towers are geometry only, without smoke,
+weapons, jamming or loot components. Zero-density legacy fence/hedge and assembly-part
+rows stay inactive.
+Both Blueprints already carry `AC_LootSpots`; on generated instances the realizer
+zeroes its chance on the class templates for the spawn and then destroys the instance
+component before its first drop timer, so catalog loot comes only from the generator's
+`AHookPickup` spots (`Item Density` applies). Manually placed Blueprints keep their own
+component.
+Existing legacy tables and CSVs are unchanged. All eight biome/preset combinations
+passed nonvisual generation, correct shared/biome mesh checks and obstacle checks
+before these two rows were added; reimport the catalogs and run a generation pass
+for the new rows. Results are in `Saved/BiomeAssetCatalogChecks.json`. Visual
+acceptance remains with the user.
 
 CSV first column is the stable row name. Exactly twelve data columns follow:
 
@@ -49,7 +83,7 @@ Length, flight height and target segment length defaults are prototype authoring
 
 ## M4 planning contract (2026-11-15)
 
-`BalloonPlacementPlanning::Resolve` validates assets on the game thread, measures mesh bounds, and copies technical annotations from `LevelConfig.PlacementMetadata` by stable row name. Blueprint Actor rows need positive authored `SizeMeters`; zero mesh dimensions use measured bounds. `Build` consumes resolved rows and M2 geometry without UObject loads or world mutations. It accepts an optional ground sampler (world Z cm, upward normal), plus optional field-border polylines (world cm). Without these inputs, ground is the configured flat `PlacementGroundZMeters` and field borders are the two sampled corridor edges. The generator currently uses these preview fallbacks; terrain tracing and realization remain later work.
+`BalloonPlacementPlanning::Resolve` validates assets on the game thread, measures mesh bounds, and copies technical annotations from `LevelConfig.PlacementMetadata` by stable row name. Blueprint Actor rows need positive authored `SizeMeters` and derive collision bounds from the components the class constructs; zero mesh dimensions use measured bounds. `Build` consumes resolved rows and M2 geometry without UObject loads or world mutations. It accepts an optional ground sampler (world Z cm, upward normal), plus optional field-border polylines (world cm). Without these inputs, ground is the configured flat `PlacementGroundZMeters` and field borders are the two sampled corridor edges. The generator currently uses these preview fallbacks; terrain tracing and realization remain later work.
 
 The twelve row columns above are unchanged. Technical metadata supplies `InteriorEnemy`, `StreetLamp`, unscaled XYZ `SizeMeters` and `CullEndCm`. Enemy rows must be Hazard Blueprint Actors; other gameplay rows belong to the obstacle budget. Notes are never parsed. New biome IDs work with generic scatter; specialized rules activate only in their named biome.
 
@@ -68,9 +102,4 @@ Descriptors contain biome/row/rule/index/segment IDs, asset path, transform, clu
 
 Random seeds use explicit lowercase UTF-8 FNV-1a with seed, catalog version, biome, Placement/v1, row, rule and item index. Wind/flock budgets have independent streams. Rows are sorted lexically. Spacing reservations use a spatial hash and the larger spacing of two rows; adding a spatial conflict can change later rows through rejection without consuming their streams. Ring is exempt. Failure clears all placements. Limits: 10000 descriptors, 256 attempts per item, 500000 planning/reservation operations and 100000 street grid cells. Diagnostics identify table, row, rule, target/planned count and region for row failures. These are preview safeguards, not profiled gameplay budgets. Cluster/street/ground settings remain editable prototype tuning values.
 
-Verification: `powershell -NoProfile -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevelM4.ps1`. See [handoff](../../../docs/tech/BalloonLevel/HANDOFF.md). Native-schema biome DataTables and visual PIE results are not supplied by this milestone.
-
-Re-verification on 2026-11-15 passed a clean UE 5.9 harness build and all four
-M1–M4 automation tests, including the six-rule and row-error checks. Current report:
-`Saved/M4Verification/TestReport/index.json`. Full-project compilation remains
-blocked by existing Pawn header merge markers; M5 has not started.
+Verification: `Scripts/Verify-BalloonLevel.ps1`. See the [API reference](../../../docs/tech/BalloonLevel/API.md) and [status](../../../docs/tech/BalloonLevel/STATUS.md).

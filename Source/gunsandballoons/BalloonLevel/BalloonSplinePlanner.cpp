@@ -33,7 +33,7 @@ double BalloonSplinePlanning::WidthAt(const FBalloonLevelPlan& P, double S)
  return FMath::Max(P.MinWidthCm, P.BaseWidthCm * (P.WidthCurve.GetNumKeys() ? P.WidthCurve.Eval(S/P.LengthCm) : 1.));
 }
 
-bool BalloonSplinePlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P, TArray<FString>& Errors)
+bool BalloonSplinePlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPlan& P, TArray<FString>& Errors, double PawnMinimumRadiusCm)
 {
  P = FBalloonLevelPlan();
  if (!C.Validate(Errors)) return false;
@@ -46,9 +46,14 @@ bool BalloonSplinePlanning::Build(const UBalloonLevelConfig& C, FBalloonLevelPla
  const double Phase=Random.FRandRange(-PI, PI);
  const double Cycles=Random.FRandRange(0.75f, 1.5f);
  const double Omega=2.*PI*Cycles/P.LengthCm;
- // Heading derivative is bounded by 2*A*Omega. Headings stay within +/-45 degrees,
+ const double RadiusCm = FMath::Max(double(C.MinimumTurningRadiusMeters)*100., PawnMinimumRadiusCm);
+ if (!FMath::IsFinite(PawnMinimumRadiusCm) || PawnMinimumRadiusCm < 0.)
+ { Errors.Add(TEXT("Invalid pawn minimum turning radius")); P={}; return false; }
+ // Reserve curvature for the prover's quintic corner smoothing. The margin is
+ // prototype tuning, not a substitute for the continuous movement/collision proof.
+ // Heading derivative is bounded by A*Omega. Headings stay within +/-45 degrees,
  // so forward projection is strictly positive: crossings/loops are impossible by construction.
- const double A=FMath::Min(FMath::DegreesToRadians(double(C.MaxHeadingDegrees))/2., 1./(2.*Omega*C.MinimumTurningRadiusMeters*100.));
+ const double A=FMath::Min(FMath::DegreesToRadians(double(C.MaxHeadingDegrees))/2., 1./(Omega*RadiusCm*C.RouteCurvatureMargin));
  const double Step=FMath::Min(double(C.GeometrySampleMeters)*100., double(C.MinimumTurningRadiusMeters)*5.);
  if (FMath::CeilToDouble(P.LengthCm/Step)>100000.) { Errors.Add(TEXT("Turn-radius sampling exceeds 100000 samples")); P={}; return false; }
  const int32 Count=FMath::Max(1, int32(FMath::CeilToDouble(P.LengthCm/Step)));

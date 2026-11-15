@@ -31,7 +31,7 @@ enum class EMainMenuAction : uint8
 	Resume,
 	/** Pause menu: open MainMenuLevel; the run is lost. */
 	QuitToMenu,
-	/** Death screen: RETURN TO CHECKPOINT, for now restart the current level (no checkpoint system yet). */
+	/** Death screen: RETURN TO CHECKPOINT. During a run, the run's last checkpoint (UBalloonRunSubsystem::FailLevel); otherwise restart the current level. */
 	Retry
 };
 
@@ -156,6 +156,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void ActivateItem(int32 Index);
 
+	/** New Run: a fresh run (UBalloonRunSubsystem::StartNewRun) and its first level (always Forest). */
+	UFUNCTION(BlueprintCallable, Category = "Menu")
+	void StartNewRun();
+
 	/** Leaves a Credits/Options page for the item list. */
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void ShowItemList();
@@ -174,10 +178,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
 	TArray<FMainMenuItem> Items;
-
-	/** Level New Run opens. TBD: the real first level of a run. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")
-	TSoftObjectPtr<UWorld> NewRunLevel;
 
 	/** Level Quit to Menu opens. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Menu")

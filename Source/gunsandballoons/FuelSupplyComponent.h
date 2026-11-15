@@ -34,7 +34,9 @@ public:
 protected:
 	virtual void OnRegister() override;
 	virtual void BeginPlay() override;
-private:
+public:
+	/** Sets the pieces in the bucket (clamped to Capacity); the run's fuel, UBalloonRunSubsystem. */
 	void SetCount(int32 Value);
+private:
 	UPROPERTY(Transient) int32 Count = 0;
 };

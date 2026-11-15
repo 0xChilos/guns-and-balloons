@@ -1,55 +1,27 @@
-# Level generation preview
+# Level generation: editor scripts
 
-Open `/Game/Scenes/LevelGeneration_Test`. Both test maps use instances of the
-shared `/Game/Assets/Balloon/BP_Balloon`. Edit that Blueprint's components and
-compile/save it to update both levels. Keep gameplay tuning in the Blueprint;
-only placement and rider attachments belong to each map. The old
-`BP_LevelGenerationBalloon` asset is unused by this setup.
+Reference: [API](../../docs/tech/BalloonLevel/API.md), [pipeline](../../docs/tech/level-generation.md), [status and known issues](../../docs/tech/BalloonLevel/STATUS.md).
 
-The camera/player is embedded in `BP_Balloon` as the `PlayerCamera` child actor
-(`BP_BalloonPlayer`). Adjust its seat position in the balloon Blueprint. Do not
-place another player Pawn in these maps.
+`/Game/Scenes/MainLevel` is the gameplay and test level. Its `ABalloonLevelGenerator` references the shared `BP_Balloon`, uses **Every Level Start** and **Randomize Seed**, and lists the eight configs `DA_Environment_<Forest|Field|City|Desert>_<Day|Night>` under `/Game/Blueprints/Tests/Environment`. Plans are transient: generate again after opening the map, or press Play.
 
-The placed `LevelGeneration_Preview` actor references that balloon and
-`/Game/Blueprints/Tests/DA_LevelGenerationPreview`. Click **Generate Level** or
-**Regenerate Level** in its Details, then inspect Status and Diagnostics.
-Plans are transient, so generate again after reopening the map.
+## Scripts (run in the editor: `py G:/UE/gunsandballoons/Scripts/Editor/<script>`)
+| Script | Purpose |
+| --- | --- |
+| `setup_biome_asset_catalogs.py` | Reimports `Content/BalloonLevel/Rules/BalloonAssets_*.json` into the native `DT_BalloonAssets_*` tables and binds them to the eight configs. |
+| `setup_level_environment.py` | Binds environment, ground, fog and lights for the generator and checks all biome/preset combinations. |
+| `setup_biome_skies.py` | Creates the sky materials under `Content/BalloonLevel/Skies`. |
+| `test_biome_asset_catalogs.py` | Headless matrix: every biome and preset generates shared and biome meshes and obstacles. |
+| `test_generated_level_borders.py` | Seeded border layouts, rocket balloon ranges, replacement, rollback and Clear. |
+| `test_level_generation_pie.py` | PIE smoke test: Ready from `BeginPlay`, eight borders, possession, flight. Logs `LEVEL_GENERATION_PIE_PASS`. |
+| `verify_level_enemies.py` | Generated enemies per biome. |
 
-To rebuild the fixture and draw its boundaries, border spheres and green route
-for ten minutes, run this in the editor console:
+Native automation tests: `powershell -ExecutionPolicy Bypass -File Scripts/Verify-BalloonLevel.ps1` (close the editor first).
 
-```text
-py G:/UE/gunsandballoons/Scripts/Editor/setup_level_generation_preview.py
-```
+## Manual acceptance checklist (visual checks are not automated)
+1. For each of the eight configs, start a fresh PIE session (a runtime biome/preset change is rejected by the environment controller).
+2. Confirm the generator reports `Ready` and the environment controller reports the expected biome and preset.
+3. Ground uses `MI_<Biome>_Ground`, with no gaps under the route.
+4. Fog: Forest blue-green (0.03), Field warm pale (0.015), City brown smog (0.05), Desert sand (0.02). The Start Options fog density overrides these.
+5. Fixed Day/Night sun, color and brightness stay stable during flight. Night stays readable through the player camera.
 
-The script resets the preview config: seed 12345, straight 500 m route, 200 m
-width, absolute flight Z 100 m, eight borders, no placement catalog. These are
-test fixture values requiring tuning, not approved gameplay parameters.
-No scenery or obstacle actors are spawned by this planning milestone.
-
-To verify generation and actual flight in PIE (the script ends PIE afterward):
-
-```text
-py G:/UE/gunsandballoons/Scripts/Editor/test_level_generation_pie.py
-```
-
-Success logs `LEVEL_GENERATION_PIE_PASS`: Ready, eight borders, attached player
-possession, original balloon controls, and more than 100 cm travel in three seconds.
-
-Generation controls (after rebuilding the project): select `LevelGeneration_Preview`
-and open **Balloon Level > Generation** in Details.
-- **Generation Mode**: **Manual (Button)** uses Generate Level / Regenerate Level;
-  **Every Level Start** generates automatically on each BeginPlay (including PIE).
-- **Biome Selection**: **Selected Config** uses Level Config; **Random** picks a
-  valid entry from **Random Biome Configs**. Assign one DataAsset per biome with
-  its matching BiomeId, asset tables and placement metadata. An empty list fails
-  with a diagnostic; null entries are ignored and duplicate configs count once.
-- Enable **Randomize Seed** for fresh layouts; leave disabled to use the config seed.
-  Active Config shows the selected biome and effective seed without editing assets.
-
-Manual plans are transient and are not baked into maps or copied into PIE.
-Runtime/manual Blueprint calls use the same Generate Level API. These controls
-plan and validate routes; they do not add world realization or scenery spawning.
-
-
-M8 source implementation now realizes transient HISM/Actor preview content through the same Details buttons. Clear Generated Level removes tracked generated content; failed regeneration retains the prior successful level. Draw Generation Debug exposes route, spline, segment, placement and HISM toggles. Final-source build, automation and visual checks are pending after the user-requested stop; see docs/tech/BalloonLevel/HANDOFF.md. Earlier descriptor-only statements above describe the pre-M8 fixture.
+All lighting, fog and distance values are prototype tuning (TBD).

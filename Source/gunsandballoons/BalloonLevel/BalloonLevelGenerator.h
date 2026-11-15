@@ -4,6 +4,8 @@
 #include "BalloonLevelConfig.h"
 #include "BalloonSplinePlanner.h"
 #include "BalloonLevelEventManager.h"
+#include "BalloonEnvironmentPresetController.h"
+#include "BalloonLevelStartOptions.h"
 #include "BalloonLevelGenerator.generated.h"
 
 UENUM(BlueprintType)
@@ -22,6 +24,8 @@ enum class EBalloonBiomeSelection : uint8
 
 class UBalloonLevelRealizer;
 class USplineComponent;
+class UBoxComponent;
+class UStaticMeshComponent;
 class ABalloonBorderThreat;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBalloonBorderChanged);
 
@@ -31,17 +35,77 @@ class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
 	GENERATED_BODY()
 public:
 	ABalloonLevelGenerator();
+ /** Shared setup with Main Menu > New Run. Enable for Details-button generation or direct PIE. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Start Options") bool UseStartOptions = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Start Options", meta=(EditCondition="UseStartOptions")) FBalloonLevelStartOptions StartOptions;
+ /** Finish volume; collision-free so it cannot obstruct route validation or balloon movement. */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UBoxComponent> CompletionZone;
+ /** Collision-free airship visible from generation, beyond the completion zone along the finish heading. */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UStaticMeshComponent> FinishAirship;
+ /** Extra clearance beyond the zone's far face; zero places the mesh bounds directly after it. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="0", Units="m")) float FinishAirshipGapMeters = 0.f;
+ /** Prototype half-depth in meters; TBD tuning. Width/height cover the route and balloon envelope. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Completion", meta=(ClampMin="1", Units="m")) float CompletionZoneHalfDepthMeters = 10.f;
+ UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="Balloon Level|Completion") bool LevelCompleted = false;
+ UPROPERTY(BlueprintAssignable, Category="Balloon Level|Completion") FBalloonBorderChanged OnLevelCompleted;
+ /** Idempotent completion hook: broadcasts OnLevelCompleted, then UBalloonRunSubsystem::CompleteLevel opens the shop. */
+ UFUNCTION(BlueprintCallable, Category="Balloon Level|Completion") void CompleteLevel();
+ virtual void Tick(float DeltaSeconds) override;
+ /** Disable before generation to omit functional enemies (including catalog enemies). Border proxies remain independent. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies") bool SpawnEnemies = true;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(EditCondition="SpawnEnemies")) bool SpawnSharedEnemies = true;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(EditCondition="SpawnEnemies")) bool SpawnBiomeEnemies = true;
+ /** Prototype counts/distances require tuning. Zero omits this enemy type. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 EdgeAACount = 8;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 BirdFlockCount = 3;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 DesertCannonCount = 3;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 DesertBeaconCount = 2;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float EnemySideOffsetMeters = 45.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float EnemyStartClearanceMeters = 150.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float AirshipStartDistanceMeters = 250.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(Units="m")) float AirshipHeightOffsetMeters = 15.f;
+ /** One authoring entry point: reuse assigned/single existing actors or create missing environment actors. */
+ UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level|Controller") void SetupLevelController();
+ UFUNCTION(CallInEditor, Category="Balloon Level|Controller") void PreviewEnvironment();
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") bool ManageEnvironment = true;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") TObjectPtr<ABalloonEnvironmentPresetController> EnvironmentController;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") TObjectPtr<ADirectionalLight> Sun;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") TObjectPtr<ASkyLight> Sky;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") TObjectPtr<AExponentialHeightFog> Fog;
+ /** Optional authored ground, used only with WorldCollision terrain. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Controller") TObjectPtr<AActor> AuthoredGround;
+ /** Overrides apply to the generation copy, never to the source config asset. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Height") bool OverrideHeights = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Height", meta=(EditCondition="OverrideHeights", Units="m")) float FlightHeightMeters = 100.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Height", meta=(EditCondition="OverrideHeights", Units="m")) float GroundHeightMeters = 0.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain") bool OverrideTerrain = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain")) EBalloonTerrainMode TerrainMode = EBalloonTerrainMode::Generated;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain", ClampMin="0", Units="m")) float TerrainHeightVariationMeters = 15.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain", ClampMin="1", Units="m")) float TerrainWavelengthMeters = 200.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain", ClampMin="1", Units="m")) float TerrainCellMeters = 20.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain", ClampMin="0", Units="m")) float TerrainPaddingMeters = 100.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Terrain", meta=(EditCondition="OverrideTerrain")) TSoftObjectPtr<UMaterialInterface> TerrainMaterial;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment") bool OverrideLightingPreset = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment", meta=(EditCondition="OverrideLightingPreset")) EBalloonLightingPreset LightingPreset = EBalloonLightingPreset::Day;
+ /** Enable to tune the environment here instead of on a legacy environment actor. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment") bool OverrideEnvironmentSettings = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment", meta=(EditCondition="OverrideEnvironmentSettings")) FBalloonLightingPresetValues Day;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment", meta=(EditCondition="OverrideEnvironmentSettings")) FBalloonLightingPresetValues Night;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Environment", meta=(EditCondition="OverrideEnvironmentSettings")) TMap<FName, FBalloonFogPreset> BiomeFog;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation") EBalloonGenerationMode GenerationMode = EBalloonGenerationMode::Manual;
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation") EBalloonBiomeSelection BiomeSelection = EBalloonBiomeSelection::Selected;
  /** One config per biome, including its matching asset table and placement settings. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation", meta=(EditCondition="BiomeSelection == EBalloonBiomeSelection::Random")) TArray<TObjectPtr<UBalloonLevelConfig>> RandomBiomeConfigs;
  /** Fresh seed on each button press/start; disable to reproduce the authored seed. */
  UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation") bool RandomizeSeed = false;
+ /** Additional seed attempts at level start only. Prototype limit requiring tuning; zero disables fallback. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Generation", meta=(ClampMin="0", ClampMax="12")) int32 LevelStartSeedRetries = 3;
  /** Immutable per-generation copy; source DataAssets are never changed. */
  UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="Balloon Level|Generation") TObjectPtr<UBalloonLevelConfig> ActiveConfig;
 protected:
  virtual void BeginPlay() override;
  virtual void Destroyed() override;
+ virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 public:
  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Events") TObjectPtr<UBalloonLevelEventManager> EventManager;
  UPROPERTY(BlueprintAssignable, Category="Balloon Level|Events") FBalloonBorderChanged OnBorderChanged;
@@ -50,8 +114,12 @@ public:
  bool TryEventBorderChange(const FBalloonLevelEventDefinition& Event, FString& Reason);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<UBalloonLevelConfig> LevelConfig;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<USplineComponent> Spline;
- /** Selected balloon instance: active shape bounds and authored flight limits are inspected at generation. */
+ /** Player balloon instance. Successful generation places it at the route start and flight height, with its attached riders. */
  UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<AActor> RoutePawn;
+ /** Check the configured seed without committing a level. Disable random selection for exact replay. */
+ UFUNCTION(BlueprintCallable, Category="Balloon Level") bool CheckSeed();
+ UFUNCTION(CallInEditor, Category="Balloon Level", meta=(DisplayName="Check Seed")) void CheckSeedInEditor();
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") bool LastSeedCheckPassed = false;
 	/** Ready requires fixed-Z route proof and successful world realization. */
 	UFUNCTION(BlueprintCallable, Category="Balloon Level") bool GenerateLevel();
 	/** Details buttons must have no parameters or return value. */
@@ -80,7 +148,13 @@ public:
  UPROPERTY(EditAnywhere, Category="Balloon Level|Debug") bool DebugHISM = true;
  UFUNCTION(CallInEditor, Category="Balloon Level|Debug") void DrawGenerationDebug() const;
 private:
- bool BuildAndRealizeLevel();
+ void SpawnLevelEnemies();
+ bool ConfigureEnvironment();
+ void ClearOwnedEnvironment();
+ UPROPERTY(Transient) TArray<TObjectPtr<AActor>> OwnedEnvironmentActors;
+ bool BuildAndRealizeLevel(bool RetrySeed = false, bool ValidateOnly = false);
+ bool StartingLevel = false;
+ bool SeedRetryable = false;
  UPROPERTY(Transient) TMap<int32, TObjectPtr<ABalloonBorderThreat>> BorderProxies;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") EBalloonLevelGenerationStatus Status = EBalloonLevelGenerationStatus::NotStarted;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") TArray<FString> Diagnostics;

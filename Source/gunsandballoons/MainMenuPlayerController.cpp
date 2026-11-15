@@ -1,4 +1,5 @@
 #include "MainMenuPlayerController.h"
+#include "Components/InputComponent.h"
 
 #include "Components/AudioComponent.h"
 #include "EngineUtils.h"

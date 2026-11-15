@@ -1,6 +1,6 @@
 # Grappling hook and resources
 
-> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-15
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-16
 
 ## Why
 A way to gather resources on the fly without stopping, and a risk/reward choice: getting distracted by loot during the chase.
@@ -20,6 +20,7 @@ A way to gather resources on the fly without stopping, and a risk/reward choice:
 - After it returns, pump it up: each pump stroke (Pump animation) adds `100 / number of pumps`. At 100 the Charged animation plays and the hook is ready again.
 - **Pumping is easy at first, harder after the middle:** the lever goes stiff, each stroke is slower than the last, the final one is the hardest. The number of strokes to 100 doesn't change.
 - Resources:
+  - spawn at authored `loot_*` sockets/bones on generated scenery, at most one hookable pickup per spot (including instanced meshes); the level config's Item Density sets the percentage filled (0-100%, default 100%, prototype tuning), repeatably for the level seed; regeneration removes the previous pickups;
   - lie on the level's surroundings;
   - hang from small balloons flying in the air.
 
@@ -35,6 +36,7 @@ A way to gather resources on the fly without stopping, and a risk/reward choice:
 ## Parameters
 | Parameter | Value | Note |
 | --- | --- | --- |
+| Pickup catch box padding | 250 cm per side | AHookPickup::HookCollisionPadding, needs playtest tuning; query-only box around mesh bounds |
 | Range | TBD | `MaxRange`, currently 2500 cm (placeholder) |
 | Pumps per shot | TBD | `PumpsToFullCharge`, currently 5; adjustable in the debug menu (`H`) |
 | Pressure at which pumping gets harder | TBD | `HardPumpFrom`, currently 50; debug menu |

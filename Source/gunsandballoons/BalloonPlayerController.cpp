@@ -1,6 +1,7 @@
 #include "BalloonPlayerController.h"
 
 #include "Components/AudioComponent.h"
+#include "BalloonRunSubsystem.h"
 #include "Components/InputComponent.h"
 #include "FirstPersonCameraPawn.h"
 #include "DeathScreenWidget.h"
@@ -176,7 +177,9 @@ void ABalloonPlayerController::TogglePause()
 
 void ABalloonPlayerController::PauseGame()
 {
-	if (PauseMenu || !IsLocalController() || !SetPause(true))
+	// The shop between levels already pauses the game and owns the mouse (UBalloonRunSubsystem).
+	const UBalloonRunSubsystem* Run = UBalloonRunSubsystem::Get(this);
+	if (PauseMenu || (Run && Run->IsShopOpen()) || !IsLocalController() || !SetPause(true))
 	{
 		return;
 	}

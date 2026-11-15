@@ -8,6 +8,22 @@
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalloonLevelM3Test,"GunsAndBalloons.BalloonLevel.M3",EAutomationTestFlags::EditorContext|EAutomationTestFlags::EngineFilter)
 bool FBalloonLevelM3Test::RunTest(const FString& Parameters)
 {
+ // Enemy density 1.5 turns the authored 8 borders into 12 on a 500m route.
+ // Greedy random packing can jam despite enough room for six per side.
+ auto* Dense=NewObject<UBalloonLevelConfig>();
+ Dense->BordersEnabled=true; Dense->BorderExactCount=12; Dense->LengthMeters=500.f;
+ Dense->BorderMinSpacingMeters=80.f; Dense->BorderAllowOverlap=false;
+ for (int32 Seed : {12345,42,30068})
+ {
+  Dense->Seed=Seed; FBalloonLevelPlan DensePlan; TArray<FString> Messages;
+  TestTrue(TEXT("dense border geometry"),BalloonSplinePlanning::Build(*Dense,DensePlan,Messages));
+  TestTrue(TEXT("twelve borders fit without relaxing spacing"),BalloonBorderPlanning::Build(*Dense,DensePlan,Messages));
+  TestEqual(TEXT("dense border count preserved"),DensePlan.Borders.Num(),12);
+  for (int32 I=0;I<DensePlan.Borders.Num();++I) for(int32 J=0;J<I;++J)
+   TestTrue(TEXT("dense borders retain minimum spacing and no overlaps"),
+    FVector::DistXY(DensePlan.Borders[I].Center,DensePlan.Borders[J].Center)+.01>=
+     FMath::Max(8000.,DensePlan.Borders[I].RadiusCm+DensePlan.Borders[J].RadiusCm));
+ }
  auto* C=NewObject<UBalloonLevelConfig>();
  C->BordersEnabled=true; C->BorderExactCount=25; C->MaxHeadingDegrees=0.f;
  FBalloonLevelPlan P,Q; TArray<FString> D;

@@ -59,7 +59,8 @@ protected:
 	float MaxHealth = 100.f;
 
 	/** Fallback when the player controller is not an ABalloonPlayerController (which shows the death
-	 *  screen): show a message and reload the level. */
+	 *  screen): show a message, then go back to the shop at the run's last checkpoint
+	 *  (UBalloonRunSubsystem::FailLevel); without a run, reload the level. */
 	UPROPERTY(EditAnywhere, Category = "Balloon|Health")
 	bool bRestartLevelOnDeath = true;
 

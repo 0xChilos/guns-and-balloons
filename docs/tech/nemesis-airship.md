@@ -1,6 +1,6 @@
 # Nemesis airship — technical reference (C++)
 
-> **For agents.** How the airship, its turrets and rockets work. Design lives in [nemesis-airship](../features/nemesis-airship.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-14
+> **For agents.** How the airship, its turrets and rockets work. Design lives in [nemesis-airship](../features/nemesis-airship.md); if the code and the design disagree, the design wins. **Updated:** 2026-11-15
 
 ## Files
 | File | Role |
@@ -31,6 +31,8 @@
 | `Scripts/Editor/setup_nemesis_materials.py` | Re-imports the textures (nearest filter, no mips) and rebuilds `M_Nemesis` / `MI_Nemesis_*` |
 
 ## Use
+Generated levels use `ABalloonLevelGenerator::SpawnLevelEnemies` in `BalloonLevel/BalloonLevelEnemies.cpp` after successful realization. `Balloon Level | Enemies` exposes the master/shared/biome switches and prototype counts/distances. These take effect on the next generation. Shared spawning reuses an authored airship, and skips native AA when a configured border class supplies the edge threats. Field adds `ANemesisBirdFlock`; Desert adds grounded `ANemesisTowerCannon` and `ANemesisBeacon`. Placements use the generated seed and route, with a start clearance. Actors are transient and tracked by the realizer, so successful regeneration and Clear remove them; failed regeneration preserves them. These switches do not affect manually placed actors, and border influence proxies remain controlled by border settings. Native functional enemies are separate from the existing optional catalog placement budget. `GunsAndBalloons.BalloonLevel.Enemies` covers selection, seeded regeneration, disable switches and cleanup.
+
 Drop `ANemesisAirship` into a level with a balloon (any actor with `UBalloonFlightComponent`). At BeginPlay it jumps `StartDistance` (80 m, nose ≈ 60 m from the basket: D1) behind the balloon (0 = stays where placed). Nothing else is required. Rockets and planes come from behind: look back to see them.
 
 **Enemy test level:** `/Game/Scenes/Enemies_Test` (built by `Scripts/Editor/create_enemies_test_level.py` from BalloonFlight_Test): the balloon, the player with the six hand items in front of them, a 3 × 3 km desert ground 50 m below, and an `ANemesisWaveDirector`. The director spawns the airship 250 m behind (`AirshipStartDistance`; `ANemesisAirship::SetStartDistance` before `FinishSpawning`, otherwise it jumps to its own 80 m = the rocket band) with `bInvulnerableBalloon` on for testing, then runs `Events` (seconds after start, 6–14 s apart; each shows its label on screen): 2 s take a weapon, 6 s bird flock 100 m ahead, 14 s airship crop dusters (`SetForcedBand`), 24 s beacon 60 m ahead / 35 m left on the ground, 36 s airship bomber + mines, 42 s cannon tower 70 m ahead / 45 m right, 56 s airship rockets, 62 s AA balloon 35 m ahead / 18 m left, 76 s crop duster patrol 110 m ahead, 90 s airship back to attacks by distance. Enemies face the balloon; towers and beacons stand on the ground under their point (or `FallbackGroundDepth` 50 m below the basket). Edit `Events` / `bLoop` on the WaveDirector in the level.

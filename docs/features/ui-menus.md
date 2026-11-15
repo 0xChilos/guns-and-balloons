@@ -1,15 +1,16 @@
 # UI, menus and the navigation panel
 
-> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE; gameplay music: built and compiled, not yet heard in game) · **Owner:** Rostik · **Updated:** 2026-11-15
+> **Status:** In progress (main menu: scene done, widget in progress; pause menu: built, not yet tested in game; death screen: built, checked in PIE; gameplay music: built and compiled, not yet heard in game) · **Owner:** Rostik · **Updated:** 2026-11-16
 
 ## Why
 As little non-diegetic interface as possible. During play, information comes from the gauges in the basket.
 
 ## Main menu
+Level launch is a reusable Blueprint/C++ `StartLevel` method on the game-instance launch subsystem. Any menu can supply the shared setup and an optional destination map; the method validates it, carries it across travel and starts the level. The main menu uses this same method.
 | Item | Action |
 | --- | --- |
 | Continue | Continue the last run (disabled until there are saves) |
-| New Run | Start a new run |
+| New Run | Start a new run: the first level (Forest) opens right away |
 | Credits | Authors: Oleksii Nahorniak, Ivan Luzhanskiy, Ivan Petrenko, Rostyslav Ivlev |
 | Options | On/off switches (below) |
 | Quit | Quit the game |
@@ -23,6 +24,7 @@ As little non-diegetic interface as possible. During play, information comes fro
 - **Mouse only:** hovering an item selects it, LMB confirms. No keyboard navigation. The cursor is drawn inside the menu so it is filtered too.
 - **Options:** three switches, each flipped by a click and saved for the player at once: **Music** ON/OFF, **SFX** ON/OFF, **Tutorial** YES/NO (all on by default). SFX already mutes the menu click and Music the menu and gameplay music; there is no tutorial yet, and when it is added it must honour its switch.
 - **Returning to the menu** (Quit to Menu, end of run) reloads the `MainMenu` level; the run's state is lost unless it was saved.
+- **Level setup:** the New Run setup page was removed (2026-11-15); runs use `UBalloonRunSubsystem::LevelOptions` with the run's biome. The launch settings remain: Biome (Forest/Field/City/Desert), Cycle (fixed Day/Night), Flight Height (m), Level Width (m), and Distance to Nemesis (m behind the route start). The same setup is available under the Level Generator's **Start Options** (enable **Use Start Options**). A menu launch takes precedence over editor settings and is consumed once. Numeric defaults and UI ranges are prototype tuning: height 100 m (0-1000), width 600 m (1-2000), nemesis distance 250 m (0-5000). Enemy, obstacle, item and fog densities use authored config/environment settings and are not launch controls. Existing spawn switches still apply.
 
 | Parameter | Value | Note |
 | --- | --- | --- |
@@ -73,7 +75,7 @@ Shown when the engine is destroyed (`UEngineHealthComponent`: enemy hits, the ai
 - **Screen:** a silent-film title card over the frozen game, which is washed in sepia with film grain and dark corners; the grain jumps ~6 times a second (was 12); the card itself stays steady, without flicker (2026-11-15). A double line border around a dark field holds three things, all in English:
   - the title **ENGINE DESTROYED**;
   - what destroyed the engine, from the last hit: SHOT DOWN BY A TOWER CANNON, SHOT DOWN BY A CROP DUSTER, HIT BY THE AIRSHIP'S ROCKET, BLOWN UP BY A PARACHUTE MINE, HIT BY AN AA MISSILE, BROUGHT DOWN BY A FLOCK OF BIRDS, CAUGHT BY THE NEMESIS AIRSHIP (its turrets), otherwise THE ENGINE GAVE OUT;
-  - two rows: **RETURN TO CHECKPOINT** and **MAIN MENU** (2026-11-15, replaced TRY AGAIN). There is no checkpoint system yet, so the checkpoint is the start of the current level (a level is one flight through a biome). MAIN MENU opens the main menu; the run is lost, as with the pause menu's QUIT TO MAIN MENU. The rows take a click only after 1 s, so panicked clicking from the fight can't press one.
+  - two rows: **RETURN TO CHECKPOINT** and **MAIN MENU** (2026-11-15, replaced TRY AGAIN). During a run, RETURN TO CHECKPOINT goes back to the run's last checkpoint (the state at the last completed level) and opens the shop, then the failed biome is played again ([safe-zone](safe-zone.md)); a level played on its own just restarts. MAIN MENU opens the main menu; the run is lost, as with the pause menu's QUIT TO MAIN MENU. The rows take a click only after 1 s, so panicked clicking from the fight can't press one.
   - The item in hand is not drawn while a menu panel is up (death screen, pause): a gun raised to the eye sits nearer to the camera than the panel and covered the death screen (2026-11-15). The gun stays where it is; it is only hidden until the pause menu closes.
 - Same font, rows, hover, sounds and pixel cursor as the other menus; mouse only. The panel is masked and dithered (PS1 stipple instead of soft transparency).
 - No run statistics (decided 2026-11-15).
