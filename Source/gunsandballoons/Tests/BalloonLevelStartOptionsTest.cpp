@@ -20,6 +20,12 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBalloonLevelStartOptionsTest, "GunsAndBalloons
 bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
 {
  FBalloonLevelStartOptions Options; TArray<FString> Errors;
+ for (float Invalid : {-1.f, 1.1f, std::numeric_limits<float>::quiet_NaN()})
+ {
+  Options.ItemDensity=Invalid;
+  TestFalse(TEXT("invalid item density rejected"),Options.Validate(Errors));
+ }
+ Options.ItemDensity=.5f;
  auto* Instance = NewObject<UGameInstance>();
  auto* Launch = NewObject<UBalloonLevelLaunchSubsystem>(Instance);
  FText LaunchError;
@@ -29,6 +35,7 @@ bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
  TestTrue(TEXT("queue valid setup"), Launch->QueueLevel(Options));
  FBalloonLevelStartOptions Received;
  TestTrue(TEXT("consume launch"), Launch->Consume(Received)); TestFalse(TEXT("launch only once"), Launch->Consume(Received));
+ TestEqual(TEXT("item density survives launch handoff"),Received.ItemDensity,.5f);
  Options.LevelWidth = std::numeric_limits<float>::quiet_NaN();
  TestFalse(TEXT("start validates settings independently of menu"), Launch->StartLevel(Options, TSoftObjectPtr<UWorld>(), LaunchError));
  TestFalse(TEXT("reject NaN"), Launch->QueueLevel(Options));
@@ -56,6 +63,8 @@ bool FBalloonLevelStartOptionsTest::RunTest(const FString& Parameters)
  TestEqual(TEXT("fog density"), G->Fog->GetComponent()->FogDensity, .075f);
  TestEqual(TEXT("source width unchanged"), C->BaseWidthMeters, 600.f);
  TestEqual(TEXT("source height unchanged"), C->FlightHeightMeters, 100.f);
+ TestEqual(TEXT("item density applied to active config"), G->ActiveConfig->ItemDensity, .5f);
+ TestEqual(TEXT("source item density unchanged"), C->ItemDensity, 1.f);
  int32 Birds = 0; ANemesisAirship* Airship = nullptr;
  for (const auto& Ref : G->Realizer->Actors)
  {
