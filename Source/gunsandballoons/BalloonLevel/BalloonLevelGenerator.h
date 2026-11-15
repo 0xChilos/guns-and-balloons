@@ -5,6 +5,7 @@
 #include "BalloonSplinePlanner.h"
 #include "BalloonLevelEventManager.h"
 #include "BalloonEnvironmentPresetController.h"
+#include "BalloonLevelStartOptions.h"
 #include "BalloonLevelGenerator.generated.h"
 
 UENUM(BlueprintType)
@@ -33,6 +34,9 @@ class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
 	GENERATED_BODY()
 public:
 	ABalloonLevelGenerator();
+ /** Shared setup with Main Menu > New Run. Enable for Details-button generation or direct PIE. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Start Options") bool UseStartOptions = false;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Start Options", meta=(EditCondition="UseStartOptions")) FBalloonLevelStartOptions StartOptions;
  /** Finish volume; collision-free so it cannot obstruct route validation or balloon movement. */
  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Completion") TObjectPtr<UBoxComponent> CompletionZone;
  /** Prototype half-depth in meters; TBD tuning. Width/height cover the route and balloon envelope. */

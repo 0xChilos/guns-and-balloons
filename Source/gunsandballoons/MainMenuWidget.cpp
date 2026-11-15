@@ -118,6 +118,7 @@ void UMainMenuClickRelay::HandleClicked()
 		case EMainMenuRowKind::Item: Owner->ActivateItem(Index); break;
 		case EMainMenuRowKind::Back: Owner->ShowItemList(); break;
 		case EMainMenuRowKind::Toggle: Owner->ToggleOption(Index); break;
+  case EMainMenuRowKind::StartLevel: Owner->StartConfiguredLevel(); break;
 		}
 		// After the action, so switching SFX off is silent and switching it on clicks.
 		Owner->PlayClick();
@@ -143,7 +144,7 @@ UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	HoverSound.Sound = ClockLoop;
 	HoverSound.Start = 1.12f;
 	HoverSound.Length = 0.24f;
-	NewRunLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/Movement_Scene1.Movement_Scene1")));
+	NewRunLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/MainLevel.MainLevel")));
 	MainMenuLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/MainMenu.MainMenu")));
 
 	CreditsTitle = LOCTEXT("CreditsTitle", "CREDITS");
@@ -233,6 +234,7 @@ void UMainMenuWidget::BuildTree()
 
 	// The item list, the Credits page and the Options page share one spot.
 	USizeBox* Width = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ListWidth"));
+ PageWidth = Width;
 	Width->SetWidthOverride(ListWidth);
 	Pages = WidgetTree->ConstructWidget<UWidgetSwitcher>(UWidgetSwitcher::StaticClass(), TEXT("Pages"));
 	Width->SetContent(Pages);
@@ -264,6 +266,7 @@ void UMainMenuWidget::BuildTree()
 	UVerticalBox* Gap = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	OptionsPage->AddChildToVerticalBox(Gap)->SetPadding(FMargin(0.f, 0.f, 0.f, 28.f));
 	OptionsBackRow = MakeRow(OptionsPage, BackLabel, EMainMenuRowKind::Back, INDEX_NONE);
+ BuildLevelStartPage();
 
 	UCanvasPanelSlot* ListSlot = Root->AddChildToCanvas(Width);
 	ListSlot->SetAutoSize(true);
@@ -443,7 +446,7 @@ void UMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	}
 
 	// Page rows light up only while hovered.
-	for (FRow* Row : {&BackRow, &OptionsBackRow})
+	for (FRow* Row : {&BackRow, &OptionsBackRow, &StartLevelRow, &LevelBackRow})
 	{
 		if (Row->Button)
 		{
@@ -515,14 +518,7 @@ void UMainMenuWidget::ActivateItem(int32 Index)
 		UE_LOG(LogTemp, Warning, TEXT("MainMenu: Continue has no save system to load yet."));
 		break;
 	case EMainMenuAction::NewRun:
-		if (NewRunLevel.IsNull())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("MainMenu: NewRunLevel is not set."));
-		}
-		else
-		{
-			UGameplayStatics::OpenLevelBySoftObjectPtr(this, NewRunLevel);
-		}
+  ShowLevelStartPage();
 		break;
 	case EMainMenuAction::Credits:
 		ShowPage(CreditsTitle, CreditsText);
@@ -609,7 +605,11 @@ UButton* UMainMenuWidget::FindHoveredButton() const
 	case 1:
 		Visible.Add(&BackRow);
 		break;
-	default:
+	case 3:
+  Visible.Add(&StartLevelRow);
+  Visible.Add(&LevelBackRow);
+  break;
+ default:
 		for (const FRow& Row : ToggleRows)
 		{
 			Visible.Add(&Row);
@@ -714,6 +714,11 @@ void UMainMenuWidget::RefreshToggleValue(int32 Index)
 
 void UMainMenuWidget::ShowItemList()
 {
+ if (PageWidth)
+ {
+  PageWidth->SetWidthOverride(ListWidth);
+  if (auto* PageSlot = Cast<UCanvasPanelSlot>(PageWidth->Slot)) PageSlot->SetPosition(ListPosition);
+ }
 	if (Pages)
 	{
 		Pages->SetActiveWidgetIndex(0);
