@@ -1,6 +1,6 @@
 # Weapons
 
-> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-15
+> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-15 (items placed in the basket)
 
 ## Why
 Every shot should be a decision: the weapons are awkward, rounds are scarce, and reloading is manual and takes time while the balloon flies and the stove dies down.
@@ -23,12 +23,13 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
   - After a shot, a **spent case** stays in the chamber (sooty, as painted in the texture, not a clean brass round), so you can see how many rounds were used. On reload the spent case is ejected and a new clean round goes in its place.
   - **Rifle (Martini-Henry, 1 round):** aiming at the ammo crate (if there is no live round in the chamber) lowers the lever and opens the breech; the spent case stays in the chamber. Then each RMB on the crate is one step: (1) while there is a spent case in the chamber, RMB: the extractor pulls it out and ejects it (no round is taken from the crate); (2) when the chamber is empty, RMB: a round goes into the chamber and the breech closes. After a shot that's 2 clicks. The breech **stays open until the next click**, even if you look away; LMB closes the breech without firing.
   - **Shotgun (Homestead 78, 2 rounds, external hammers):** the same rules. LMB fires the right barrel (front trigger); once it's spent, the left one (rear trigger); with no live rounds the trigger only clicks. Aiming at the ammo crate (if at least one barrel isn't loaded) only breaks the gun open; spent cases stay in the barrels. Then each RMB on the crate is one step: (1) while there is a spent case, RMB pulls it out and ejects it (no round is taken from the crate); (2) when no spent cases are left, RMB loads one round into the first empty barrel (right, then left), and that barrel's hammer is cocked. Two spent barrels = 4 clicks: case, case, round, round. The gun **stays open** even if you look away; when both barrels are loaded it closes by itself. LMB while it's open closes it without firing; LMB during a step finishes the step (the round in the hand is loaded) and cancels the rest of the queue.
-- **Hand and items:** the player starts with an **empty hand** and holds one item at a time. The revolver, the rifle, the double-barrel shotgun (Homestead 78), the [grappling hook](grappling-hook.md) and the [fire extinguisher](fire-extinguisher.md) each sit in their own place in the world (the rack in the basket, a spot in front of the player). There are no weapon-switch keys.
+- **Hand and items:** the player starts with an **empty hand** and holds one item at a time. The revolver, the rifle, the double-barrel shotgun (Homestead 78), the [grappling hook](grappling-hook.md) and the [fire extinguisher](fire-extinguisher.md) each sit in their own place in the basket. There are no weapon-switch keys.
+  - **Where they are** (2026-11-15): on the walls of the basket, where the balloon model has a place for each. Weapon wall (right of the navigation display): the revolver hangs on its hook by the trigger guard, barrel down; the rifle and the shotgun stand upright in the gun rack, butts in the pockets, barrels in the notches of the top shelf. Tool board (left of the display): the wrench on its peg, the grappling hook diagonally on its two brackets, the extinguisher in its floor cup. Every item can be reached and clicked from the player's place. The revolver's hook sits behind the display housing, so from the player's place only the top of the revolver shows (clicking it works).
   - **Take:** LMB on an item with an empty hand: it rises into the hand (the extinguisher with its own animation).
   - **Put back:** LMB on the item's empty place: the item is lowered out of view and lies in its place; the hand is empty.
   - **Swap:** LMB on another item while holding one: the held item goes back to where it was taken from, and the new one rises.
   - An item first finishes what it started (a shot, the hook returning), and only then is lowered. A weapon can't be put back or swapped during a reload (while it's open). In its place an item keeps its rounds, cases, pressure and supply; it isn't loaded there.
-  - Each place fits its own item: **only the revolver** hangs on the hooks of the basket rack; another item can't be put in its place.
+  - Each place fits its own item; another item can't be put in its place.
   - With an empty hand you can't shoot or take rounds, but you can work the [levers](balloon-controls.md).
 - New weapons and ammo come from the [safe zone](safe-zone.md).
 
@@ -55,7 +56,7 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
 | Recoil, spread, sway | TBD (see the proposal in [decisions](../decisions.md)) | `AimRecoil*`, `SpreadAngle`, `HandSway*` on the weapon; basket sway `BalloonSway*` on the player (shared) |
 | Reload time | Rifle 2.7 s, shotgun 4.7 s; revolver TBD | Animation time without pauses between RMB clicks |
 | Holster capacity (ammo) | TBD | `UAmmoSupplyComponent::Rounds`, currently −1 = unlimited |
-| Layout of items in front of the player | TBD | Test scene: items hang 120 cm from the eyes below the horizon in three columns: revolver and hook on the left, rifle and shotgun straight ahead, extinguisher on the right (`Scripts/Editor/place_item_pickups.py`, placeholder) |
+| Item poses in the basket | TBD | One `UWeaponRackComponent` per item on `BP_Balloon` (`Rack_*`), snapped to its `SK_Balloon` socket (`AttachSocket`); the pose is `DisplayOffset` / `DisplayRotation` in the balloon mesh's axes, worked out by `Scripts/Editor/add_basket_item_racks.py` (tune by eye) |
 | Item click zone | TBD | Model size + `InteractPadding` 3 cm (placeholder) |
 | Revolver rounds at start | TBD | `URevolverComponent::InitialRounds`, currently 6 |
 | Rifle round at start | TBD | `URifleComponent::bStartLoaded`, currently yes |
@@ -69,6 +70,6 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
 
 ## Open questions
 - [ ] How many weapons does the player carry at once? Currently one item in the hand; the rest lie in their places.
-- [ ] Where in the basket do the rifle, shotgun, hook and extinguisher go? Currently only the revolver has a place in the basket (the rack); the rest exist only in the test scene in front of the player.
+- [ ] The revolver's hook is mostly hidden behind the display housing from the player's place: keep it there, or hang the revolver somewhere more visible?
 - [ ] Do we keep the revolver if the pillar is single-shot weapons?
 - [ ] Different ammo for different weapons? Currently one crate loads whatever weapon is in the hand.

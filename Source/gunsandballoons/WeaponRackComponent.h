@@ -30,6 +30,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon|Rack") TObjectPtr<UBoxComponent> InteractShape;
 	/** Which of the player's items belongs here: the class of its component on AFirstPersonCameraPawn (the revolver by default). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack") TSubclassOf<UGunComponent> ItemClass;
+	/**
+	 * Socket on the owner's skeletal mesh named "Mesh" (the balloon's SK_Balloon) this place snaps to when it registers,
+	 * so it moves with the basket: socket_revolver, socket_rifle, socket_shotgun, socket_tool_vertical_1 (extinguisher),
+	 * socket_tool_horizontal (hook), socket_tool_vertical_2 (wrench). None or missing: stays where it is placed.
+	 * The place takes only the socket's position and keeps the mesh's axes, so DisplayOffset / DisplayRotation
+	 * are in the mesh's space. A place already attached to a socket in its Blueprint keeps that one.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack") FName AttachSocket = TEXT("socket_small_weapon");
 	/** The item is here when play starts. Off: the place is empty until the player puts the item on it. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack") bool bStartsWithWeapon = true;
 	/** TBD: fit barrel and grip to WeaponHookSmallL/R in the editor. */
