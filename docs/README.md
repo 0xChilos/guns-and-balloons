@@ -1,49 +1,50 @@
-# Дизайн-документація Guns and Balloons
+# Guns and Balloons design documentation
 
-Модульний «живий» GDD: замість одного великого документа — короткий огляд гри і окрема сторінка на кожну фічу.
+A modular "living" GDD: instead of one big document, a short game overview and a separate page for each feature.
 
-## З чого почати
-1. [Огляд гри](overview.md) — концепт, стовпи дизайну, ігровий цикл, команда. Читати першим.
-2. Сторінки фіч у [features/](features/) — по одній на механіку.
-3. [Журнал рішень](decisions.md) — що і коли вирішили, щоб не повертатися до обговорених питань.
+## Where to start
+1. [Game overview](overview.md): concept, design pillars, game loop, team. Read it first.
+2. Feature pages in [features/](features/), one per mechanic.
+3. [Decision log](decisions.md): what was decided and when, so settled questions don't get reopened.
 
-## Зміст
-| Сторінка | Про що | Власник |
+## Contents
+| Page | About | Owner |
 | --- | --- | --- |
-| [overview.md](overview.md) | Концепт, стовпи, цикл, скоуп | Всі |
-| [features/balloon-controls.md](features/balloon-controls.md) | Керування кулею: панель, нахил, гальмування, інерція | Сокін |
-| [features/engine-stove.md](features/engine-stove.md) | Двигун-пічка, паливо і температурні зони | Ростік |
-| [features/weapons.md](features/weapons.md) | Дієгетична зброя, перезарядка, балістика | Сокін |
-| [features/grappling-hook.md](features/grappling-hook.md) | Граплінг-хук і збір ресурсів | Сокін |
-| [features/fire-extinguisher.md](features/fire-extinguisher.md) | Вогнегасник: запас на лічильнику, піна в стилі PS1 | Сокін |
-| [features/wrench.md](features/wrench.md) | Гайковий ключ: взяти, крутити на ЛКМ (поки лише анімація) | TBD |
-| [features/crosshair.md](features/crosshair.md) | Динамічний приціл в арт-стилі, інерція | Сокін |
-| [features/nemesis-airship.md](features/nemesis-airship.md) | Дирижабль-переслідувач і його атаки | Вано |
-| [features/biomes.md](features/biomes.md) | Рівні-біоми та їхні небезпеки | TBD |
-| [features/safe-zone.md](features/safe-zone.md) | Безпечна зона між рівнями: ремонт, магазин, апгрейди | TBD |
-| [features/ui-menus.md](features/ui-menus.md) | Головне меню, навігаційна панель | Ростік |
-| [art-style.md](art-style.md) | Візуальний стиль і пост-обробка | Ростік |
-| [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, єдиний Pawn та маршрутизація взаємодій | Сокін |
-| [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Сокін |
-| [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Сокін |
-| [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Сокін |
+| [overview.md](overview.md) | Concept, pillars, loop, scope | Everyone |
+| [features/balloon-controls.md](features/balloon-controls.md) | Balloon controls: panel, tilt, braking, inertia | Sokin |
+| [features/engine-stove.md](features/engine-stove.md) | Stove engine, fuel and temperature zones | Rostik |
+| [features/weapons.md](features/weapons.md) | Diegetic weapons, reloading, ballistics | Sokin |
+| [features/grappling-hook.md](features/grappling-hook.md) | Grappling hook and resource gathering | Sokin |
+| [features/fire-extinguisher.md](features/fire-extinguisher.md) | Fire extinguisher: supply on a counter, PS1-style foam | Sokin |
+| [features/crosshair.md](features/crosshair.md) | Dynamic crosshair in the art style, inertia | Sokin |
+| [features/wrench.md](features/wrench.md) | Wrench: take it, turn it on LMB (animation only for now) | TBD |
+| [features/nemesis-airship.md](features/nemesis-airship.md) | The pursuing airship and its attacks | Vano |
+| [features/biomes.md](features/biomes.md) | Biome levels and their hazards | TBD |
+| [features/safe-zone.md](features/safe-zone.md) | Safe zone between levels: repairs, shop, upgrades | TBD |
+| [features/ui-menus.md](features/ui-menus.md) | Main menu, navigation panel | Rostik |
+| [art-style.md](art-style.md) | Visual style and post-processing | Rostik |
+| [tech/weapons.md](tech/weapons.md) | Technical reference for agents: gun C++ (revolver, rifle, shotgun), viewmodel, how to add guns and hook events | Sokin |
+| [tech/grappling-hook.md](tech/grappling-hook.md) | Technical reference for agents: hook C++ (pressure, flight, world-space head, rope, pickups, debug menu) | Sokin |
+| [tech/fire-extinguisher.md](tech/fire-extinguisher.md) | Technical reference for agents: extinguisher C++ (contents, counter drums, spray states, foam) | Sokin |
+| [tech/crosshair.md](tech/crosshair.md) | Technical reference for agents: crosshair HUD, material, spread and inertia | Sokin |
+| [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Sokin |
+| [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Sokin |
 | [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses), FBX take split and import | TBD |
-| [tech/crosshair.md](tech/crosshair.md) | Technical reference for agents: crosshair HUD, material, spread and inertia | Сокін |
-| [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Сокін |
-| [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Сокін |
-| [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Сокін |
-| [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Ростік |
-| [source/directors-cut.md](source/directors-cut.md) | Сирі нотатки (оригінал, не редагувати) | — |
+| [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, the single Pawn and interaction routing | Sokin |
+| [tech/stove.md](tech/stove.md) | Technical reference for agents: stove, fuel buckets, health, flight, animation and validation | Rostik |
+| [tech/wing-lever.md](tech/wing-lever.md) | Technical reference for agents: wing lever, drag/grab, detents, slip API | Sokin |
+| [tech/nemesis-airship.md](tech/nemesis-airship.md) | Technical reference for agents: nemesis airship, turrets, rockets, biome enemies, engine health | Vano |
+| [source/directors-cut.md](source/directors-cut.md) | Original raw notes (translated to English; content not edited) | — |
 
-## Правила ведення
-- **Одна фіча — одна сторінка, максимум ~1 сторінка тексту.** Коротше — краще. Нова фіча = копія [_template.md](_template.md).
-- **Пиши правила, а не історію.** Обговорення — у PR/чаті; у документ — лише результат. Невирішене — у «Відкриті питання».
-- **Числа — в таблицю «Параметри».** Невідоме значення = `TBD`, не вигадуй.
-- **Статус у шапці** (`Draft` → `Agreed` → `In progress` → `Done`) і дата оновлення.
-- **На сторінках `features/` — лише затверджене.** Нова фіча чи зміна спершу записується в [decisions.md](decisions.md) зі статусом `Запропоновано`.
-- **Після апруву** — змінити статус на `Прийнято` і перенести на сторінку фічі (або створити нову з шаблону).
-- **Зміни — через git:** гілка `docs/<тема>`, коміт `docs: <що змінено>`, PR.
-- Терміни: українською, назви класів/ассетів Unreal — англійською в `коді`.
+## Rules
+- **One feature, one page, at most ~1 page of text.** Shorter is better. A new feature = a copy of [_template.md](_template.md).
+- **Write rules, not history.** Discussions belong in PRs/chat; the document gets only the outcome. Unresolved items go to "Open questions".
+- **Numbers go in the "Parameters" table.** An unknown value is `TBD`; don't invent one.
+- **Status in the header** (`Draft` → `Agreed` → `In progress` → `Done`) and the date of the last update.
+- **`features/` pages hold only approved design.** A new feature or change is first logged in [decisions.md](decisions.md) with the status `Proposed`.
+- **After approval**, change the status to `Accepted` and move it to the feature page (or create a new one from the template).
+- **Changes go through git:** branch `docs/<topic>`, commit `docs: <what changed>`, PR.
+- **Language: English.** Unreal class/asset names go in `code`.
 
-## Шаблон
-Структура сторінки базується на підходах **One-Page Design** (Stone Librande, GDC 2010) і **модульного GDD** (Tim Ryan, «The Anatomy of a Design Document»): короткий огляд + окремі сторінки фіч з однаковою структурою (Навіщо → Як працює → Взаємодія → Параметри → Залежності → Відкриті питання).
+## Template
+The page structure is based on **One-Page Design** (Stone Librande, GDC 2010) and the **modular GDD** (Tim Ryan, "The Anatomy of a Design Document"): a short overview plus separate feature pages with the same structure (Why → How it works → Interaction → Parameters → Dependencies → Open questions).

@@ -1,28 +1,28 @@
-# Безпечна зона
+# Safe zone
 
-> **Статус:** Draft · **Власник:** TBD · **Оновлено:** 2026-11-13
+> **Status:** Draft · **Owner:** TBD · **Updated:** 2026-11-13
 
-## Навіщо
-Пауза між рівнями: гравець відпочиває від тиску і приймає рішення про розвиток кулі.
+## Why
+A break between levels: the player rests from the pressure and makes decisions about upgrading the balloon.
 
-## Як працює
-- Після проходження рівня дирижабль **буксирує кулю** до наступного рівня. Атак немає.
-- Що доступно:
-  - поповнення б/к;
-  - ремонт кулі (тіла двигуна);
-  - покращення кулі;
-  - купівля нового спорядження і зброї.
+## How it works
+- After a level is cleared, the airship **tows the balloon** to the next level. There are no attacks.
+- What's available:
+  - restocking ammo;
+  - repairing the balloon (the engine body);
+  - balloon upgrades;
+  - buying new gear and weapons.
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Тривалість | TBD | Фіксована чи поки гравець не завершить |
-| Ціни | TBD | |
+| Duration | TBD | Fixed, or until the player is done |
+| Prices | TBD | |
 
-## Залежності
-[Зброя](weapons.md), [Двигун-пічка](engine-stove.md), [Граплінг-хук і ресурси](grappling-hook.md) (валюта), [Дирижабль](nemesis-airship.md).
+## Dependencies
+[Weapons](weapons.md), [Stove engine](engine-stove.md), [Grappling hook and resources](grappling-hook.md) (currency), [Airship](nemesis-airship.md).
 
-## Відкриті питання
-- [ ] Валюта: окремі гроші чи зібрані ресурси?
-- [ ] Список апгрейдів кулі.
-- [ ] Як виглядає магазин дієгетично (торговець на дирижаблі, ящик з доставкою, ...)?
+## Open questions
+- [ ] Currency: separate money or gathered resources?
+- [ ] List of balloon upgrades.
+- [ ] What the shop looks like diegetically (a trader on the airship, a delivery crate, ...)?

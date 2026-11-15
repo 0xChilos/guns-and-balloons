@@ -1,41 +1,69 @@
-# Дирижабль-немезис і вороги
+# Nemesis airship and enemies
 
-> **Статус:** Draft · **Власник:** Вано · **Оновлено:** 2026-11-13
+> **Status:** In progress (airship, turrets, rockets, bomber, mines, crop duster, biome enemies, AA gun: C++ prototype; some enemies still use placeholder cubes) · **Owner:** Vano · **Updated:** 2026-11-15
 
-## Навіщо
-Постійний тиск, що жене гравця вперед. Дистанція до дирижабля — головний показник небезпеки.
+## Why
+Constant pressure that drives the player forward. The distance to the airship is the main measure of danger.
 
-## Як працює
-- Великий дирижабль **завжди переслідує** гравця. Його **неможливо знищити**.
-- **Тип атаки залежить від дистанції** до кулі:
+## How it works
+- A big airship **always pursues** the player. It **cannot be destroyed**.
+- It flies **along the balloon's trail** at the **balloon's speed without fuel** (the minimum). It catches up only when the balloon actually flies slower: stuck against an obstacle, braking with the wings, etc.
+- **No ramming.** If the balloon is closer than the turret distance, **the turrets kill the player**: the run ends. Closer than the warning distance, the turrets turn towards the balloon.
+- **The attack type depends on the distance** to the balloon. The attacks are the same on every level.
 
-| Дистанція | Атака |
+| Band | Attack |
 | --- | --- |
-| 1. Найближче | Ракети |
-| 2. | Міни на парашутах |
-| 3. | Літаки |
-| 4. Найдалі | Кукурузники |
+| Turrets (closest) | Death |
+| D1 | Rockets |
+| D2 | Bomber (one) drops mines on parachutes |
+| D3 (farthest) | Crop dusters with guns |
 
-## Вороги
-| Ворог | Поведінка | Як протидіяти |
+- **Damage** hits the basket and is taken from the engine's health (see [engine-stove.md](engine-stove.md)).
+
+## Enemies
+| Enemy | Behaviour | Counter |
 | --- | --- | --- |
-| Ракета | Повільно летить за гравцем по **фіксованій** траєкторії | Збити або ухилитися |
-| Міна на парашуті | Повільно опускається | Облетіти або збити |
-| Літак | TBD | TBD |
-| Кукурузник | Вилітає з дирижабля, тримається справа або зліва від кулі, обстрілює | Влучити в екіпаж, бензобак, двигун або пропелер |
+| Rocket | Fixed trajectory (a curve) to an intercept point; not guided, doesn't self-detonate. Damages only on a direct hit on the basket + slows the balloon | Dodge (change course/speed) or shoot it down with one shot |
+| Bomber | One; takes a position ahead of and above the balloon and never changes it until shot down. Drops parachute mines from the left wing, from under the fuselage, then from the right wing, around the balloon's course | Shoot it down (the wing engines are visible from behind) or fly around the mines |
+| Parachute mine | Descends slowly | Fly around it or shoot it |
+| Crop duster | Launches from the airship, takes a position to the right or left of the balloon and never changes side or distance until shot down; fires at the basket | Hit the engine or the fuselage |
 
-## Параметри
-| Параметр | Значення | Примітка |
+Planes don't change altitude. Enemies shoot straight at the basket, with no correction for bullet drop. Biome enemies (tower cannon, beacon, birds, patrols, AA gun) are described in [biomes.md](biomes.md).
+
+## Damage to the engine
+The engine has **100 HP**. All values are prototype values (TBD).
+
+| Enemy | Damage per hit | How often | Max per cycle | Hits to kill |
+| --- | --- | --- | --- | --- |
+| Airship turrets | Instant death | When the basket is within 30 m of the airship | — | — |
+| Rocket | 25 + the balloon slows by 20% for 3 s | One every 7 s, at most 2 in the air | 25 | 4 |
+| Parachute mine (bomber) | 30, the same anywhere within a 5 m radius | One every 7–10 s | 30 | 4 |
+| Bomber | No direct damage, only through mines | — | — | — |
+| Crop duster (also lava patrols) | 3 per bullet | A burst of 6 every 4 s (0.5 s warning before each burst) | 18 per burst | 34 bullets, ≈ 6 full bursts |
+| Tower cannon (desert) | 12 | One shell every 6 s (aims 2 s, reloads 4 s) | 12 | 9 |
+| AA gun (all biomes) | 50 per homing missile | One missile at a time, the next 4 s after the last is gone (1 s warm-up before the first); only within its 50 m radius, the missile blows up harmlessly when the balloon leaves it | 50 | 2 missiles |
+| Bird flock (field) | 3 per bird; 0 once scared off | A bird is gone after it hits; one active flock at a time | 15 per flock | ≈ 7 flocks |
+| Beacon (desert) | None | Calls a pair of crop dusters (at least one) when it spots the balloon | — | — |
+
+Bullets and shells (crop duster, tower cannon) count only if they pass within 1.3 m of the basket's centre. Rockets and AA missiles need a direct hit; a mine hits everything within its radius.
+
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Межі дистанцій 1–4 | TBD | |
-| Швидкість дирижабля | TBD | Відносно швидкостей кулі |
-| Частота атак | TBD | Для кожного типу |
-| HP вразливих точок кукурузника | TBD | |
+| Airship speed | = the balloon's minimum speed | `MinSpeed` from `UBalloonFlightComponent` |
+| Turret / warning distance | 30 m / 50 m | Prototype, from the airship's nose to the basket |
+| D1 / D2 / D3 | 30–100 m / 100–220 m / > 220 m | Prototype |
+| Rocket: speed, damage, slowdown | 25 m/s, 25, −20% for 3 s | Prototype |
+| Rockets: cooldown / limit | 7 s / 2 | Prototype |
+| Hits to shoot down a plane | Engine: 1 from any weapon. Fuselage: revolver 4, shotgun 3 (one shot = one hit), rifle 2 | Decision 2026-11-14 |
+| Mines in the air at once | 3 | Prototype |
+| Mine damage radius | 5 m | Prototype (was 8 m) |
+| Engine health | 100 | TBD, prototype |
+| Airship height above the balloon's trail | 15 m | Prototype |
 
-## Залежності
-[Керування кулею](balloon-controls.md), [Зброя](weapons.md), [Безпечна зона](safe-zone.md) (дирижабль тягне кулю).
+## Dependencies
+[Balloon controls](balloon-controls.md), [Stove engine](engine-stove.md), [Weapons](weapons.md), [Safe zone](safe-zone.md) (the airship tows the balloon), [Biomes](biomes.md) (biome enemies). Technical: [tech/nemesis-airship.md](../tech/nemesis-airship.md).
 
-## Відкриті питання
-- [ ] Чим відрізняються «літаки» і «кукурузники»?
-- [ ] Що відбувається, якщо дирижабль наздогнав кулю (миттєва смерть)?
-- [ ] Як сюжетно пояснюється, що ворожий дирижабль буксирує кулю в безпечній зоні?
+## Open questions
+- [ ] The rocket's slowdown doesn't take the balloon below `MinSpeed`, so at minimum speed it has no effect and the airship doesn't catch up. Let the slowdown go below the minimum?
+- [ ] How does the story explain the enemy airship towing the balloon in the safe zone?

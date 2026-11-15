@@ -1,37 +1,37 @@
-# UI, меню і навігаційна панель
+# UI, menus and the navigation panel
 
-> **Статус:** In progress · **Власник:** Ростік · **Оновлено:** 2026-11-15
+> **Status:** In progress · **Owner:** Rostik · **Updated:** 2026-11-15
 
-## Навіщо
-Мінімум недієгетичного інтерфейсу. Під час гри інформація — з приладів у корзині.
+## Why
+As little non-diegetic interface as possible. During play, information comes from the gauges in the basket.
 
-## Головне меню
-| Пункт | Дія |
+## Main menu
+| Item | Action |
 | --- | --- |
-| Continue | Продовжити останній забіг |
-| New Game | Новий забіг |
-| Settings | Налаштування |
-| Credits | Автори |
-| Legacy | TBD (прогрес між забігами?) |
-| Leave | Вихід з гри |
+| Continue | Continue the last run |
+| New Game | New run |
+| Settings | Settings |
+| Credits | Authors |
+| Legacy | TBD (progress between runs?) |
+| Leave | Quit the game |
 
-## Навігаційна панель (в корзині)
-Панель перед гравцем, через яку йде [керування кулею](balloon-controls.md).
+## Navigation panel (in the basket)
+The panel in front of the player, through which the [balloon is controlled](balloon-controls.md).
 
-| Прилад | Що показує | Вигляд |
+| Gauge | Shows | Look |
 | --- | --- | --- |
-| Радар | Ворожі об'єкти на карті; поділки дистанції до дирижабля | Ретро двоколірний монітор |
-| Спідометр | Поточна швидкість | Мінімалістичний, як на старих потягах |
+| Radar | Enemy objects on the map; distance marks to the airship | Retro two-colour monitor |
+| Speedometer | Current speed | Minimalist, like on old trains |
 
-Спідометр читає поточну швидкість із компонента польоту, який уже враховує інерцію; додаткове згладжування не потрібне. Положення стрілки: `Clamp(CurrentSpeed / Scale, 0, 1)`. Нуль шкали відповідає 0 см/с, тому на мінімальній швидкості стрілка залишається правіше нуля.
+The speedometer reads the current speed from the flight component, which already includes inertia; no extra smoothing is needed. Needle position: `Clamp(CurrentSpeed / Scale, 0, 1)`. Zero on the scale is 0 cm/s, so at minimum speed the needle stays right of zero.
 
-| Параметр спідометра | Значення | Примітка |
+| Speedometer parameter | Value | Note |
 | --- | --- | --- |
-| `SpeedometerMaxSpeed` | 0 | 0 = використовувати `MaxSpeed`; додатне значення задає повну шкалу в см/с. Потребує тюнінгу. |
+| `SpeedometerMaxSpeed` | 0 | 0 = use `MaxSpeed`; a positive value sets the full scale in cm/s. Needs tuning. |
 
-**Глушіння радара.** Біля вежі-глушилки радар переходить у стан перешкод: мерехтливий «сніг», рвані рядки, розгортка смикається, по екрану стрибають фантомні цілі. Справжні цілі зникають, тож визначити, звідки атакують, неможливо. Стан плавно наростає з наближенням до глушилки (повний — від 25 % сили глушіння, TBD) і зникає, коли куля виходить з радіуса або глушилку збито. Сигнальна лампа працює і далі: показує, наскільки близько загроза, але не напрямок. У біомі «Місто» радар глушиться, див. [biomes.md](biomes.md). Шкали двигуна — на самому двигуні, див. [engine-stove.md](engine-stove.md).
+**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
 
-## Відкриті питання
-- [ ] Детальний розбір навігаційної панелі: повний склад елементів і їхній вигляд (TODO в Director's Cut).
-- [ ] Що таке `Legacy`: мета-прогресія, історія забігів, розблокування?
-- [ ] Меню паузи — дієгетичне чи звичайне?
+## Open questions
+- [ ] A detailed breakdown of the navigation panel: the full set of elements and how they look (TODO in the Director's Cut).
+- [ ] What is `Legacy`: meta-progression, run history, unlocks?
+- [ ] Pause menu: diegetic or a regular one?

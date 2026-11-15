@@ -1,25 +1,25 @@
-# Арт-стиль
+# Art style
 
-> **Статус:** Draft · **Власник:** Ростік · **Оновлено:** 2026-11-13
+> **Status:** Draft · **Owner:** Rostik · **Updated:** 2026-11-13
 
-## Напрям
-- **Референс:** Oily Depths.
-- **Моделі:** low-poly у стилі PS1.
-- **Текстури:** низька роздільність, блочні (nearest filtering).
-- **Шейдинг:** flat.
+## Direction
+- **Reference:** Oily Depths.
+- **Models:** low-poly, PS1 style.
+- **Textures:** low resolution, blocky (nearest filtering).
+- **Shading:** flat.
 
-## Рендер і пост-обробка (порядок кроків)
-1. Рендер у низькій роздільності.
-2. Квантизація кольору з Bayer dithering.
-3. Апскейл 2× (nearest neighbour).
-4. Зерно (grain).
-5. Віньєтка.
+## Rendering and post-processing (in order)
+1. Render at low resolution.
+2. Colour quantisation with Bayer dithering.
+3. 2× upscale (nearest neighbour).
+4. Grain.
+5. Vignette.
 
-## Список ключових ассетів
-| Ассет | Склад |
+## Key assets
+| Asset | Parts |
 | --- | --- |
-| Куля | Корзина, оболонка, двигун-пічка |
-| Навігаційна панель | Прилади, важелі |
-| Зброя | Див. [weapons.md](features/weapons.md) |
-| Дирижабль-немезис | — |
-| Вороги | Літаки, кукурузники, ракети, міни |
+| Balloon | Basket, envelope, stove engine |
+| Navigation panel | Gauges, levers |
+| Weapons | See [weapons.md](features/weapons.md) |
+| Nemesis airship | — |
+| Enemies | Planes, crop dusters, rockets, mines |

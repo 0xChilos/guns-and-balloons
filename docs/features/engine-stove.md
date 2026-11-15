@@ -1,92 +1,92 @@
-# Двигун-пічка
+# Stove engine
 
-> **Статус:** In progress · **Власник:** Ростік · **Оновлено:** 2026-11-15
+> **Status:** In progress · **Owner:** Rostik · **Updated:** 2026-11-15
 
-## Навіщо
-Постійна дрібна задача для рук гравця: підтримувати вогонь, балансуючи між швидкістю і ризиком перегріву.
+## Why
+A constant small task for the player's hands: keep the fire going, balancing speed against the risk of overheating.
 
-## Як працює
-У двигуна **2 шкали**: температура і час горіння.
+## How it works
+The engine has **2 gauges**: temperature and burn time.
 
-**Температура** — визначає швидкість кулі.
-- Поки є час горіння, падає на **1°/с**. Після підкидання пального падіння зупиняється на **10 с**.
-- **Цільова температура** = поточна (або поточна ціль) + градуси закинутого пального. Під час нагріву температура не падає.
-- Нагрів іде з налаштовуваною швидкістю (за замовч. **5°/с**, можна задати окремо для пального). **Кристал** дає миттєвий стрибок до цілі.
-- Якщо температура впала до **0**: після підкидання нагрів починається через **10 с** (час горіння в цей час не витрачається; кристал — без затримки).
+**Temperature** sets the balloon's speed.
+- While there is burn time, it drops by **1°/s**. Adding fuel stops the drop for **10 s**.
+- **Target temperature** = the current temperature (or the current target) + the degrees of the fuel thrown in. The temperature doesn't drop while heating.
+- Heating runs at a configurable rate (default **5°/s**, can be set per fuel). **Crystal** jumps straight to the target.
+- If the temperature has fallen to **0**: after adding fuel, heating starts after **10 s** (burn time isn't spent meanwhile; crystal has no delay).
 
-**Час горіння** — скільки ще підтримується температура (≈ об'єм пального в печі).
-- Максимум **10 хв** = максимальний об'єм печі. Пальне, яке не влазить, не приймається.
-- Коли час горіння = 0 — температура падає на **5°/с**.
+**Burn time** is how long the temperature is still held (≈ the amount of fuel in the stove).
+- Maximum **10 min** = the stove's maximum capacity. Fuel that doesn't fit is refused.
+- When burn time = 0, the temperature drops by **5°/s**.
 
-**Пальне** — кожен айтем додає і температуру, і час горіння (див. «Параметри»). Лежить у **3 відрах**, кожне під свій тип. Береться в руку по одному шматку.
-**Відра:** у кожному до **6 шматків**. Кожен шматок має своє фіксоване місце, тож скільки лишилось, видно з першого погляду: дрова — піраміда 3-2-1 торцями до гравця, вугілля і кристали — коло з 6 місць (порожнє місце — темна мітка / порожнє кільце). Кожне сховище виглядає як своє пальне і відкрите / низьке з боку гравця, щоб було видно вміст: дрова — у дощатому ящику з низькою передньою дошкою, вугілля — у відкритому мішку з підгорнутим краєм, кристали — у залізному відрі. Табличок з іконками немає: тип пального видно за самим сховищем. Сховища компактні (заповнене виглядає щільно набитим) і стоять біля пічки (сторони — як бачить гравець, обличчям до пічки): вугілля — впритул ліворуч, дрова — впритул праворуч, кристали — перед дровами, біля бічної стінки.
-Те саме відро приймає шматок назад; інше повертає його у власне відро й видає свій тип. Якщо цільове відро порожнє або повернення неможливе, рука й запаси не змінюються.
+**Fuel**: each item adds both temperature and burn time (see "Parameters"). It lies in **3 buckets**, one per type, and is taken into the hand one piece at a time.
+**Buckets:** each holds up to **6 pieces**. Every piece has its own fixed spot, so how much is left reads at a glance: wood is a 3-2-1 pyramid with the log ends toward the player, coal and crystals sit in a ring of 6 spots (an empty spot shows as a dark mark / an empty collar). Each store looks like its fuel and is open or low on the player's side so the contents show: wood in a plank crate with a low front board, coal in an open sack with a rolled-down rim, crystals in an iron bucket. There are no icon signs: the store itself shows the fuel type. The stores are compact (a full one looks packed) and stand by the stove (sides as seen by the player facing it): coal right against its left side, wood right against its right side, crystals in front of the wood, by the side wall.
+The same bucket takes a piece back; another bucket returns it to its own bucket and gives out its own type. If the target bucket is empty or the return isn't possible, the hand and the supplies don't change.
 
-**Інше**
-- **Вогнегасник:** спрямований на корпус, дверцята або топку струмінь знімає поточну й цільову температуру, зберігаючи час горіння. Перешкоди блокують струмінь; при 0 пічка гасне. Сила й дальність — TBD у [вогнегаснику](fire-extinguisher.md).
-- **Дверцята:** закинути пальне можна лише при відчинених; відкриті — тепло втрачається швидше; їх треба зачиняти. У `BP_Balloon` відчиняються з `DoorOpenAngle = +100°`.
-- **Тіло двигуна = здоров'я кулі.** Шкоду дають перегрів і влучання в **будь-яку частину корзини** (пічка, дверцята, відро, панель, стінки й підлога); влучання в оболонку цей пул не зменшує. **Ремонтувати кулю можна лише через пічку.** Пошкодження видно на корпусі: на кожні **10 втрачених од. здоров'я** з'являється нова пробоїна від кулі — чорна кіптява, рвані блискучі краї й червоне світіння в центрі, ніби видно нутро двигуна. До 10 пробоїн (0 здоров'я), усі на гранях і кришці пічки, які гравець бачить зсередини корзини; з'являються у випадковому порядку. Після ремонту пробоїни зникають (по одній на кожні відновлені 10 од., спершу найновіша).
-  Спільний `UHealthComponent` має публічні `ApplyDamage` / `Repair`; точкову шкоду приймає кістка `basket` з усіма дочірніми, крім гілки оболонки `balloon`, і колізії корзини з тегом `BasketDamage`. На 0 здоров'я — подія `OnDepleted` («кулю знищено»), поки без game over.
-- **VFX:** прийняте пальне дає короткий помаранчевий спалах жаринок у топці; при перегріві йде темний дим над пічкою. Після охолодження новий дим припиняється, наявний розсіюється. Стиль — блочні PS1-спрайти; параметри в `StoveVFX` — TBD для тюнінгу.
+**Other**
+- **Fire extinguisher:** a jet aimed at the body, the door or the firebox lowers the current and the target temperature, keeping the burn time. Obstacles block the jet; at 0 the stove goes out. Strength and range are TBD in the [fire extinguisher](fire-extinguisher.md).
+- **Door:** fuel can be thrown in only while it is open; open, heat is lost faster; it has to be closed. In `BP_Balloon` it opens with `DoorOpenAngle = +100°`.
+- **The engine body = the balloon's health.** Damage comes from overheating and from hits on **any part of the basket** (stove, door, bucket, panel, walls and floor); hits on the envelope don't reduce this pool. **The balloon can only be repaired through the stove.** Damage shows on the casing: every **10 HP lost** adds a new bullet hole: black soot, torn bright edges and a red glow in the centre, as if you see into the engine. Up to 10 holes (0 HP), all on the stove faces and lid the player sees from inside the basket, appearing in a random order. Repairs remove them again (one per 10 HP restored, newest first).
+  The shared `UHealthComponent` has public `ApplyDamage` / `Repair`; point damage is taken by the `basket` bone with all its children except the envelope branch `balloon`, and by basket collisions tagged `BasketDamage`. At 0 health: the `OnDepleted` event ("balloon destroyed"), no game over yet.
+- **VFX:** accepted fuel gives a short orange flash of embers in the firebox; overheating gives dark smoke above the stove. After cooling down no new smoke appears and the existing smoke disperses. Style: blocky PS1 sprites; the `StoveVFX` parameters are TBD for tuning.
 
-### Температура і швидкість
-| Рівень (°) | Ефект |
+### Temperature and speed
+| Level (°) | Effect |
 | --- | --- |
-| 0 | Дефолтна повільна швидкість (×1) |
-| >0 – 90 | Прискорення: множник швидкості лінійно до ×1.6 |
-| >90 | Подвійна швидкість (×2) + шкода двигуну |
+| 0 | Default slow speed (×1) |
+| >0 – 90 | Acceleration: speed multiplier rising linearly to ×1.6 |
+| >90 | Double speed (×2) + damage to the engine |
 
-## Взаємодія (дієгетика)
-| Елемент | Де | Дія |
+## Interaction (diegetic)
+| Element | Where | Action |
 | --- | --- | --- |
-| Тіло двигуна | Задня частина корзини | Показує здоров'я (декалі); єдине місце ремонту кулі |
-| Дверцята пічки | На тілі двигуна | ЛКМ — відчинити / зачинити (анімація) |
-| Топка | За дверцятами | ЛКМ з пальним у руці — закинути лише при відчинених дверцятах; клік по топці не відчиняє дверцята |
-| Шкали температури і часу горіння | На тілі двигуна | Прочитати стан |
-| 3 відра з пальним | Біля пічки: вугілля ліворуч, дрова праворуч, кристали перед дровами біля стінки | ЛКМ порожньою рукою — взяти шматок; тим самим пальним — повернути; іншим — обмін. Кількість видно за шматками у відрі |
+| Engine body | Back of the basket | Shows health (decals); the only place to repair the balloon |
+| Stove door | On the engine body | LMB: open / close (animated) |
+| Firebox | Behind the door | LMB with fuel in hand: throw it in, only while the door is open; clicking the firebox doesn't open the door |
+| Temperature and burn-time gauges | On the engine body | Read the state |
+| 3 fuel buckets | By the stove: coal on the left, wood on the right, crystals in front of the wood by the wall | LMB with an empty hand: take a piece; with the same fuel: return it; with another: swap. The pieces in a bucket show how many are left |
 
-З пальним у руці клік по стійці зброї чи предмету нічого не робить; хапати важелі не можна. Пальне треба закинути в пічку або повернути у відро.
+With fuel in hand, clicking a weapon rack or an item does nothing, and levers can't be grabbed. The fuel has to go into the stove or back into a bucket.
 
-## Параметри
-| Пальне | Час горіння | Температура | Нагрів |
+## Parameters
+| Fuel | Burn time | Temperature | Heating |
 | --- | --- | --- | --- |
-| Дрова | 3 хв | +20° | 5°/с |
-| Вугілля | 2 хв | +30° | 5°/с |
-| Кристал | 10 с | +50° | миттєво |
+| Wood | 3 min | +20° | 5°/s |
+| Coal | 2 min | +30° | 5°/s |
+| Crystal | 10 s | +50° | instant |
 
-| Параметр | Значення |
+| Parameter | Value |
 | --- | --- |
-| Падіння температури (горить) | 1°/с |
-| Падіння температури (час горіння = 0) | 5°/с |
-| Пауза падіння після підкидання | 10 с |
-| Затримка розпалу з 0 / швидкість нагріву | 10 с / 5°/с (налаштовується) |
-| Макс. час горіння | 10 хв |
-| Ємність кожного відра | 6 од. |
-| Макс. температура | TBD (120°) |
-| Множник швидкості при 90° / понад 90° | TBD (×1.6) / TBD (×2) |
-| Поріг перегріву | >90° |
-| Шкода від перегріву / макс. здоров'я кулі | TBD (2 од./с) / 100 од. |
-| Пробоїни на корпусі | 1 на кожні 10 втрачених од., максимум 10 |
-| Множник втрати тепла з відчиненими дверцятами | TBD (×2) |
-| Початковий запас: дрова / вугілля / кристал | TBD (4 / 4 / 2 од.) |
-| Переповнення часу горіння | Відмова, пальне лишається в руці; `bClampBurnTimeOnOverfill = false` |
-| Перевизначення швидкості нагріву пального | `HeatRateOverride = 0` — швидкість пічки; кристал: `bInstantHeat = true` |
-| Повна шкала термометра | TBD (100°) |
-| Кут / швидкість дверцят у `BP_Balloon` | +100° / TBD (300°/с) |
+| Temperature drop (burning) | 1°/s |
+| Temperature drop (burn time = 0) | 5°/s |
+| Drop pause after adding fuel | 10 s |
+| Ignition delay from 0 / heating speed | 10 s / 5°/s (configurable) |
+| Max burn time | 10 min |
+| Capacity of each bucket | 6 units |
+| Max temperature | TBD (120°) |
+| Speed multiplier at 90° / above 90° | TBD (×1.6) / TBD (×2) |
+| Overheating threshold | >90° |
+| Overheating damage / balloon max health | TBD (2 units/s) / 100 units |
+| Bullet holes on the casing | 1 per 10 HP lost, at most 10 |
+| Heat-loss multiplier with the door open | TBD (×2) |
+| Starting supply: wood / coal / crystal | TBD (4 / 4 / 2 units) |
+| Burn-time overflow | Refused, the fuel stays in the hand; `bClampBurnTimeOnOverfill = false` |
+| Per-fuel heating rate override | `HeatRateOverride = 0`: the stove's rate; crystal: `bInstantHeat = true` |
+| Thermometer full scale | TBD (100°) |
+| Door angle / speed in `BP_Balloon` | +100° / TBD (300°/s) |
 
-## Залежності
-[Керування кулею](balloon-controls.md), [Зброя](weapons.md) (рука гравця), [Навігаційна панель](ui-menus.md), [Безпечна зона](safe-zone.md) (ремонт, пальне), [Зимовий/Лавовий біом](biomes.md).
+## Dependencies
+[Balloon controls](balloon-controls.md), [Weapons](weapons.md) (the player's hand), [Navigation panel](ui-menus.md), [Safe zone](safe-zone.md) (repairs, fuel), [Winter/Lava biome](biomes.md).
 
-## Відкриті питання
-- [x] Чи шкала 0 / >0–90 / >90 рахується в градусах температури? — Так.
-- [x] Моделі для ще двох відер — у моделі кулі 3 сховища по 6 місць (ящик, мішок, відро).
-- [x] Вибір пального (D1) — 3 окремі відра; те саме повертає шматок, інше обмінює. Якщо ціль порожня або повернення неможливе, рука й запаси не змінюються.
-- [x] Дверцята (D2) — лише відчинена топка; пізніше рішення скасовує автоматичне відчинення кліком по топці.
-- [x] Здоров'я (D3) — спільне для пічки й кулі; на 0 подія без game over.
-- [x] Нагрів (D4) — ціль накопичується, швидкість налаштовується; кристал миттєвий.
-- [x] Швидкість (D5) — множник `Stove`, а не прискорення.
-- [x] Переповнення (D6) — відмова зі збереженням пального в руці.
-- [x] Пальне й стійки/предмети (D7) — клік нічого не робить.
-- [ ] Інші пропозиції (міхи, зміна температурних зон) — див. [decisions.md](../decisions.md); не затверджені.
+## Open questions
+- [x] Is the 0 / >0–90 / >90 scale in degrees of temperature? Yes.
+- [x] Models for two more buckets: the balloon model has 3 stores with 6 spots each (crate, sack, bucket).
+- [x] Fuel choice (D1): 3 separate buckets; the same one takes a piece back, another swaps. If the target is empty or the return isn't possible, the hand and supplies don't change.
+- [x] Door (D2): only an open firebox; a later decision removed opening the door by clicking the firebox.
+- [x] Health (D3): shared by the stove and the balloon; at 0 an event, no game over.
+- [x] Heating (D4): the target accumulates, the rate is configurable; crystal is instant.
+- [x] Speed (D5): a `Stove` multiplier, not acceleration.
+- [x] Overflow (D6): refused, the fuel stays in the hand.
+- [x] Fuel and racks/items (D7): a click does nothing.
+- [ ] Other proposals (bellows, changed temperature zones): see [decisions.md](../decisions.md); not approved.
 
-Технічна реалізація й перевірки: [tech/stove.md](../tech/stove.md).
+Technical implementation and checks: [tech/stove.md](../tech/stove.md).

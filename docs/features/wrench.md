@@ -1,36 +1,36 @@
-# Гайковий ключ
+# Wrench
 
-> **Статус:** In progress · **Власник:** TBD · **Оновлено:** 2026-11-15
+> **Status:** In progress · **Owner:** TBD · **Updated:** 2026-11-15
 
-## Навіщо
-Утиліта в руці для ремонту: гравець бере ключ і крутить ним, як справжнім. Що саме він лагодить, ще не вирішено (див. відкриті питання).
+## Why
+A hand-held utility for repairs: the player takes the wrench and turns it like a real one. What exactly it repairs isn't decided yet (see open questions).
 
-## Як працює
-- Ключ — спорядження, що лежить на своєму місці, як [зброя](weapons.md) і [вогнегасник](fire-extinguisher.md): ЛКМ по ньому порожньою рукою — взяти, ЛКМ по його порожньому місцю — покласти назад, ЛКМ по іншому предмету — обмін.
-- У руці виймається власною анімацією (Equip) і ховається нею ж, відіграною назад (окремого Unequip у моделі немає). Поки нічого не робить — легко погойдується (Idle).
-- **ЛКМ затиснута** — ключ підводиться до роботи (ToFix) і крутить (Fix, чотири оберти тріскачкою, по колу, поки тримаєш).
-- **Відпустив** — ключ докручує оберт, що вже почався, до вихідної пози й відходить від роботи (ToFix назад) у стан Idle. Відпустив під час ToFix — одразу відходить звідти, куди встиг дійти.
-- Ключ не стріляє, не має віддачі й не прицілюється (ПКМ нічого не робить).
-- Поки ключ лише анімується: ремонту немає.
+## How it works
+- The wrench is gear that sits in its own place, like the [weapons](weapons.md) and the [fire extinguisher](fire-extinguisher.md): LMB on it with an empty hand takes it, LMB on its empty place puts it back, LMB on another item swaps.
+- In the hand it is drawn with its own animation (Equip) and put away with the same one played backwards (the model has no separate Unequip). While doing nothing it sways gently (Idle).
+- **LMB held:** the wrench moves into working position (ToFix) and turns (Fix, four ratchet turns, looping while held).
+- **Release:** the wrench finishes the turn already started back to its rest pose and moves out of working position (ToFix backwards) into Idle. Released during ToFix: it moves back right away from wherever it got to.
+- The wrench doesn't shoot, has no recoil and doesn't aim (RMB does nothing).
+- For now the wrench only animates: there is no repair.
 
-## Взаємодія (дієгетика)
-| Дія | Результат |
+## Interaction (diegetic)
+| Action | Result |
 | --- | --- |
-| ЛКМ по ключу (порожня рука) | Взяти ключ у руку (Equip) |
-| Затиснути ЛКМ | Ключ іде до роботи й крутить |
-| Відпустити ЛКМ | Докручує оберт і повертається в Idle |
+| LMB on the wrench (empty hand) | Take the wrench (Equip) |
+| Hold LMB | The wrench moves to work and turns |
+| Release LMB | Finishes the turn and returns to Idle |
 
-## Параметри
-| Параметр | Значення | Примітка |
+## Parameters
+| Parameter | Value | Note |
 | --- | --- | --- |
-| Анімації | Equip 0.96 с, Idle 2 с, ToFix 0.67 с, Fix 4.63 с | Із `Wrench.fbx` (24 к/с) |
-| Поза в руці | TBD | `ViewOffset` (30, 14, −12), поворот −4° (заглушка) |
-| Місце в Movement_Scene1 | TBD | Під вогнегасником, праворуч від гравця (`place_item_pickups.py`) |
+| Animations | Equip 0.96 s, Idle 2 s, ToFix 0.67 s, Fix 4.63 s | From `Wrench.fbx` (24 fps) |
+| Pose in the hand | TBD | `ViewOffset` (30, 14, −12), rotation −4° (placeholder) |
+| Place in Movement_Scene1 | TBD | Under the extinguisher, to the right of the player (`place_item_pickups.py`) |
 
-## Залежності
-[Зброя](weapons.md) (взяти/покласти, спільна база), [Безпечна зона](safe-zone.md) (ремонт кулі), [Двигун-пічка](engine-stove.md).
+## Dependencies
+[Weapons](weapons.md) (take/put back, shared base), [Safe zone](safe-zone.md) (balloon repairs), [Stove engine](engine-stove.md).
 
-## Відкриті питання
-- [ ] Що лагодить ключ (оболонку, пічку, механізми корзини) і як гравець бачить, що ремонт іде?
-- [ ] Скільки триває ремонт і чи щось витрачає (матеріали ремонту з хука)?
-- [ ] Звук тріскачки.
+## Open questions
+- [ ] What does the wrench repair (the envelope, the stove, the basket's mechanisms), and how does the player see the repair happening?
+- [ ] How long does a repair take, and does it use anything up (repair materials from the hook)?
+- [ ] The ratchet sound.

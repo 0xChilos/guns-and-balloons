@@ -26,3 +26,6 @@ Saved/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Blender backups
+*.blend1
