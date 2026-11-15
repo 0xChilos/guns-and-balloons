@@ -6,6 +6,7 @@
 #include "HookPickup.generated.h"
 
 class UNiagaraComponent;
+class UBoxComponent;
 class UNiagaraSystem;
 class USoundBase;
 class UStaticMeshComponent;
@@ -55,6 +56,14 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hook Pickup")
 	TObjectPtr<UStaticMeshComponent> Mesh;
 
+	/** Larger query box for catching the pickup with the hook. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hook Pickup")
+	TObjectPtr<UBoxComponent> HookCollision;
+
+	/** Extra reach on each side of the mesh, in world centimetres. Needs playtest tuning. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hook Pickup", meta = (ClampMin = "0"))
+	float HookCollisionPadding = 250.f;
+
 	/** Plays SparkleSystem around the pickup until it is hooked. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hook Pickup")
 	TObjectPtr<UNiagaraComponent> Sparkle;
@@ -96,6 +105,7 @@ private:
 	void ApplyColor();
 	void ApplySparkle();
 	void ApplyPhysics();
+	void UpdateHookCollision();
 
 	bool bCarried = false;
 	bool bCollected = false;

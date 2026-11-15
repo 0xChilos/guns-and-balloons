@@ -36,6 +36,7 @@ A way to gather resources on the fly without stopping, and a risk/reward choice:
 ## Parameters
 | Parameter | Value | Note |
 | --- | --- | --- |
+| Pickup catch box padding | 250 cm per side | AHookPickup::HookCollisionPadding, needs playtest tuning; query-only box around mesh bounds |
 | Range | TBD | `MaxRange`, currently 2500 cm (placeholder) |
 | Pumps per shot | TBD | `PumpsToFullCharge`, currently 5; adjustable in the debug menu (`H`) |
 | Pressure at which pumping gets harder | TBD | `HardPumpFrom`, currently 50; debug menu |
