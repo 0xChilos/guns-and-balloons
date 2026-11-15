@@ -21,6 +21,15 @@ On disk: D:\test_git\guns-and-balloons\Content\Assets\Balloon
   | `fuel_bucket_crystal` | crystal | in front of the wood bucket, against the side wall | `fuel_crystal_1` … `fuel_crystal_6`: ring of six iron collars |
 
 - The stove's chimney pipe is rerouted and thinner (10 cm): a short rise from the stove, a horizontal run to the back-right wall (behind the coal sack), straight up about 5 cm off that wall, then a bend inward through the rope load ring and up the skirt, ending just inside the balloon's mouth ring. It is braced to the rope load ring and stayed to the rim. It is part of the stove (bone `stove`) and has no collision of its own; if BP_Balloon has a collision shape for the old pipe through the middle of the basket, report it.
+- **Tool board** on the wall to the left of the navigation console (replaces the old board): a plain tool board in the balloon's colours (plank panel, iron frame, brass corners). It holds the wrench (brass peg, top left, in plain view from the middle of the basket), the grappling hook (two forked brackets, hung diagonally: grip low on the left, claw up to the right) and the extinguisher (floor cup + strap, bottom right, hose toward the middle). The three tool sockets keep their names but moved:
+
+  | Socket | Tool | Head / long axis |
+  |---|---|---|
+  | `socket_tool_vertical_1` | extinguisher | the carry handle (the extinguisher's origin) / up |
+  | `socket_tool_horizontal` | grappling hook | the grip end (the hook's origin) / along the barrel, 30° up toward the claw (to the right) |
+  | `socket_tool_vertical_2` | wrench | the top of the wrench (its origin) / down |
+
+  Nothing in C++ uses these sockets yet (the tools are pickups placed by `Scripts/Editor/place_item_pickups.py`). Report where the tools are placed now; don't move them onto the stand unless I ask.
 - The stopper levers (`lever_L`, `lever_R`) moved 5 cm toward the back, to the centre of their side walls. Nothing to change: BalloonWingLeverComponent reads the bone transforms. Just check in PIE that both levers can still be grabbed and drive their stoppers.
 - Every piece is a separate part rigidly skinned to its own bone (child of its bucket bone). **Hiding a piece bone hides that piece.** Showing pieces 1..N and hiding the rest makes the bucket show exactly N pieces, and empty slots stay visible (gap in the pyramid, dark mark, empty collar).
 
@@ -79,6 +88,7 @@ The stove body is the balloon's health (shared `UHealthComponent`, MaxHealth 100
 - Add a function **InitDamageHoles**, called from the end of the existing BeginPlay (append the call only): shuffle DamageOrder, bind the health component's `OnHealthChanged(Health, NewHealth, Delta)` to UpdateDamageHoles(NewHealth), then call UpdateDamageHoles(GetHealth()) once.
 - Repairs go through `UHealthComponent::Repair` (or SetHealth), which broadcasts OnHealthChanged, so the holes close again (newest first) whatever repairs the engine. Don't add a repair interaction here: how the player repairs (the wrench?) is still an open design question.
 - The hole bones have no physics bodies; check that hits on the stove still reach the health component the same way as before.
+- **Smoke from the holes** is C++ (`UStoveVfxComponent`, the existing `StoveVFX` component on BP_Balloon): while the balloon is damaged it emits a thin dark smoke stream from every `stove_damage_*` bone that isn't hidden. Nothing to build: just compile the C++, check that StoveVFX's new `DamageSmoke` / `DamageColor` settings show up, and leave their defaults.
 
 ## 6. Propeller always spins
 The propeller must spin all the time, also at the minimum flight speed and while the stove is cold.
@@ -100,7 +110,7 @@ In BalloonFlight_Test (PIE):
 - The propeller spins from the first frame, also at minimum speed and with a cold stove, and spins faster at higher speed if PropellerSpeed is driven.
 - The buckets start with 4 logs, 4 lumps and 2 crystals in their slots. Take a piece: the highest-numbered one disappears. Return it: it reappears. A full bucket (6) accepts nothing more. Swap between buckets updates both.
 - Each fuel shows its own mesh in the hand.
-- Damage the balloon in steps (ApplyDamage 10 from a test key or the console): one more hole appears every 10 HP, all 10 at 0 HP, and their cores glow. Repair 25: the two newest holes close (the third stays until 10 more HP). Restart PIE: the holes appear in a different order. Full repair removes all of them.
+- Damage the balloon in steps (ApplyDamage 10 from a test key or the console): one more hole appears every 10 HP, all 10 at 0 HP, and their cores glow. Repair 25: the two newest holes close (the third stays until 10 more HP). Restart PIE: the holes appear in a different order. Full repair removes all of them. Each visible hole gives off a thin stream of dark smoke; a closed hole stops smoking.
 - Place a BP_JammerTower near the balloon's path: the radar fades into static with ghost blips and no real blips inside the radius, and recovers when you leave or shoot the dish down.
 - Screenshots: the three buckets from the player's standing position (one partly empty), and the radar clear / jammed.
 - A list of everything you changed, added and skipped (and why).

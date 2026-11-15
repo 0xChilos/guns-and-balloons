@@ -3,7 +3,7 @@
 > **For agents.** Design: [engine-stove](../features/engine-stove.md); approved decisions override the older implementation plan. Flight API: [balloon-flight](balloon-flight.md). Player-side dispatch: [player-architecture](player-architecture.md). **Updated:** 2026-11-15
 
 ## Model in one paragraph
-`UStoveComponent` simulates temperature, ignition, burn time and an animated door on `BP_Balloon`. Three `UFuelSupplyComponent` buckets supply one piece of wood, coal or crystal to the pawn's `UFuelHandComponent`. Door clicks toggle the door; an open firebox accepts fuel and consumes the held piece only on success. Fuel raises the pending heat target and adds burn time; crystal heats instantly. Temperature publishes the named flight modifier `Stove`, and overheating damages the balloon's shared `UHealthComponent`. `ABP_Balloon` reads the door, gauge and burn-arrow outputs; `UStoveVfxComponent` reacts to fuel and overheat events.
+`UStoveComponent` simulates temperature, ignition, burn time and an animated door on `BP_Balloon`. Three `UFuelSupplyComponent` buckets supply one piece of wood, coal or crystal to the pawn's `UFuelHandComponent`. Door clicks toggle the door; an open firebox accepts fuel and consumes the held piece only on success. Fuel raises the pending heat target and adds burn time; crystal heats instantly. Temperature publishes the named flight modifier `Stove`, and overheating damages the balloon's shared `UHealthComponent`. `ABP_Balloon` reads the door, gauge and burn-arrow outputs; `UStoveVfxComponent` reacts to fuel and overheat events and smokes from visible damage holes.
 
 ## Files
 | File | Role |
@@ -14,9 +14,9 @@
 | `Source/gunsandballoons/FuelHandComponent.h/.cpp` | Non-firing held static-mesh prop |
 | `Source/gunsandballoons/HealthComponent.h/.cpp` | Shared damage/repair pool and actor damage filtering |
 | `Source/gunsandballoons/FirstPersonCameraPawn.h/.cpp` | Interaction dispatch, TakeHandItem / ConsumeHeldItem |
-| `Source/gunsandballoons/StoveVfxComponent.h/.cpp` | PS1 fuel burst and sustained overheat smoke using AGunSmoke |
+| `Source/gunsandballoons/StoveVfxComponent.h/.cpp` | PS1 fuel burst, sustained overheat smoke and damage-hole smoke using AGunSmoke |
 | `Source/gunsandballoons/StoveEditorLibrary.h/.cpp` | Editor collision and animation helpers |
-| `Source/gunsandballoons/Tests/StoveTest.cpp`, `StoveInteractionTest.cpp`, `StoveCoolingTest.cpp`, `StoveVfxTest.cpp`, `HealthTest.cpp`, `HandItemTest.cpp` | Automation coverage |
+| `Source/gunsandballoons/Tests/StoveTest.cpp`, `StoveInteractionTest.cpp`, `StoveCoolingTest.cpp`, `StoveVfxTest.cpp`, `StoveDamageSmokeTest.cpp`, `HealthTest.cpp`, `HandItemTest.cpp` | Automation coverage |
 | `Scripts/Editor/configure_stove.py` | Fuel assets and historical BP/ABP setup |
 | `Scripts/Editor/configure_balloon_health.py` | Idempotent shared health setup without rerunning the historical stove migration |
 | `/Game/Data/Stove/DA_Fuel_Wood`, `DA_Fuel_Coal`, `DA_Fuel_Crystal` | Per-type fuel assets |
@@ -144,10 +144,12 @@ Take or drop it through the pawn: `TakeHandItem(GetFuelHand())` / `ConsumeHeldIt
 | `FuelBurst` / `OverheatSmoke` | TBD | Details + BP rw | Burst: Amount = puff count; smoke: Amount = puffs/s |
 | `FuelColor` / `OverheatColor` | orange / dark grey, TBD | Details + BP rw | Tint |
 | `OverheatOffset` / `StoveBone` | (0, 0, 100) cm, BP (0, -28, 100) / `stove` | Details + BP rw | Smoke origin relative to the stove bone, in mesh cm |
+| `DamageSmoke` / `DamageColor` | 3 puffs/s per hole, small (1→6 cm), 0.6–1.2 s, TBD / dark grey, TBD | Details + BP rw | Thin stream from every visible damage hole |
+| `DamageBonePrefix` / `MaxDamageHoles` | `stove_damage_` / 10 | Details + BP rw | Hole bones `stove_damage_1..10`; a hole smokes while its bone isn't hidden |
 
 | Member | Kind | Behaviour |
 | --- | --- | --- |
-| `GetFuelEffect()` / `GetOverheatEffect()` | BlueprintPure | Spawned effect actors (inspection/tests) |
+| `GetFuelEffect()` / `GetOverheatEffect()` / `GetDamageEffect()` | BlueprintPure | Spawned effect actors (inspection/tests) |
 
 ### Rig and animation constants (not properties)
 | Value | Where | Notes |
@@ -164,7 +166,7 @@ Add Stove and Health to the balloon owner; the stove discovers both Health and F
 
 Typical Blueprint calls: get the stove with `FindStove(BalloonActor)`, then read `GetTemperature01` / `GetBurnTime01` for UI, bind `OnOverheatChanged` for warnings, call `AddFuel` from scripted events (door must be open), `ApplyCooling` for water/foam effects, and set `HeatRate` from a biome. Refill buckets with `AddFuel(Amount)` on each `UFuelSupplyComponent`.
 
-VFX binds OnFuelAdded and OnOverheatChanged: accepted fuel emits an orange burst, overheat emits dark rising smoke, cooling stops emission while existing puffs fade. Source motion follows flight speed. EndPlay unbinds and destroys effects; dedicated servers skip VFX.
+VFX binds OnFuelAdded, OnOverheatChanged and the health component's OnHealthChanged: accepted fuel emits an orange burst, overheat emits dark rising smoke, cooling stops emission while existing puffs fade. While the balloon is damaged it ticks and emits a thin dark stream from every damage-hole bone that isn't hidden (BP_Balloon shows/hides the holes from the health), out of the stove's side and rising; at full health the tick stops (unless overheated). Source motion follows flight speed. EndPlay unbinds and destroys effects; dedicated servers skip VFX.
 
 ## Setup in `BP_Balloon`
 **Fuel buckets are not placed yet.** The fuel DataAssets `DA_Fuel_Wood`, `DA_Fuel_Coal` and `DA_Fuel_Crystal` are prepared with the design values, but `BP_Balloon` has only the legacy `WoodFuelSupply` (wood, on the modeled bucket); `FuelBucket_Coal`, `FuelBucket_Wood` and `FuelBucket_Crystal` are absent (checked in the editor 2026-11-15), so only wood can be picked up in game.
@@ -180,7 +182,7 @@ API/settings tables were checked against the current headers (`StoveComponent.h`
 
 Earlier records on this page reported a successful Development Editor build, Heat/Interaction/Overheat automation, two successful commandlet setup runs, and all nine then-existing GunsAndBalloons tests after Phase 5. A recorded PIE check took wood, opened the door and fed 180 s: the arrow moved +6.6 cm and the gauge rose after the 10 s cold-start delay. A later PIE check on the placed `BalloonFlight_Test` actor confirmed the stove resolves the `BP_Balloon` Health pool and two crystals heat to 100 degrees and reduce health. These historical checks predate the pending three-bucket migration and do not establish Phase 6 acceptance.
 
-Coverage exists in `GunsAndBalloons.Stove.Heat`, `.Overheat`, `.Interaction`, `.VFX`, the cooling test, `GunsAndBalloons.Health` and `GunsAndBalloons.Player.HandItems`. Full three-bucket, health, visual/prop-placement and lever-regression acceptance remains the unchecked Phase 6 record.
+Coverage exists in `GunsAndBalloons.Stove.Heat`, `.Overheat`, `.Interaction`, `.VFX`, `.DamageSmoke`, the cooling test, `GunsAndBalloons.Health` and `GunsAndBalloons.Player.HandItems`. Full three-bucket, health, visual/prop-placement and lever-regression acceptance remains the unchecked Phase 6 record.
 
 ## Known issues and pitfalls
 - Until `configure_balloon_health.py` runs on the new build, `BP_Balloon` Health filters on the exact bone `basket` only: hits on its child bones (stove, door, bucket) and on the bone-less wall/floor boxes deal no damage.
@@ -191,3 +193,5 @@ Coverage exists in `GunsAndBalloons.Stove.Heat`, `.Overheat`, `.Interaction`, `.
 - Logical door state changes before its animated angle reaches the endpoint.
 - Imported bone scale and stale instance overrides can hide the firebox or enlarge collision; verify world-space dimensions and camera traces.
 - Health depletion only emits an event. Game-over flow, damage decals and external repair integration are not validated by the stove checks.
+
+2026-11-15: damage-hole smoke added to `UStoveVfxComponent`. Editor Win64 Development build passed. `Stove.DamageSmoke` (new: tick starts on damage, stops at full health, no crash without hole bones), `Stove.VFX`, `.Overheat`, `.Interaction` and `GunsAndBalloons.Health` passed; `Stove.Heat` and `Stove.TickSize` still fail with the known timing mismatches. Emission from real hole bones is not tested: the project's `SK_Balloon` asset doesn't have the `stove_damage_*` bones until it is reimported (docs/Unreal_Prompt_6_FuelBuckets_RadarJam.md).

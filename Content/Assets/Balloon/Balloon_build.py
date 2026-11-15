@@ -894,10 +894,6 @@ def wp(fr, du, z, dn):
     c, u, n = fr
     return c + u * du + n * dn + Vector((0, 0, z))
 
-def hook(name, fr, du, z):
-    bar(name + "Stem", wp(fr, du, z, 0.02), wp(fr, du, z, 0.09), 0.012, "Brass", n=6)
-    bar(name + "Tip", wp(fr, du, z, 0.09), wp(fr, du, z + 0.045, 0.10), 0.01, "Brass", n=6)
-
 # ---- navigation display: front wall (+Y), top part just below the rim
 # Sloped console (like a desk lectern): the top edge sits against the wall below the rim, the bottom edge
 # sticks out into the basket, so the face tilts up 45 deg toward a standing player's eyes.
@@ -1067,21 +1063,77 @@ wbox("AmmoLidTab", AU - 0.018, AU + 0.018, AZ1 - 0.01, AZ1 + 0.012, AN1 + 0.008,
 fobj("AmmoLidHinge", FH, b_cyl((AZ1 + 0.008, AN0 - 0.004), 0.007, AU - 0.028, AU + 0.028, seg=6), "Iron")
 PART = "basket"
 
-# ---- tool rack: wall to the left of the display
-BW = 2 * INNER * math.tan(math.pi / 8) - 0.06    # board width = wall width minus a margin
+# ---- tool board: wall to the left of the display. A plain tool board in the balloon's colours: plank back panel,
+# iron angle frame with brass corner plates. Holds the wrench (brass peg, top left, in plain view from the middle of
+# the basket), the grappling hook (two forked brackets, hung diagonally like a fire axe, grip low on the left, claw up
+# to the right: at 59 cm it doesn't fit across this wall next to the console) and the extinguisher (floor cup + strap,
+# bottom right, hose toward the middle).
+# The console housing leans into this wall's right end (u > 0.354 - n at heights 0.5 .. 0.97), so the stand stops
+# short of it. Socket names are kept from the old rack: vertical_1 = extinguisher, horizontal = hook, vertical_2 = wrench.
 FR = wall_frame(135)
-ang = math.atan2(FR[1].y, FR[1].x)
-box("ToolRackBoard", BW, 0.02, 0.60, "PropWood", loc=wp(FR, 0, 0.62, 0.01), rot=(0, 0, ang))
-for s in (-1, 1):                              # one horizontal slot at the bottom
-    hook(f"ToolHookH{'L' if s < 0 else 'R'}", FR, s * (BW / 2 - 0.09), 0.45)
-socket("socket_tool_horizontal", wp(FR, 0, 0.48, 0.08), FR[1])
-for k, s in enumerate((-1, 1)):                # two vertical slots above it (clear of the console housing)
-    du = s * 0.15
-    for j, z in enumerate((0.62, 0.87)):
-        bar(f"ToolClip{k}{j}Arm", wp(FR, du, z, 0.02), wp(FR, du, z, 0.04), 0.01, "Brass", n=6)
-        solid(prism(f"ToolClip{k}{j}Ring", 8, 0.035, 0.035, -0.012, 0.012, "Brass", top=False, bottom=False,
-                    loc=wp(FR, du, z, 0.075)), 0.01)
-    socket(f"socket_tool_vertical_{k + 1}", wp(FR, du, 0.64, 0.075), (0, 0, 1))
+FT = frame(FR[0], FR[1], (0, 0, 1), FR[2])         # local (u = right along the wall, z = height, n = into basket)
+U_, N_, Z_ = FR[1], FR[2], Vector((0, 0, 1))
+TL, TR, TB, TT = -0.315, 0.285, 0.10, 0.93          # inner edges of the frame: left, right, bottom, top
+
+def tbox(name, u0, u1, z0, z1, n0, n1, mat):
+    return fobj(name, FT, b_box(((u0 + u1) / 2, (z0 + z1) / 2, (n0 + n1) / 2), (u1 - u0, z1 - z0, n1 - n0)), mat)
+
+def tframe(u, z, n, X, Y, Z):
+    o = wp(FR, u, z, n)
+    return Matrix(((X.x, Y.x, Z.x, o.x), (X.y, Y.y, Z.y, o.y), (X.z, Y.z, Z.z, o.z), (0, 0, 0, 1)))
+
+# where each tool hangs (tool model axes: extinguisher / wrench X across, Z up; hook X along the barrel, Z up)
+hd = (U_ * math.cos(math.radians(30)) + Z_ * math.sin(math.radians(30))).normalized()
+hz = (-U_ * math.sin(math.radians(30)) + Z_ * math.cos(math.radians(30))).normalized()
+TOOL = {"extinguisher": tframe(0.18, 0.573, 0.112, -U_, N_, Z_),       # origin = carry handle, tank axis 7.8 cm along X
+        "hook": tframe(-0.27, 0.55, 0.07, hd, hz.cross(hd), hz),         # origin = grip end, claw up and to the right
+        "wrench": tframe(-0.12, 0.88, 0.125, -U_, N_, Z_)}               # origin = top of the wrench, body 6.5-9.5 cm along -Y
+RIG["tool_frames"] = {k: [list(r) for r in M_] for k, M_ in TOOL.items()}
+
+# back panel: six vertical planks, small gaps
+pw = (TR - TL) / 6
+for k in range(6):
+    tbox(f"ToolStandPlank{k}", TL + k * pw + 0.002, TL + (k + 1) * pw - 0.002, TB, TT, 0.0, 0.02, "Barnwood")
+# iron angle frame (the console side is kept thin) + brass corner plates with rivets
+tbox("ToolStandFrameTop", TL - 0.02, TR + 0.015, TT, TT + 0.022, 0.0, 0.035, "Iron")
+tbox("ToolStandFrameBottom", TL - 0.02, TR + 0.015, TB - 0.022, TB, 0.0, 0.035, "Iron")
+tbox("ToolStandFrameL", TL - 0.02, TL, TB - 0.022, TT + 0.022, 0.0, 0.035, "Iron")
+tbox("ToolStandFrameR", TR, TR + 0.015, TB - 0.022, TT + 0.022, 0.0, 0.033, "Iron")
+for i, (u, z) in enumerate(((TL - 0.01, TB - 0.011), (TR + 0.0075, TB - 0.011), (TL - 0.01, TT + 0.011), (TR + 0.0075, TT + 0.011))):
+    sx = 1 if u < 0 else -1
+    tbox(f"ToolStandCorner{i}", u - 0.012 + sx * 0.012, u + 0.012 + sx * 0.012, z - 0.022, z + 0.022, 0.035, 0.039, "Brass")
+    fobj(f"ToolStandRivet{i}", FT, b_cyl((u + sx * 0.012, z), 0.006, 0.039, 0.044, seg=6), "Brass")
+
+# extinguisher: cup standing on the floor, brass strap round the tank
+EX = TOOL["extinguisher"]
+tank = EX @ Vector((0.078, 0, -0.443))                       # tank axis at its bottom
+tu, tn = (tank - FR[0]).dot(U_), (tank - FR[0]).dot(N_)
+solid(prism("ToolStandCup", 10, 0.082, 0.082, FLOOR_Z, 0.155, "Iron", top=False, loc=(tank.x, tank.y, 0)), 0.01)
+prism("ToolStandCupBase", 10, 0.075, 0.075, FLOOR_Z, 0.13, "Iron", loc=(tank.x, tank.y, 0))
+solid(prism("ToolStandStrap", 10, 0.077, 0.077, 0.40, 0.425, "Brass", top=False, bottom=False, loc=(tank.x, tank.y, 0)), 0.008)
+tbox("ToolStandStrapArm", tu - 0.012, tu + 0.012, 0.40, 0.425, 0.0, tn - 0.072, "Brass")
+
+# hook: two forked brackets under the barrel
+HK = TOOL["hook"]
+for i, x in enumerate((0.2, 0.45)):
+    p = HK @ Vector((x, 0, -0.075))                          # just under the barrel
+    pu, pz = (p - FR[0]).dot(U_), p.z
+    bar(f"ToolStandHookArm{i}", wp(FR, pu, pz, 0.02), p, 0.009, "Iron", n=6)
+    for s in (-1, 1):                                       # tines either side of the barrel
+        base = p + N_ * (s * 0.05)
+        bar(f"ToolStandHookTine{i}{s}", p, base, 0.007, "Iron", n=6)
+        bar(f"ToolStandHookTip{i}{s}", base, base + hz * 0.05, 0.007, "Brass", n=6)
+
+# wrench: brass peg with a knob, through the ring at the top of the wrench
+WR = TOOL["wrench"]
+peg = WR @ Vector((0, -0.08, -0.02))
+pu = (peg - FR[0]).dot(U_)
+bar("ToolStandPeg", wp(FR, pu, peg.z, 0.02), wp(FR, pu, peg.z, 0.075), 0.007, "Brass", n=6)
+ball("ToolStandPegKnob", 0.012, wp(FR, pu, peg.z, 0.075), "Brass", u=6, v=4)
+
+socket("socket_tool_vertical_1", EX @ Vector((0, 0, 0)), Z_)          # extinguisher: handle, long axis up
+socket("socket_tool_horizontal", HK @ Vector((0, 0, 0)), hd)          # hook: grip end, long axis along the barrel
+socket("socket_tool_vertical_2", WR @ Vector((0, 0, 0)), -Z_)         # wrench: top, long axis down
 
 # ================================================================ DETAILS: sandbags, lantern
 for k, deg in enumerate((45, 135, 225, 315)):
