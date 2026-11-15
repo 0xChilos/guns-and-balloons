@@ -40,10 +40,21 @@ bool FBalloonLevelM8Test::RunTest(const FString& Parameters)
   TInlineComponentArray<UPrimitiveComponent*> Components(Ref.Get());
   for(auto* C:Components) TestEqual(TEXT("no Actor distance cull"),C->LDMaxDrawDistance,0.f);
  }
+ const auto OldActors=G->Realizer->Actors;
+ // Allocate both staging representations before failing; neither may leak or replace the old level.
+ auto Scenery=D;Scenery.Collision=false;Scenery.Representation=EBalloonPlacementRepresentation::HISM;
+ auto Invalid=D;Invalid.Asset=FSoftObjectPath();
+ Plan.Placements={Scenery,D,Invalid};
+ TestFalse(TEXT("partial realization rolls back"),G->Realizer->Realize(Plan,Diag));
+ TestEqual(TEXT("rollback removes staged HISM"),G->Realizer->Groups.Num(),0);
+ TestEqual(TEXT("rollback retains actor count"),G->Realizer->Actors.Num(),OldActors.Num());
+ for(int32 I=0;I<OldActors.Num();++I)
+  TestTrue(TEXT("rollback retains exact colliding Actors"),OldActors[I].IsValid() && G->Realizer->Actors[I]==OldActors[I] && OldActors[I]->GetActorEnableCollision());
  // Representative content-free workload: actual component allocation and insertion, no GPU claim.
  D.Collision=false;D.Representation=EBalloonPlacementRepresentation::HISM;D.CullEndCm=30000;
  Plan.Placements.Reset();for(int32 I=0;I<10000;++I){D.Transform.SetLocation(FVector(I%100*200,I/100*200,0));Plan.Placements.Add(D);}
  TestTrue(TEXT("10000-instance profile"),G->Realizer->Realize(Plan,Diag));
+ for(const auto& Ref:OldActors) TestFalse(TEXT("successful replacement destroys old Actors"),Ref.IsValid());
  AddInfo(FString::Printf(TEXT("CPU=%s seed=12345 instances=10000 groups=1 realization=%.3fms NullRHI"),*FPlatformMisc::GetCPUBrand(),G->Realizer->LastMilliseconds));
  G->ClearGeneratedLevel();G->ClearGeneratedLevel();
  TestTrue(TEXT("authored Actor survives cleanup"),IsValid(Authored));

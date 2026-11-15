@@ -99,8 +99,12 @@ bool FBalloonLevelM5Test::RunTest(const FString& Parameters)
  TestTrue(TEXT("regeneration retains valid proof"),Generator->RegenerateLevel());
  TestEqual(TEXT("no duplicate spline points"),Generator->Spline->GetNumberOfSplinePoints(),Generator->GetPlan().SplineSamples.Num());
  Obstacle->SetActorLocation(FVector(5000.,0.,Z));Box->SetBoxExtent(FVector(100.,5000.,1000.));
- TestFalse(TEXT("world wall gates Ready"),Generator->GenerateLevel());
- TestTrue(TEXT("failed regeneration removes stale proof"),Generator->GetPlan().RoutePoints.IsEmpty());
+ const auto PreviousRoute=Generator->GetPlan().RoutePoints;
+ const auto* PreviousConfig=Generator->ActiveConfig.Get();
+ TestFalse(TEXT("world wall rejects regeneration"),Generator->GenerateLevel());
+ TestTrue(TEXT("failed regeneration retains previous level"),Generator->GetGenerationStatus()==EBalloonLevelGenerationStatus::Ready);
+ TestTrue(TEXT("failed regeneration retains exact previous proof"),Generator->GetPlan().RoutePoints==PreviousRoute);
+ TestTrue(TEXT("failed regeneration restores active config"),Generator->ActiveConfig.Get()==PreviousConfig);
  W->DestroyWorld(false);
  return true;
 }

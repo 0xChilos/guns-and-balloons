@@ -1,3 +1,5 @@
+> **Latest verification — 2026-11-15, M8:** final full-project source built successfully as `UnrealEditor-gunsandballoons-8815.dll` to avoid the open editor's DLL lock. All nine BalloonLevel tests passed (8 clean successes, 1 with synthetic-world Actor destruction warnings). Report: `Saved/M8FinalProjectTestReport/index.json`. See [final M8 verification](TEST_REPORT.md#m8--final-source-verification-2026-11-15) for commands, measured realization time and remaining manual checks. Failed regeneration now retains the previous Ready plan/config and realized content. Visual checks were deferred by the user. Earlier milestone notes below are historical.
+
 # Balloon level generation handoff
 
 Updated: 2026-11-15. Current milestone: M8 implementation, verification incomplete. Stopped at user request. Do not start M9.
