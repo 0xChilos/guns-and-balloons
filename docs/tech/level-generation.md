@@ -84,6 +84,9 @@ The existing `ABalloonLevelGenerator` is the unified controller. Details exposes
 
 DataTable rows use `FBalloonLevelAssetRow` with exactly 12 columns: `Asset, Category, Collision, DensityPerKm2, ScaleMin, ScaleMax, MinSpacingM, RandomYaw, AlignToSlope, ClusterSize, Rule, Notes`. See the [Rules README](../../Content/BalloonLevel/Rules/README.md) for categories, rules and validation. A biome row replaces a shared row with the same name.
 
+## Completion zone
+Successful generation positions the generator's green `CompletionZone` box at `Plan.Finish`, aligned to the final route direction. Its full width matches the corridor; half-depth is editable as `CompletionZoneHalfDepthMeters` (10 m prototype), and half-height covers the balloon envelope with a 10 m prototype minimum. These values require tuning. The box is visible when selected in the editor and has no physics/query collision. During gameplay the generator tick tests `RoutePawn`'s origin against the box, independently of the event timeline. Entry calls Blueprint-callable `CompleteLevel()` once, sets `LevelCompleted`, pauses the event timeline and broadcasts `OnLevelCompleted`. Bind that delegate for the future safe-zone transition; no level travel is implemented. Successful regeneration resets completion and moves the zone; failed regeneration retains the previous zone/state. Clear disables completion.
+
 ## `UBalloonLevelEventManager` API
 | Method / member | Behaviour |
 | --- | --- |
