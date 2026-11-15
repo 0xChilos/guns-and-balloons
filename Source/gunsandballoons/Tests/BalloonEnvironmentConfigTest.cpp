@@ -2,6 +2,8 @@
 #include "../BalloonLevel/BalloonLevelGenerator.h"
 #include "Engine/World.h"
 #include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "../BalloonFlightComponent.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -25,11 +27,16 @@ bool FBalloonEnvironmentConfigTest::RunTest(const FString& Parameters)
  TestTrue(TEXT("Preview reads selected config before generation"), Environment->ApplyFromGenerator());
  TestEqual(TEXT("Biome comes from config, not fallback"), Environment->GetAppliedBiome(), FName(TEXT("Desert")));
  TestTrue(TEXT("Night comes from config"), Environment->GetSelectedLightingPreset() == EBalloonLightingPreset::Night);
+ TestNotNull(TEXT("Night sky material loaded"), Environment->SkyDome->GetMaterial(0));
+ TestEqual(TEXT("Night sky matches biome"), Environment->SkyDome->GetMaterial(0)->GetName(), FString(TEXT("MI_Desert_NightSky")));
+ TestTrue(TEXT("Fallback dome visible without authored sky"), Environment->SkyDome->IsVisible());
+ TestTrue(TEXT("Sky never blocks flight"), Environment->SkyDome->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
  Config->BiomeId = TEXT("City");
  Config->Preset = EBalloonLightingPreset::Day;
  Environment->PreviewEnvironment();
  TestEqual(TEXT("Preview follows edited config"), Environment->GetAppliedBiome(), FName(TEXT("City")));
  TestTrue(TEXT("Preview follows edited preset"), Environment->GetSelectedLightingPreset() == EBalloonLightingPreset::Day);
+ TestEqual(TEXT("Preview switches sky with biome and lighting"), Environment->SkyDome->GetMaterial(0)->GetName(), FString(TEXT("MI_City_DaySky")));
  Generator->LevelConfig = nullptr;
  TestFalse(TEXT("Missing config does not silently use fallback"), Environment->ApplyFromGenerator());
  Generator->BiomeSelection = EBalloonBiomeSelection::Random;
