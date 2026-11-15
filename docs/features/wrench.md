@@ -10,6 +10,8 @@ A hand-held utility for repairs: the player takes the wrench and turns it like a
 - In the hand it is drawn with its own animation (Equip) and put away with the same one played backwards (the model has no separate Unequip). While doing nothing it sways gently (Idle).
 - **LMB held:** the wrench moves into working position (ToFix) and turns (Fix, four ratchet turns, looping while held).
 - **Release:** the wrench finishes the turn already started back to its rest pose and moves out of working position (ToFix backwards) into Idle. Released during ToFix: it moves back right away from wherever it got to.
+- From Equip to Fix the wrench is seen face-on, in front of the camera: the turn happens in the plane of the screen, with the handle reaching to the left (as the artist animated it). At rest (Idle) it is a little right of and below the centre, out of the way.
+- **It works where the player aims:** as it moves into working position the jaw slides onto the crosshair dot and stays on it while turning, whatever the view does (no lag or bob; the hand only rocks it about the jaw). Off the work it slides back to the rest pose.
 - The wrench doesn't shoot, has no recoil and doesn't aim (RMB does nothing).
 - For now the wrench only animates: there is no repair.
 
@@ -17,14 +19,14 @@ A hand-held utility for repairs: the player takes the wrench and turns it like a
 | Action | Result |
 | --- | --- |
 | LMB on the wrench (empty hand) | Take the wrench (Equip) |
-| Hold LMB | The wrench moves to work and turns |
+| Hold LMB | The wrench moves onto the crosshair and turns there |
 | Release LMB | Finishes the turn and returns to Idle |
 
 ## Parameters
 | Parameter | Value | Note |
 | --- | --- | --- |
 | Animations | Equip 0.96 s, Idle 2 s, ToFix 0.67 s, Fix 4.63 s | From `Wrench.fbx` (24 fps) |
-| Pose in the hand | TBD | `ViewOffset` (30, 14, −12), rotation −4° (placeholder) |
+| Pose in the hand | TBD | `ViewOffset` (28, 8, −4) cm, yaw +90° so it faces the camera (placeholder) |
 | Place in Movement_Scene1 | TBD | Under the extinguisher, to the right of the player (`place_item_pickups.py`) |
 
 ## Dependencies
