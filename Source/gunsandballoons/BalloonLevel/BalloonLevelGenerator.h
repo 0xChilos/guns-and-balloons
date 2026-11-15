@@ -32,6 +32,19 @@ class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
 	GENERATED_BODY()
 public:
 	ABalloonLevelGenerator();
+ /** Disable before generation to omit functional enemies (including catalog enemies). Border proxies remain independent. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies") bool SpawnEnemies = true;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(EditCondition="SpawnEnemies")) bool SpawnSharedEnemies = true;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(EditCondition="SpawnEnemies")) bool SpawnBiomeEnemies = true;
+ /** Prototype counts/distances require tuning. Zero omits this enemy type. */
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 EdgeAACount = 8;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 BirdFlockCount = 3;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 DesertCannonCount = 3;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", ClampMax="100")) int32 DesertBeaconCount = 2;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float EnemySideOffsetMeters = 45.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float EnemyStartClearanceMeters = 150.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(ClampMin="0", Units="m")) float AirshipStartDistanceMeters = 250.f;
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Balloon Level|Enemies", meta=(Units="m")) float AirshipHeightOffsetMeters = 15.f;
  /** One authoring entry point: reuse assigned/single existing actors or create missing environment actors. */
  UFUNCTION(BlueprintCallable, CallInEditor, Category="Balloon Level|Controller") void SetupLevelController();
  UFUNCTION(CallInEditor, Category="Balloon Level|Controller") void PreviewEnvironment();
@@ -110,6 +123,7 @@ public:
  UPROPERTY(EditAnywhere, Category="Balloon Level|Debug") bool DebugHISM = true;
  UFUNCTION(CallInEditor, Category="Balloon Level|Debug") void DrawGenerationDebug() const;
 private:
+ void SpawnLevelEnemies();
  bool ConfigureEnvironment();
  void ClearOwnedEnvironment();
  UPROPERTY(Transient) TArray<TObjectPtr<AActor>> OwnedEnvironmentActors;

@@ -6,7 +6,10 @@ Statuses: `Proposed` → `Accepted` (moved to the feature page) or `Rejected`.
 One row per decision, newest on top. Don't delete rows; only change their status.
 
 | Date | Proposal / decision | Status | Concerns |
+| 2026-11-15 | At the user's request, hide visible generated terrain boundaries with sparse horizon rings stitched to the detailed grid, extending ground 100 km in every direction. Keep corridor borders and terrain detail density unchanged; distances require art tuning. | Accepted | [biomes](features/biomes.md) |
+| 2026-11-15 | At the user's request, add a distinct sky for every biome, including fixed Day/Night variants. Reuse the engine panoramic cloud/star material, apply through the existing environment controller and provide editable per-biome material overrides. Palettes and celestial brightness need art tuning. | Accepted | [biomes](features/biomes.md) |
 | --- | --- | --- | --- |
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -25,6 +28,9 @@ One row per decision, newest on top. Don't delete rows; only change their status
 =======
 =======
 =======
+=======
+| 2026-11-15 | At the user's request, spawn shared and biome-specific functional enemies with the generated level and expose editor disable switches on the Level Generator. Shared: airship and edge AA (reuse configured border threats). Field: bird flocks. Desert: cannon towers and beacons on terrain. Counts and spacing are editable prototype tuning; ownership follows generated-level cleanup. | Accepted | [biomes](features/biomes.md) |
+>>>>>>> a000f55 (fix: added nemesis, enemy)
 | 2026-11-15 | At the user's direct request: `LevelGeneration_Test` is reworked into the main gameplay level `/Game/Scenes/MainLevel`. Superfluous test actors (PlayerStart, AmmoCrate) removed; the generator, environment, fog, ground and shared balloon stay. | Accepted | [level-generation](tech/level-generation.md) |
 >>>>>>> a2e5aae (fix: finilize the main level)
 | 2026-11-15 | At the user's direct request: populate and bind native shared and per-biome spawn catalogs. Share two neutral rock meshes across biomes and use each biome's location mesh palette; enable scenery and mesh obstacles in all preview configs. Catalog density/spacing values are preview tuning. Animated and functional hazard actors remain separate integration work. | Accepted | [biomes](features/biomes.md) |

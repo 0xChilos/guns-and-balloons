@@ -23,6 +23,13 @@ bool FBalloonLevelTerrainTest::RunTest(const FString& Parameters)
  if (!TestTrue(TEXT("build terrain"), BalloonTerrain::Build(*Config, Plan, Mesh, Diagnostics))) return false;
  BalloonTerrain::Build(*Config, Plan, Replay, Diagnostics);
  TestTrue(TEXT("same seed repeats terrain"), Mesh.Vertices == Replay.Vertices);
+ FBox HorizonBounds(ForceInit);
+ for (const FVector& V : Mesh.Vertices) HorizonBounds += V;
+ TestTrue(TEXT("horizon extends at least 100 km beyond corridor on all sides"),
+  HorizonBounds.Min.X < -9990000. && HorizonBounds.Min.Y < -9990000. &&
+  HorizonBounds.Max.X > 10000000. && HorizonBounds.Max.Y > 10000000.);
+ TestTrue(TEXT("horizon uses sparse geometry"), Mesh.Vertices.Num() < 1000);
+ TestEqual(TEXT("each horizon vertex has UVs"), Mesh.Vertices.Num(), Mesh.UVs.Num());
  double Minimum = Mesh.Vertices[0].Z, Maximum = Minimum;
  for (const FVector& V : Mesh.Vertices) { Minimum = FMath::Min(Minimum, V.Z); Maximum = FMath::Max(Maximum, V.Z); }
  TestTrue(TEXT("generated terrain is uneven"), Maximum - Minimum > 1.);
@@ -42,7 +49,7 @@ bool FBalloonLevelTerrainTest::RunTest(const FString& Parameters)
  {
   TestTrue(TEXT("visible terrain section exists"), Component && Component->GetNumSections() == 1);
   FHitResult Hit;
-  const FVector Vertex = Mesh.Vertices[Mesh.Vertices.Num() / 2];
+  const FVector Vertex = Mesh.Vertices[0];
   FCollisionQueryParams Query(SCENE_QUERY_STAT(TerrainTest), true);
   TestTrue(TEXT("generated terrain has query collision"), Component->LineTraceComponent(Hit,
    FVector(Vertex.X + 1., Vertex.Y + 1., Maximum + 100.), FVector(Vertex.X + 1., Vertex.Y + 1., Minimum - 100.), Query));

@@ -5,6 +5,13 @@
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
 
+namespace
+{
+ // Prototype horizon distances (metres), requiring art tuning. Sparse rings avoid
+ // increasing the detailed terrain grid or moving the playable corridor borders.
+ constexpr double HorizonDistancesMeters[] = {500., 2000., 10000., 100000.};
+}
+
 bool BalloonTerrain::Build(const UBalloonLevelConfig& Config, const FBalloonLevelPlan& Plan, FMesh& Mesh, TArray<FString>& Diagnostics)
 {
  Mesh = FMesh();
@@ -16,7 +23,7 @@ bool BalloonTerrain::Build(const UBalloonLevelConfig& Config, const FBalloonLeve
  const double Cell = Config.TerrainCellMeters * 100.;
  const double NX = FMath::Max(1., FMath::CeilToDouble(Bounds.GetSize().X / Cell));
  const double NY = FMath::Max(1., FMath::CeilToDouble(Bounds.GetSize().Y / Cell));
- if (!FMath::IsFinite(NX * NY) || (NX + 1.) * (NY + 1.) > 250000.)
+ if (!FMath::IsFinite(NX * NY) || (NX + 1.) * (NY + 1.) + 8. * (NX + NY) > 250000.)
  { Diagnostics.Add(TEXT("Terrain: vertex limit exceeded (250000); increase TerrainCellMeters or reduce padding")); return false; }
  const int32 XCount = int32(NX), YCount = int32(NY);
  const double StepX = Bounds.GetSize().X / XCount, StepY = Bounds.GetSize().Y / YCount;
@@ -41,6 +48,37 @@ bool BalloonTerrain::Build(const UBalloonLevelConfig& Config, const FBalloonLeve
  {
   const int32 A = Y * (XCount + 1) + X, B = A + 1, C = A + XCount + 1, D = C + 1;
   Mesh.Triangles.Append({A, C, B, B, C, D});
+ }
+ // Stitch the exact grid perimeter to sparse, progressively wider horizon rings.
+ // The shared inner vertices prevent cracks, even on seeded rolling terrain.
+ TArray<int32> Perimeter;
+ for (int32 X = 0; X < XCount; ++X) Perimeter.Add(X);
+ for (int32 Y = 0; Y < YCount; ++Y) Perimeter.Add(Y * (XCount + 1) + XCount);
+ for (int32 X = XCount; X > 0; --X) Perimeter.Add(YCount * (XCount + 1) + X);
+ for (int32 Y = YCount; Y > 0; --Y) Perimeter.Add(Y * (XCount + 1));
+ const TArray<int32> InnerPerimeter = Perimeter;
+ const FVector Center = Bounds.GetCenter();
+ const FVector Extent = Bounds.GetExtent();
+ for (double DistanceMeters : HorizonDistancesMeters)
+ {
+  TArray<int32> Outer;
+  for (int32 Index : InnerPerimeter)
+  {
+   const FVector Inner = Mesh.Vertices[Index];
+   FVector V = Inner;
+   V.X = Center.X + (Inner.X - Center.X) * (1. + DistanceMeters * 100. / Extent.X);
+   V.Y = Center.Y + (Inner.Y - Center.Y) * (1. + DistanceMeters * 100. / Extent.Y);
+   V.Z = FMath::Lerp(Inner.Z, Config.PlacementGroundZMeters * 100., FMath::Min(1., DistanceMeters / 10000.));
+   Outer.Add(Mesh.Vertices.Add(V));
+   const FVector Local = InverseYaw.RotateVector(V - Origin);
+   Mesh.UVs.Add(FVector2D(Local.X, Local.Y) / 1000.);
+  }
+  for (int32 I = 0; I < Perimeter.Num(); ++I)
+  {
+   const int32 Next = (I + 1) % Perimeter.Num();
+   Mesh.Triangles.Append({Perimeter[I], Perimeter[Next], Outer[I], Perimeter[Next], Outer[Next], Outer[I]});
+  }
+  Perimeter = MoveTemp(Outer);
  }
  Mesh.Normals.Init(FVector::ZeroVector, Mesh.Vertices.Num());
  for (int32 I = 0; I < Mesh.Triangles.Num(); I += 3)
