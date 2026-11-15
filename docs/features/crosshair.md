@@ -1,6 +1,6 @@
 # Crosshair
 
-> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-14
+> **Status:** In progress · **Owner:** Sokin · **Updated:** 2026-11-15
 
 ## Why
 A simple dynamic crosshair: it shows where the shot will go and how accurate it is right now, and feels "alive": it reacts to the balloon, sway, recoil, weapon switches and camera turns.
@@ -9,6 +9,7 @@ A simple dynamic crosshair: it shows where the shot will go and how accurate it 
 - Look: in the [art style](../art-style.md): big low-res pixels (2× upscale), a dark outline, colour quantisation with Bayer dithering, dithered translucency, grain. Bone-white colour.
 - Shape: four ticks and a dot in the centre.
 - **The dot is always where the shot goes** (recoil, sway and the balloon turn the view itself).
+- **Aiming down sights (ADS, RMB):** the crosshair, dot included, fades out smoothly while the weapon rises to the eye (you aim with the front sight); when the weapon is lowered, it fades back in.
 - The ticks spread apart (the gap):
   - by the weapon's spread at true scale (revolver wider, rifle almost closed, shotgun widest with the pellet fan);
   - from the recoil of each shot;

@@ -1,0 +1,321 @@
+{
+ "SK_RocketBalloon": {
+  "file": "SK_RocketBalloon.fbx",
+  "kind": "skeletal",
+  "category": "Enemy",
+  "tris": 1936,
+  "size_m": [
+   7.02,
+   7.02,
+   12.35
+  ],
+  "texture": "T_MapEdge_Balloon.png",
+  "materials": [
+   "M_MapEdge_Balloon",
+   "M_MapEdge_Balloon_Glow"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [
+   "root",
+   "launcher",
+   "launcher_pitch",
+   "light",
+   "muzzle_01",
+   "muzzle_02",
+   "muzzle_03",
+   "muzzle_04",
+   "muzzle_05",
+   "muzzle_06"
+  ],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [
+   {
+    "bone": "root",
+    "type": "sphere",
+    "size_m": [
+     3.6
+    ],
+    "size_cm": [
+     360.0
+    ],
+    "center_m": [
+     0,
+     0,
+     8.40008
+    ],
+    "center_ue_cm": [
+     0,
+     0,
+     840.0
+    ],
+    "x_axis_ue": [
+     1,
+     0,
+     0
+    ],
+    "y_axis_ue": [
+     0,
+     -1,
+     0
+    ],
+    "z_axis_ue": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "capsule",
+    "size_m": [
+     2.4,
+     6.0
+    ],
+    "size_cm": [
+     240.0,
+     600.0
+    ],
+    "center_m": [
+     0,
+     0,
+     6.200080000000001
+    ],
+    "center_ue_cm": [
+     0,
+     0,
+     620.0
+    ],
+    "x_axis_ue": [
+     1,
+     0,
+     0
+    ],
+    "y_axis_ue": [
+     0,
+     -1,
+     0
+    ],
+    "z_axis_ue": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "bone": "root",
+    "type": "box",
+    "size_m": [
+     2.9,
+     3.4,
+     0.9
+    ],
+    "size_cm": [
+     290.0,
+     340.0,
+     90.0
+    ],
+    "center_m": [
+     0,
+     0.2,
+     2.45
+    ],
+    "center_ue_cm": [
+     0,
+     -20.0,
+     245.0
+    ],
+    "x_axis_ue": [
+     1,
+     0,
+     0
+    ],
+    "y_axis_ue": [
+     0,
+     -1,
+     0
+    ],
+    "z_axis_ue": [
+     0,
+     0,
+     1
+    ]
+   },
+   {
+    "bone": "launcher_pitch",
+    "type": "box",
+    "size_m": [
+     2.0,
+     2.8,
+     1.3
+    ],
+    "size_cm": [
+     200.0,
+     280.0,
+     130.0
+    ],
+    "center_m": [
+     0.0,
+     0.15000000596046448,
+     0.949999988079071
+    ],
+    "center_ue_cm": [
+     0.0,
+     -15.0,
+     95.0
+    ],
+    "x_axis_ue": [
+     1,
+     0,
+     0
+    ],
+    "y_axis_ue": [
+     0,
+     -1,
+     0
+    ],
+    "z_axis_ue": [
+     0,
+     0,
+     1
+    ]
+   }
+  ],
+  "notes": "Enemy balloon guarding the map edge: player-style envelope with red stripes, a slung rocket launcher instead of a basket (bone launcher = yaw, launcher_pitch = elevation), 6 tubes with helper bones muzzle_01..06, bright red lamp (helper bone light, glow slot). Physics bodies in Map_edge_Manifest.json"
+ },
+ "SM_Rocket": {
+  "file": "SM_Rocket.fbx",
+  "kind": "static",
+  "category": "Projectile",
+  "tris": 156,
+  "size_m": [
+   0.47,
+   1.63,
+   0.47
+  ],
+  "texture": "T_MapEdge_Rocket.png",
+  "materials": [
+   "M_MapEdge_Rocket"
+  ],
+  "collision_hulls": 1,
+  "sockets": [
+   "exhaust"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Rocket fired by the rocket balloon. Pivot = centre, flies along its long axis (Blender +Y). SOCKET_exhaust at the nozzle for the flame mesh and smoke trail"
+ },
+ "SM_FX_Debris": {
+  "file": "SM_FX_Debris.fbx",
+  "kind": "static",
+  "category": "FX",
+  "tris": 32,
+  "size_m": [
+   0.51,
+   0.35,
+   0.31
+  ],
+  "texture": "T_MapEdge_Rocket.png",
+  "materials": [
+   "M_MapEdge_Rocket"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Explosion debris chunk (scorched metal). Spawn 6-10 with random scale 0.5-1.5 and spin"
+ },
+ "SM_FX_RocketFlame": {
+  "file": "SM_FX_RocketFlame.fbx",
+  "kind": "static",
+  "category": "FX",
+  "tris": 42,
+  "size_m": [
+   0.41,
+   1.5,
+   0.41
+  ],
+  "texture": null,
+  "materials": [
+   "M_FX_Flame"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Rocket exhaust flame: pivot at the nozzle, flame points -Y (backwards). UV V = 0 at the nozzle, 1 at the tip"
+ },
+ "SM_FX_MuzzleFlash": {
+  "file": "SM_FX_MuzzleFlash.fbx",
+  "kind": "static",
+  "category": "FX",
+  "tris": 32,
+  "size_m": [
+   1.1,
+   1.2,
+   0.95
+  ],
+  "texture": null,
+  "materials": [
+   "M_FX_MuzzleFlash"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Launch flash: pivot at the tube mouth, points +Y. Show for 2-3 frames with random roll"
+ },
+ "SM_FX_Fireball": {
+  "file": "SM_FX_Fireball.fbx",
+  "kind": "static",
+  "category": "FX",
+  "tris": 80,
+  "size_m": [
+   2.01,
+   2.02,
+   1.77
+  ],
+  "texture": null,
+  "materials": [
+   "M_FX_Fireball"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Explosion fireball, 1 m radius: scale 0.3 -> 4 over 0.4 s while it fades. UV V = height (bottom 0, top 1)"
+ },
+ "SM_FX_Shockwave": {
+  "file": "SM_FX_Shockwave.fbx",
+  "kind": "static",
+  "category": "FX",
+  "tris": 48,
+  "size_m": [
+   2.0,
+   2.0,
+   0.0
+  ],
+  "texture": null,
+  "materials": [
+   "M_FX_Shockwave"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Flat shock ring, outer radius 1 m: scale 0.5 -> 12 over 0.35 s, fade out. UV V = 0 inner edge, 1 outer edge"
+ }
+}

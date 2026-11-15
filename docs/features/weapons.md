@@ -1,6 +1,6 @@
 # Weapons
 
-> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-14
+> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-15
 
 ## Why
 Every shot should be a decision: the weapons are awkward, rounds are scarce, and reloading is manual and takes time while the balloon flies and the stove dies down.
@@ -12,6 +12,7 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
   - **Each weapon has its own bullet drop** (a gravity multiplier): the revolver drops the most, the rifle the least.
   - **The shotgun fires shot, not a bullet:** each shot is 9 pellets in a fan; air slows the shot quickly, so it is deadly up close but weaker and dropping steeply at range. Pellets are smaller than bullets, with short tracers.
 - **Handling (tuned per weapon):** recoil kicks the aim itself up: part of it returns on its own, the player pulls the rest down with the mouse; spread deflects the bullet from the crosshair (mostly near the centre); the aim sways: the hand holding the weapon plus the rocking basket (which also tilts the horizon slightly); the rate of fire limits how often the trigger can be pulled. Tuned for all three: the revolver is middling; the rifle has almost no spread but a slow, long sway (you have to wait for the shot); the shotgun has the strongest recoil, and the second barrel 0.3 s later shoots higher.
+- **Aiming down sights (ADS):** hold RMB with the revolver, rifle or shotgun in hand: the weapon rises from the hip to the eye line (sight in the centre), the view zooms in a little and the mouse slows down with the zoom; the crosshair fades out (you aim with the front sight). The eye sits on the weapon itself and looks along the barrel at the front sight (revolver: right behind and above the hammer, the front sight rests on the hammer; rifle: above the barrel just in front of the receiver, the front sight rests on the rear sight; shotgun: a little above and behind the rib between the hammers, looking down along the barrels); the action behind the eye and the stock are not visible. Release: the weapon returns to the hip. RMB on the ammo crate is still reloading; while the weapon is open for reloading you can't aim. It is visual only: spread, recoil and aim sway stay the same. The hook (RMB = pump) and the extinguisher don't aim.
 - **Smoke (black powder):** after each shot a dense cloud leaves the muzzle, and the barrel keeps smoking for ~1.5–2 s with a thin trail that follows the muzzle. The smoke is physical and lives in the world, not on the weapon model: air slows it, while hot it rises, spreads and thins out, eddies and wind carry it, it flows around walls and the basket, and the player leaves it behind. When the weapon is first opened for reloading after a shot (the rifle's breech, the broken-open shotgun, the revolver's gate), a little smoke comes out of the breech; the longer you wait after the shot, the less; opening again without a new shot gives no smoke. The look follows the [art style](../art-style.md), PS1-like: blocky pixel puffs with flat two-tone shading (lighter core, darker edge), no smooth transparency: thinning smoke breaks up with Bayer dithering; the puffs move choppily (~15 fps).
 - Weapons and rounds are kept **in a holster on the inner wall of the basket**.
 - **Manual reloading:** the player takes a round from the holster and loads the weapon (an interaction, not an R key).
@@ -59,6 +60,7 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
 | Revolver rounds at start | TBD | `URevolverComponent::InitialRounds`, currently 6 |
 | Rifle round at start | TBD | `URifleComponent::bStartLoaded`, currently yes |
 | Shotgun rounds at start | TBD | `UShotgunComponent::InitialRounds`, currently 2 |
+| Aiming down sights (ADS) | TBD | Pose `AimViewOffset`, time `AimTime` (revolver 0.15 s, rifle 0.25, shotgun 0.2), zoom `AimFieldOfView` (80°, 70°, 82° at a base 90°), model FOV `AimFirstPersonFieldOfView`, near clip plane `AimNearClipPlane` (rifle and shotgun 1 cm: the eye is on the action) on the weapon; `AimSwayScale`, `AimBobScale`, `AimKickScale` on the player (placeholders) |
 | Revolver reload animation speed | TBD | `ReloadPlayRate` 1.5× |
 | Smoke | TBD | `MuzzleBlastSmoke`, `MuzzleWispSmoke`, `BreechSmoke`, `BreechSmokeClearTime` on the weapon; air and look in `AGunSmoke` (starting values, tune in game) |
 

@@ -25,6 +25,7 @@ class UMaterialInterface;
  * Inertia: the ticks hang on a damped spring. They trail a turn of the view, swing past when it
  * stops and settle; the balloon speeding up, braking, climbing or sinking throws them the other way.
  * The dot stays on the true aim (bInertiaMovesDot to swing it too).
+ * Aiming down the sights fades the whole crosshair out with the gun's raise, and back in as it lowers.
  * - a weapon change (the crosshair opens and fades out as the gun goes down, the new gun's comes back).
  * Empty hand: only the dot, bigger over something to interact with. A gun with nothing to fire
  * (empty, or the hook below 100) shows faded ticks.

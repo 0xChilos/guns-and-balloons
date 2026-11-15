@@ -1,0 +1,18 @@
+---,Asset,Category,Collision,DensityPerKm2,ScaleMin,ScaleMax,MinSpacingM,RandomYaw,AlignToSlope,ClusterSize,Rule,Notes
+SM_Dune_A,SM_Dune_A,Terrain,false,12,0.8,1.4,60,false,false,1,wind_aligned,"Crescent dune, all dunes face the same wind (+Y downwind)"
+SM_Dune_B,SM_Dune_B,Terrain,false,12,0.8,1.4,60,false,false,1,wind_aligned,"Crescent dune, all dunes face the same wind (+Y downwind)"
+SM_Dune_C,SM_Dune_C,Terrain,false,12,0.8,1.4,60,false,false,1,wind_aligned,"Crescent dune, all dunes face the same wind (+Y downwind)"
+SM_Mesa,SM_Mesa,Obstacle,true,1.5,0.7,1.3,300,true,false,1,scatter,"Flat-topped rock, 34 m: collides"
+SM_Hoodoo,SM_Hoodoo,Obstacle,true,4,0.7,1.4,60,true,false,2,scatter,"Rock pillar, 20 m: collides"
+SM_Rock_Desert_A,SM_Rock_Desert_A,Filler,false,60,0.6,1.6,8,true,true,3,scatter,
+SM_Rock_Desert_B,SM_Rock_Desert_B,Filler,false,60,0.6,1.6,8,true,true,3,scatter,
+SM_Cactus_A,SM_Cactus_A,Filler,false,120,0.7,1.3,6,true,false,2,scatter,
+SM_Cactus_B,SM_Cactus_B,Filler,false,120,0.7,1.3,6,true,false,2,scatter,
+SM_Tent,SM_Tent,Filler,false,6,0.9,1.1,10,true,true,4,scatter,
+SM_Wreck_Airship,SM_Wreck_Airship,Filler,false,0.5,0.9,1.2,500,true,true,1,scatter,"Half-buried crashed zeppelin: ribs, torn canvas, tilted gondola"
+SM_Ribcage,SM_Ribcage,Filler,false,1,0.8,1.3,200,true,true,1,scatter,Bones of a giant beast
+SM_TurretTower,SM_TurretTower,Obstacle,true,3,0.95,1.1,120,true,true,1,scatter,"Stilted gun tower, 20 m platform. Put SM_TurretTower_Head on SOCKET_head and SM_TurretTower_Engine on SOCKET_engine. Collision: legs + platform deck only, so the head and the engine (weak spot) can be hit on their own"
+SM_TurretTower_Engine,SM_TurretTower_Engine,Hazard,true,0,1,1,0,true,false,1,scatter,Steam engine that powers the turret: the WEAK SPOT. Own collision. Smoke from SOCKET_smoke (chimney top). Pivot = base centre; goes on SOCKET_engine of SM_TurretTower
+SM_TurretTower_Head,SM_TurretTower_Head,Hazard,true,0,1,1,0,true,false,1,scatter,Armoured turret head: rotates around Z on SOCKET_head of SM_TurretTower. Socket guns = elevation pivot. Own collision
+SM_TurretTower_Guns,SM_TurretTower_Guns,Hazard,true,0,1,1,0,true,false,1,scatter,"Twin cannons: pivot = trunnion (SOCKET_guns of the head), elevate around X. Muzzles at SOCKET_muzzle_1 / _2. Own collision"
+SK_Lighthouse,SK_Lighthouse,Hazard,true,1.5,1,1,300,true,true,1,scatter,"Rotating head (bone head, spins around Z); lamp bone = light source, can be destroyed. Beam: SM_LighthouseBeam on socket_beam"

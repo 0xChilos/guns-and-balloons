@@ -1,0 +1,113 @@
+{
+ "SM_Loot_AmmoBox": {
+  "file": "SM_Loot_AmmoBox.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 1296,
+  "size_m": [
+   1.04,
+   0.73,
+   0.79
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Ammo: open wooden case heaped with shotgun shells, pistol and rifle rounds"
+ },
+ "SM_Loot_MoneyPouch": {
+  "file": "SM_Loot_MoneyPouch.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 394,
+  "size_m": [
+   0.75,
+   0.75,
+   0.68
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Money: leather drawstring pouch with gold coins"
+ },
+ "SM_Loot_Log": {
+  "file": "SM_Loot_Log.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 112,
+  "size_m": [
+   1.02,
+   0.36,
+   0.49
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Wood: one thick log"
+ },
+ "SM_Loot_Coal": {
+  "file": "SM_Loot_Coal.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 120,
+  "size_m": [
+   0.87,
+   0.69,
+   0.61
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Coal: big glossy black lump, nothing orange in the model: the orange glow and sparks are added in Unreal"
+ },
+ "SM_Loot_Crystal": {
+  "file": "SM_Loot_Crystal.fbx",
+  "kind": "static",
+  "category": "Loot",
+  "tris": 172,
+  "size_m": [
+   0.84,
+   0.71,
+   0.89
+  ],
+  "texture": "T_Loot.png",
+  "materials": [
+   "M_Loot",
+   "M_Loot_Glow"
+  ],
+  "collision_hulls": 1,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Crystal: cluster of glowing crystals on a rock (glow slot)"
+ }
+}

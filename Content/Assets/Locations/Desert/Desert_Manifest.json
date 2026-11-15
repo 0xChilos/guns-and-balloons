@@ -1,0 +1,450 @@
+{
+ "SM_Dune_A": {
+  "file": "SM_Dune_A.fbx",
+  "kind": "static",
+  "category": "Terrain",
+  "tris": 126,
+  "size_m": [
+   120.23,
+   68.7,
+   13.9
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Crescent dune, all dunes face the same wind (+Y downwind)"
+ },
+ "SM_Dune_B": {
+  "file": "SM_Dune_B.fbx",
+  "kind": "static",
+  "category": "Terrain",
+  "tris": 126,
+  "size_m": [
+   199.7,
+   103.06,
+   22.69
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Crescent dune, all dunes face the same wind (+Y downwind)"
+ },
+ "SM_Dune_C": {
+  "file": "SM_Dune_C.fbx",
+  "kind": "static",
+  "category": "Terrain",
+  "tris": 126,
+  "size_m": [
+   70.11,
+   42.86,
+   7.97
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Crescent dune, all dunes face the same wind (+Y downwind)"
+ },
+ "SM_Mesa": {
+  "file": "SM_Mesa.fbx",
+  "kind": "static",
+  "category": "Obstacle",
+  "tris": 305,
+  "size_m": [
+   78.61,
+   80.24,
+   39.5
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 1,
+  "sockets": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02",
+   "loot_03"
+  ],
+  "physics_bodies": [],
+  "notes": "Flat-topped rock, 34 m: collides"
+ },
+ "SM_Hoodoo": {
+  "file": "SM_Hoodoo.fbx",
+  "kind": "static",
+  "category": "Obstacle",
+  "tris": 114,
+  "size_m": [
+   10.07,
+   8.97,
+   20.47
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 1,
+  "sockets": [
+   "loot_01"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [
+   "loot_01"
+  ],
+  "physics_bodies": [],
+  "notes": "Rock pillar, 20 m: collides"
+ },
+ "SM_Rock_Desert_A": {
+  "file": "SM_Rock_Desert_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 42,
+  "size_m": [
+   3.97,
+   2.96,
+   2.03
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Rock_Desert_B": {
+  "file": "SM_Rock_Desert_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 42,
+  "size_m": [
+   7.44,
+   4.87,
+   3.12
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Cactus_A": {
+  "file": "SM_Cactus_A.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 106,
+  "size_m": [
+   2.15,
+   0.64,
+   5.25
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Cactus_B": {
+  "file": "SM_Cactus_B.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 66,
+  "size_m": [
+   1.35,
+   0.64,
+   3.75
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Tent": {
+  "file": "SM_Tent.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 60,
+  "size_m": [
+   6.15,
+   6.67,
+   2.8
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": ""
+ },
+ "SM_Wreck_Airship": {
+  "file": "SM_Wreck_Airship.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 568,
+  "size_m": [
+   15.34,
+   36.25,
+   7.65
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Half-buried crashed zeppelin: ribs, torn canvas, tilted gondola"
+ },
+ "SM_Ribcage": {
+  "file": "SM_Ribcage.fbx",
+  "kind": "static",
+  "category": "Filler",
+  "tris": 516,
+  "size_m": [
+   5.72,
+   15.23,
+   4.42
+  ],
+  "texture": "T_Desert_Props.png",
+  "materials": [
+   "M_Desert_Props"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Bones of a giant beast"
+ },
+ "SM_TurretTower": {
+  "file": "SM_TurretTower.fbx",
+  "kind": "static",
+  "category": "Obstacle",
+  "tris": 928,
+  "size_m": [
+   9.04,
+   9.04,
+   26.03
+  ],
+  "texture": "T_Desert_Turret.png",
+  "materials": [
+   "M_Desert_Turret"
+  ],
+  "collision_hulls": 2,
+  "sockets": [
+   "head",
+   "engine",
+   "loot_01",
+   "loot_02"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "physics_bodies": [],
+  "notes": "Stilted gun tower, 20 m platform. Put SM_TurretTower_Head on SOCKET_head and SM_TurretTower_Engine on SOCKET_engine. Collision: legs + platform deck only, so the head and the engine (weak spot) can be hit on their own"
+ },
+ "SM_TurretTower_Engine": {
+  "file": "SM_TurretTower_Engine.fbx",
+  "kind": "static",
+  "category": "Hazard",
+  "tris": 516,
+  "size_m": [
+   3.93,
+   2.93,
+   4.45
+  ],
+  "texture": "T_Desert_Turret.png",
+  "materials": [
+   "M_Desert_Turret",
+   "M_Desert_Turret_Glow"
+  ],
+  "collision_hulls": 3,
+  "sockets": [
+   "smoke"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Steam engine that powers the turret: the WEAK SPOT. Own collision. Smoke from SOCKET_smoke (chimney top). Pivot = base centre; goes on SOCKET_engine of SM_TurretTower"
+ },
+ "SM_TurretTower_Head": {
+  "file": "SM_TurretTower_Head.fbx",
+  "kind": "static",
+  "category": "Hazard",
+  "tris": 132,
+  "size_m": [
+   3.86,
+   3.86,
+   2.06
+  ],
+  "texture": "T_Desert_Turret.png",
+  "materials": [
+   "M_Desert_Turret"
+  ],
+  "collision_hulls": 2,
+  "sockets": [
+   "guns"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Armoured turret head: rotates around Z on SOCKET_head of SM_TurretTower. Socket guns = elevation pivot. Own collision"
+ },
+ "SM_TurretTower_Guns": {
+  "file": "SM_TurretTower_Guns.fbx",
+  "kind": "static",
+  "category": "Hazard",
+  "tris": 180,
+  "size_m": [
+   1.3,
+   4.9,
+   0.8
+  ],
+  "texture": "T_Desert_Turret.png",
+  "materials": [
+   "M_Desert_Turret"
+  ],
+  "collision_hulls": 1,
+  "sockets": [
+   "muzzle_1",
+   "muzzle_2"
+  ],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Twin cannons: pivot = trunnion (SOCKET_guns of the head), elevate around X. Muzzles at SOCKET_muzzle_1 / _2. Own collision"
+ },
+ "SK_Lighthouse": {
+  "file": "SK_Lighthouse.fbx",
+  "kind": "skeletal",
+  "category": "Hazard",
+  "tris": 1036,
+  "size_m": [
+   11.09,
+   11.09,
+   38.0
+  ],
+  "texture": "T_Desert_Lighthouse.png",
+  "materials": [
+   "M_Desert_Lighthouse",
+   "M_Desert_Lighthouse_Glow"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [
+   "root",
+   "head",
+   "lamp",
+   "socket_beam",
+   "loot_01",
+   "loot_02"
+  ],
+  "anims": [],
+  "loot_spots": [
+   "loot_01",
+   "loot_02"
+  ],
+  "physics_bodies": [],
+  "notes": "Rotating head (bone head, spins around Z); lamp bone = light source, can be destroyed. Beam: SM_LighthouseBeam on socket_beam"
+ },
+ "SM_LighthouseBeam": {
+  "file": "SM_LighthouseBeam.fbx",
+  "kind": "static",
+  "category": "Hazard",
+  "tris": 24,
+  "size_m": [
+   18.0,
+   90.0,
+   18.0
+  ],
+  "texture": null,
+  "materials": [
+   "M_LightBeam"
+  ],
+  "collision_hulls": 0,
+  "sockets": [],
+  "bones": [],
+  "anims": [],
+  "loot_spots": [],
+  "physics_bodies": [],
+  "notes": "Light cone, 90 m long, origin at the lamp, points +Y. Own translucent material; colour changes when it spots the player"
+ },
+ "_ground": {
+  "texture": "T_Desert_Ground.png",
+  "average_linear": [
+   0.7285,
+   0.558,
+   0.3485
+  ],
+  "average_srgb": [
+   0.8695,
+   0.7723,
+   0.625
+  ]
+ }
+}

@@ -194,13 +194,21 @@ void ACrosshairHUD::DrawHUD()
 
 	const bool bInteract = Pawn->IsHandEmpty() && Pawn->GetAimedInteractable();
 
+	// Aimed down the sights the sights are the crosshair: it fades out as the gun comes up, and back in
+	// as it goes down (same eased blend as the gun).
+	const float Shown = 1.f - Pawn->GetAimDownSightsAlpha();
+	if (Shown <= 0.f)
+	{
+		return;
+	}
+
 	Material->SetScalarParameterValue(CrosshairParams::QuadCells, Cells);
 	Material->SetVectorParameterValue(CrosshairParams::Origin, FLinearColor(OriginX, OriginY, 0.f, 0.f));
 	Material->SetVectorParameterValue(CrosshairParams::TickOffset, FLinearColor(TickShift.X, TickShift.Y, 0.f, 0.f));
 	Material->SetScalarParameterValue(CrosshairParams::Gap, CurrentGap);
 	Material->SetScalarParameterValue(CrosshairParams::DotSize, bInteract ? InteractDotSize : 1);
-	Material->SetScalarParameterValue(CrosshairParams::TickOpacity, TickOpacity);
-	Material->SetScalarParameterValue(CrosshairParams::DotOpacity, DotOpacity);
+	Material->SetScalarParameterValue(CrosshairParams::TickOpacity, TickOpacity * Shown);
+	Material->SetScalarParameterValue(CrosshairParams::DotOpacity, DotOpacity * Shown);
 	Material->SetScalarParameterValue(CrosshairParams::GrainTime, GetWorld()->GetTimeSeconds());
 
 	DrawMaterial(Material, OriginX * PixelSize, OriginY * PixelSize, Cells * PixelSize, Cells * PixelSize, 0.f, 0.f, 1.f, 1.f);

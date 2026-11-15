@@ -140,6 +140,18 @@ public:
 	float GetRecoilKickBack() const { return RecoilKickBack; }
 	float GetRecoilKickPitch() const { return RecoilKickPitch; }
 
+	/** True if RMB held (off an ammo supply) raises this item to the eye. Off for the tools: the hook pumps with RMB. */
+	bool CanAimDownSights() const { return bCanAimDownSights; }
+	const FVector& GetAimViewOffset() const { return AimViewOffset; }
+	const FRotator& GetAimViewRotation() const { return AimViewRotation; }
+	float GetAimTime() const { return AimTime; }
+	/** World FOV while aimed down the sights; 0 = no zoom. */
+	float GetAimFieldOfView() const { return AimFieldOfView; }
+	/** First-person (viewmodel) FOV while aimed; 0 = keep the camera's. */
+	float GetAimFirstPersonFieldOfView() const { return AimFirstPersonFieldOfView; }
+	/** Camera near clip plane (cm) while aimed; 0 = the engine's. */
+	float GetAimNearClipPlane() const { return AimNearClipPlane; }
+
 	// --- Handling (read by the pawn) -------------------------------------------------------
 
 	/** A random aim kick for one shot (pitch up, yaw either way), from AimRecoilPitch/Variance/Yaw. */
@@ -470,6 +482,48 @@ protected:
 	/** How far (degrees) the muzzle flips up on each shot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel", meta = (ClampMin = "0.0"))
 	float RecoilKickPitch = 12.f;
+
+	// --- Aim down sights (RMB held) ------------------------------------------------------
+	// No ADS clips: the pawn blends the mesh from the rest pose to this one. Values are TBD, tune in game.
+
+	/** RMB held (not on an ammo supply, not while open for loading) raises the item to the eye. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim")
+	bool bCanAimDownSights = true;
+
+	/**
+	 * Position of the root bone relative to the eyes when aimed: centred (Y 0) and lowered by the sight's
+	 * height above the root, so the sights sit on the eye line. TBD: needs tuning per mesh.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights"))
+	FVector AimViewOffset = FVector(30.f, 0.f, -2.5f);
+
+	/** Rotation when aimed: straight down the view, so the barrel lines up with the crosshair. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights"))
+	FRotator AimViewRotation = FRotator::ZeroRotator;
+
+	/** Seconds to raise the gun to the eye (and to lower it back). TBD. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights", ClampMin = "0.01", Units = "Seconds"))
+	float AimTime = 0.18f;
+
+	/** World field of view (degrees) while aimed; the gun keeps its own first-person FOV. 0 = no zoom. TBD. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights", ClampMin = "0.0", ClampMax = "170.0", Units = "Degrees"))
+	float AimFieldOfView = 80.f;
+
+	/**
+	 * First-person FOV the gun is drawn with while aimed (the camera's FirstPersonFieldOfView, 80, at the hip);
+	 * 0 = unchanged. Narrower draws the gun bigger, as if held further out.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights", ClampMin = "0.0", ClampMax = "170.0", Units = "Degrees"))
+	float AimFirstPersonFieldOfView = 0.f;
+
+	/**
+	 * Camera near clip plane (cm) while aimed; 0 = the engine's (10cm). A long gun is aimed with the eye right on
+	 * the back of its action (AimViewOffset), so the stock is behind the camera and never drawn; with the default
+	 * plane the parts within ~14cm in front of the eye (10cm / FirstPersonScale 0.7) would be sliced off, so it is
+	 * pulled in to about 1cm for the aim. Single-sided faces seen from inside are culled, so the cut shows nothing.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gun|Viewmodel|Aim", meta = (EditCondition = "bCanAimDownSights", ClampMin = "0.0", Units = "Centimeters"))
+	float AimNearClipPlane = 0.f;
 
 private:
 	/** A stream of smoke leaving a point on the gun mesh (a bone, or a mesh-space offset) for a while. */

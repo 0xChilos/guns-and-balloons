@@ -10,6 +10,7 @@ class FHookDebugMenu;
 class UGunComponent;
 class UExtinguisherComponent;
 class UHookComponent;
+class UWrenchComponent;
 class URevolverComponent;
 class URifleComponent;
 class UShotgunComponent;
@@ -31,14 +32,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandStat
  *   of the eyes, swings up into view on possession, lags behind fast look movement, breathes slightly
  *   while idle, kicks when fired and turns its loading port toward the eye while reloading.
  *   Where each gun sits and how hard it kicks is set on the gun component (UGunComponent).
- * - Three guns and two tools, one of each: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
+ * - Three guns and three tools, one of each: Pax revolver (SK_Pax), Martini-Henry rifle (SK_MartiniHenry),
  *   Homestead 78 double-barrel shotgun (SK_Homestead78), grappling hook (SK_Hook, UHookComponent) and
- *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held).
+ *   fire extinguisher (SK_Extinguisher, UExtinguisherComponent; sprays while LMB is held) and wrench
+ *   (SK_Wrench, UWrenchComponent; turns while LMB is held).
  * - The hand starts empty and holds one item at a time. Each item lies on its own place in the world
  *   (UWeaponRackComponent: the basket's hooks, an AHandItemPickup): LMB on it takes the item, LMB on its
  *   empty place puts it back, LMB on another item swaps. There are no weapon keys. An item being put
  *   away first finishes and closes up, is lowered out of view, then the next one is raised.
  * - RMB held (not on an ammo supply) goes to the gun in hand as SetSecondaryHeld: the hook pumps with it.
+ *   With a gun (CanAimDownSights) it also aims down the sights: the gun lifts to the eye line and the view
+ *   zooms in (procedural, no clips), unless the gun is open for loading.
  *   H toggles the hook's debug menu (FHookDebugMenu).
  * - LMB interacts with the IInteractable under the crosshair, otherwise fires; held after that click it goes
  *   to the gun as SetTriggerHeld (the extinguisher sprays with it).
@@ -55,6 +59,8 @@ public:
 	AFirstPersonCameraPawn();
 
 	virtual void Tick(float DeltaSeconds) override;
+	/** The camera component's view, with the gun's near clip plane while aiming down the sights. */
+	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult) override;
 	virtual void NotifyControllerChanged() override;
 	virtual void UnPossessed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -70,6 +76,8 @@ public:
 	UHookComponent* GetHook() const { return Hook; }
 	USkeletalMeshComponent* GetExtinguisherMesh() const { return ExtinguisherMesh; }
 	UExtinguisherComponent* GetExtinguisher() const { return Extinguisher; }
+	USkeletalMeshComponent* GetWrenchMesh() const { return WrenchMesh; }
+	UWrenchComponent* GetWrench() const { return Wrench; }
 
 	/** The item in hand (the one still being put away during a swap); with an empty hand, the one held last. */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -133,6 +141,14 @@ public:
 	/** Shot kick of the gun in hand: 1 on the shot, easing to 0. Read by the crosshair. */
 	float GetRecoilAlpha() const { return RecoilAlpha; }
 
+	/** True while RMB holds the gun in hand up to the eye (it may still be on its way). */
+	UFUNCTION(BlueprintPure, Category = "Weapon|Aim Down Sights")
+	bool IsAimingDownSights() const { return bWantsAimDownSights; }
+
+	/** How far the gun is raised to the eye: 0 = held at the hip, 1 = aimed down the sights (eased). */
+	UFUNCTION(BlueprintPure, Category = "Weapon|Aim Down Sights")
+	float GetAimDownSightsAlpha() const { return FMath::SmoothStep(0.f, 1.f, AimAlpha); }
+
 	UPROPERTY(BlueprintAssignable, Category = "Weapon|Hand")
 	FOnHandStateChanged OnHandStateChanged;
 
@@ -178,11 +194,11 @@ protected:
 	/** Lowers the item being swapped out, and once it is out of view puts it on its rack and brings out the next one. */
 	void UpdateWeaponSwap(float DeltaSeconds);
 
-	/** The items in StartingGunIndex order: revolver, rifle, shotgun, hook, extinguisher. */
-	TArray<UGunComponent*, TInlineAllocator<5>> GetGuns() const;
+	/** The items in StartingGunIndex order: revolver, rifle, shotgun, hook, extinguisher, wrench. */
+	TArray<UGunComponent*, TInlineAllocator<6>> GetGuns() const;
 
 	/** Each gun's mesh, in the same order as GetGuns. */
-	TArray<USkeletalMeshComponent*, TInlineAllocator<5>> GetGunMeshes() const;
+	TArray<USkeletalMeshComponent*, TInlineAllocator<6>> GetGunMeshes() const;
 
 	/** H: open/close the hook debug menu; while open, its arrow keys. */
 	void UpdateHookDebugMenu(APlayerController* PC);
@@ -274,8 +290,16 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UExtinguisherComponent> Extinguisher;
 
-	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "4"))
+	/** The wrench, attached to the camera like WeaponMesh. Hidden until taken in hand. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> WrenchMesh;
+
+	/** Wrench: equip, ready, turning while LMB is held; drives WrenchMesh's animation. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UWrenchComponent> Wrench;
+
+	/** Item in hand at BeginPlay when InitialHandState is Armed: 0 = revolver, 1 = rifle, 2 = shotgun, 3 = hook, 4 = extinguisher, 5 = wrench. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", ClampMax = "5"))
 	int32 StartingGunIndex = 0;
 
 	/** Seconds to lower an item out of view when swapping. Raising the next one takes RaiseTime. */
@@ -329,6 +353,38 @@ protected:
 	/** How fast a gun's aim kick (AimRecoilPitch/Yaw) is applied. Higher = sharper snap. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Recoil", meta = (ClampMin = "1.0"))
 	float AimKickSpeed = 30.f;
+
+	// --- Aim down sights ------------------------------------------------------------------
+	// RMB held with a gun in hand (not on an ammo supply): the gun moves to its AimViewOffset and the view
+	// zooms to its AimFieldOfView, over its AimTime. Visual only: spread and sway are unchanged.
+	// All values TBD, tune in game.
+
+	/** Share of the look lag (weapon trailing the view) left while aimed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AimSwayScale = 0.3f;
+
+	/** Share of the idle breathing left while aimed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AimBobScale = 0.25f;
+
+	/**
+	 * Share of the viewmodel's shot kick (RecoilKickBack and RecoilKickPitch) left while aimed, so the sights
+	 * come back sooner and a long gun's stock is not thrown back into the near plane.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AimKickScale = 0.6f;
+
+	/** How far (cm) the gun dips halfway between hip and eye, so the move reads as a lift rather than a slide. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights", meta = (ClampMin = "0.0"))
+	float AimTransitionDip = 1.f;
+
+	/** How far (degrees) the gun rolls inward halfway between hip and eye. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights")
+	float AimTransitionRoll = -6.f;
+
+	/** Slow the mouse look by the zoom while aimed, so the screen moves the same under the cursor. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Aim Down Sights")
+	bool bScaleLookWithAimZoom = true;
 
 	// --- Balloon sway ---------------------------------------------------------------------
 	// The basket rocking under the player, added to the aim on top of the gun's hand sway. Placeholder
@@ -397,6 +453,14 @@ private:
 	float ReloadPoseAlpha = 0.f;
 	/** 1 = fully lowered, 0 = raised (linear; eased when applied). */
 	float RaiseAlpha = 0.f;
+	/** RMB is holding the gun in hand up to the eye. */
+	bool bWantsAimDownSights = false;
+	/** 0 = at the hip, 1 = aimed down the sights (linear; eased when applied). */
+	float AimAlpha = 0.f;
+	/** The camera's field of view when not aimed (taken at BeginPlay). */
+	float BaseFieldOfView = 90.f;
+	/** The camera's first-person (viewmodel) field of view when not aimed (taken at BeginPlay). */
+	float BaseFirstPersonFieldOfView = 80.f;
 	FRotator CurrentSway = FRotator::ZeroRotator;
 	FRotator LastViewRotation = FRotator::ZeroRotator;
 	bool bHasLastViewRotation = false;

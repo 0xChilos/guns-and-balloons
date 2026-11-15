@@ -20,6 +20,7 @@
 #include "RifleComponent.h"
 #include "ShotgunComponent.h"
 #include "WeaponRackComponent.h"
+#include "WrenchComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -125,9 +126,24 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 
 	Extinguisher = CreateDefaultSubobject<UExtinguisherComponent>(TEXT("Extinguisher"));
 
+	// --- Wrench ---
+	WrenchMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WrenchMesh"));
+	SetupViewmodelMesh(WrenchMesh, Camera);
+
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> WrenchAsset(TEXT("/Game/Assets/Wrench/SK_Wrench.SK_Wrench"));
+	if (WrenchAsset.Succeeded())
+	{
+		WrenchMesh->SetSkeletalMeshAsset(WrenchAsset.Object);
+	}
+
+	// Pose comes from code (UWrenchComponent), not an Animation Blueprint.
+	WrenchMesh->AnimClass = UGunAnimInstance::StaticClass();
+
+	Wrench = CreateDefaultSubobject<UWrenchComponent>(TEXT("Wrench"));
+
 	// The hand is empty by default: every item is hidden until it is taken (OnConstruction, BeginPlay).
-	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
-	const TArray<USkeletalMeshComponent*, TInlineAllocator<5>> Meshes = GetGunMeshes();
+	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
+	const TArray<USkeletalMeshComponent*, TInlineAllocator<6>> Meshes = GetGunMeshes();
 	for (int32 i = 0; i < Guns.Num(); ++i)
 	{
 		Meshes[i]->SetRelativeLocationAndRotation(Guns[i]->GetViewOffset(), Guns[i]->GetViewRotation());
@@ -145,14 +161,14 @@ AFirstPersonCameraPawn::AFirstPersonCameraPawn()
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
-TArray<UGunComponent*, TInlineAllocator<5>> AFirstPersonCameraPawn::GetGuns() const
+TArray<UGunComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGuns() const
 {
-	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get() };
+	return { Revolver.Get(), Rifle.Get(), Shotgun.Get(), Hook.Get(), Extinguisher.Get(), Wrench.Get() };
 }
 
-TArray<USkeletalMeshComponent*, TInlineAllocator<5>> AFirstPersonCameraPawn::GetGunMeshes() const
+TArray<USkeletalMeshComponent*, TInlineAllocator<6>> AFirstPersonCameraPawn::GetGunMeshes() const
 {
-	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get() };
+	return { WeaponMesh.Get(), RifleMesh.Get(), ShotgunMesh.Get(), HookMesh.Get(), ExtinguisherMesh.Get(), WrenchMesh.Get() };
 }
 
 UGunComponent* AFirstPersonCameraPawn::FindGun(TSubclassOf<UGunComponent> GunClass) const
@@ -182,8 +198,8 @@ void AFirstPersonCameraPawn::OnConstruction(const FTransform& Transform)
 
 	// Keep the editor preview in sync with each gun's tweakable rest pose; only the starting gun shows
 	// (none with an empty hand).
-	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
-	const TArray<USkeletalMeshComponent*, TInlineAllocator<5>> Meshes = GetGunMeshes();
+	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
+	const TArray<USkeletalMeshComponent*, TInlineAllocator<6>> Meshes = GetGunMeshes();
 	const int32 ShownIndex = InitialHandState == EPlayerHandState::Empty ? INDEX_NONE : FMath::Clamp(StartingGunIndex, 0, Guns.Num() - 1);
 	for (int32 i = 0; i < Guns.Num(); ++i)
 	{
@@ -203,14 +219,21 @@ void AFirstPersonCameraPawn::BeginPlay()
 	Shotgun->SetupWeapon(ShotgunMesh, Camera);
 	Hook->SetupWeapon(HookMesh, Camera);
 	Extinguisher->SetupWeapon(ExtinguisherMesh, Camera);
+	Wrench->SetupWeapon(WrenchMesh, Camera);
 
-	const TArray<UGunComponent*, TInlineAllocator<5>> Guns = GetGuns();
+	const TArray<UGunComponent*, TInlineAllocator<6>> Guns = GetGuns();
 	for (UGunComponent* Gun : Guns)
 	{
 		Gun->OnFired.AddDynamic(this, &AFirstPersonCameraPawn::HandleWeaponFired);
 	}
 
 	Super::BeginPlay();
+
+	// Aiming down the sights zooms from here and back.
+	BaseFieldOfView = Camera->FieldOfView;
+	BaseFirstPersonFieldOfView = Camera->FirstPersonFieldOfView;
+	bWantsAimDownSights = false;
+	AimAlpha = 0.f;
 
 	// An empty hand still keeps a hidden item as ActiveGun, until the first one is taken from its rack.
 	const bool bStartEmpty = InitialHandState == EPlayerHandState::Empty;
@@ -321,6 +344,7 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 		ActiveGun->SetSecondaryHeld(false);
 		bTriggerHeld = false;
 		ActiveGun->SetTriggerHeld(false);
+		bWantsAimDownSights = false;
 	}
 	else
 	{
@@ -329,8 +353,10 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 		const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
 		ActiveGun->SetAimingAtAmmo(bArmed && AimedSupply && AimedSupply->HasRounds());
 
-		// RMB held anywhere but on ammo (the hook pumps with it).
-		ActiveGun->SetSecondaryHeld(bArmed && !AimedSupply && PC->IsInputKeyDown(EKeys::RightMouseButton));
+		// RMB held anywhere but on ammo (the hook pumps with it; a gun is raised to the eye, unless it is open).
+		const bool bSecondaryHeld = bArmed && !AimedSupply && PC->IsInputKeyDown(EKeys::RightMouseButton);
+		ActiveGun->SetSecondaryHeld(bSecondaryHeld);
+		bWantsAimDownSights = bSecondaryHeld && ActiveGun->CanAimDownSights() && !ActiveGun->IsReloading();
 
 		// There is no reload key: RMB on an ammo supply takes one round from it.
 		if (bArmed && PC->WasInputKeyJustPressed(EKeys::RightMouseButton))
@@ -385,6 +411,20 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 	UpdateWeaponSway(DeltaSeconds);
 }
 
+void AFirstPersonCameraPawn::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
+{
+	Super::CalcCamera(DeltaTime, OutResult);
+
+	// A long gun is aimed with the eye on the back of its action: pull the near plane in for the aim, so the
+	// action right in front of the eye is not sliced off (the stock behind it is behind the camera anyway).
+	// Only near things change, so switching it as the raise starts and after the lowering ends does not show.
+	const float AimNear = ActiveGun ? ActiveGun->GetAimNearClipPlane() : 0.f;
+	if (AimAlpha > 0.f && AimNear > 0.f)
+	{
+		OutResult.PerspectiveNearClipPlane = AimNear;
+	}
+}
+
 void AFirstPersonCameraPawn::UpdateHookDebugMenu(APlayerController* PC)
 {
 	if (PC->WasInputKeyJustPressed(EKeys::H))
@@ -422,7 +462,16 @@ void AFirstPersonCameraPawn::UpdateLook(APlayerController* PC)
 		return;
 	}
 
-	AddAimRotation(PC, FRotator(DY * LookSensitivity * (bInvertY ? -1.f : 1.f), DX * LookSensitivity, 0.f));
+	// Zoomed in, the same mouse move turns the view less, so the world moves the same under the cursor.
+	float Sensitivity = LookSensitivity;
+	if (bScaleLookWithAimZoom && Camera->FieldOfView < BaseFieldOfView)
+	{
+		const float BaseTan = FMath::Tan(FMath::DegreesToRadians(BaseFieldOfView * 0.5f));
+		const float ZoomTan = FMath::Tan(FMath::DegreesToRadians(Camera->FieldOfView * 0.5f));
+		Sensitivity *= BaseTan > KINDA_SMALL_NUMBER ? ZoomTan / BaseTan : 1.f;
+	}
+
+	AddAimRotation(PC, FRotator(DY * Sensitivity * (bInvertY ? -1.f : 1.f), DX * Sensitivity, 0.f));
 }
 
 void AFirstPersonCameraPawn::AddAimRotation(APlayerController* PC, const FRotator& Delta)
@@ -526,6 +575,7 @@ void AFirstPersonCameraPawn::UpdateWeaponSwap(float DeltaSeconds)
 			PendingGun = nullptr;
 			RecoilAlpha = 0.f;
 			ReloadPoseAlpha = 0.f;
+			AimAlpha = 0.f;
 			if (RaiseTime <= 0.f || ActiveGun->AnimatesOwnSwap())
 			{
 				// (Its equip clip brings it up by itself.)
@@ -574,29 +624,65 @@ void AFirstPersonCameraPawn::UpdateWeaponSway(float DeltaSeconds)
 	TargetSway.Roll = TargetSway.Yaw * 0.5f; // a little tilt into the drag
 	CurrentSway = FMath::RInterpTo(CurrentSway, TargetSway, DeltaSeconds, SwayReturnSpeed);
 
+	// Aim down the sights: lift the gun from the hip onto the eye line and zoom the view in with it.
+	const bool bAim = bWantsAimDownSights && ActiveGun->CanAimDownSights();
+	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bAim ? 1.f : 0.f, DeltaSeconds, 1.f / FMath::Max(ActiveGun->GetAimTime(), 0.01f));
+	const float AimBlend = FMath::SmoothStep(0.f, 1.f, AimAlpha);
+	const float AimFov = ActiveGun->GetAimFieldOfView() > 0.f ? ActiveGun->GetAimFieldOfView() : BaseFieldOfView;
+	const float Fov = FMath::Lerp(BaseFieldOfView, AimFov, AimBlend);
+	if (!FMath::IsNearlyEqual(Camera->FieldOfView, Fov))
+	{
+		Camera->SetFieldOfView(Fov);
+	}
+
+	// The move toward or away from the eye (X) and the viewmodel FOV lead (ease-out), so a long gun is already
+	// at its aimed depth before it swings in front of the eye: its stock passes the camera off to the side,
+	// never across the middle of the screen.
+	const float ForwardBlend = 1.f - FMath::Cube(1.f - AimBlend);
+	const float AimFirstPersonFov = ActiveGun->GetAimFirstPersonFieldOfView() > 0.f ? ActiveGun->GetAimFirstPersonFieldOfView() : BaseFirstPersonFieldOfView;
+	const float FirstPersonFov = FMath::Lerp(BaseFirstPersonFieldOfView, AimFirstPersonFov, ForwardBlend);
+	if (!FMath::IsNearlyEqual(Camera->FirstPersonFieldOfView, FirstPersonFov))
+	{
+		Camera->SetFirstPersonFieldOfView(FirstPersonFov);
+	}
+
+	// Aimed, the hand steadies the gun: less trailing, breathing and muzzle flip on screen.
+	const float SwayScale = FMath::Lerp(1.f, AimSwayScale, AimBlend);
+	const FRotator AppliedSway = CurrentSway * SwayScale;
+
 	// Slow breathing figure-eight while idle.
 	const float Time = GetWorld()->GetTimeSeconds() * IdleBobSpeed;
-	const FVector Bob(0.f, FMath::Sin(Time * 0.5f) * IdleBobAmount * 0.5f, FMath::Sin(Time) * IdleBobAmount);
+	const float BobAmount = IdleBobAmount * FMath::Lerp(1.f, AimBobScale, AimBlend);
+	const FVector Bob(0.f, FMath::Sin(Time * 0.5f) * BobAmount * 0.5f, FMath::Sin(Time) * BobAmount);
 
-	const FVector Lag(0.f, CurrentSway.Yaw * SwayShift, CurrentSway.Pitch * SwayShift);
+	const FVector Lag(0.f, AppliedSway.Yaw * SwayShift, AppliedSway.Pitch * SwayShift);
 
 	// Shot kick: snaps back and up, then eases home.
 	RecoilAlpha = FMath::FInterpTo(RecoilAlpha, 0.f, DeltaSeconds, RecoilRecoverySpeed);
-	const FVector Kick(-RecoilAlpha * ActiveGun->GetRecoilKickBack(), 0.f, 0.f);
-	const FRotator KickRotation(RecoilAlpha * ActiveGun->GetRecoilKickPitch(), 0.f, 0.f);
+	// (Aimed, less of it: the sights come back sooner, and a long gun's stock stays clear of the near plane.)
+	const float KickScale = FMath::Lerp(1.f, AimKickScale, AimBlend);
+	const FVector Kick(-RecoilAlpha * ActiveGun->GetRecoilKickBack() * KickScale, 0.f, 0.f);
+	const FRotator KickRotation(RecoilAlpha * ActiveGun->GetRecoilKickPitch() * KickScale, 0.f, 0.f);
+
+	// The hold: hip or aimed. On the way between, the gun dips and rolls in a little, like being brought up.
+	const float AimArc = FMath::Sin(AimBlend * UE_PI);
+	FVector HoldOffset = FMath::Lerp(ActiveGun->GetViewOffset(), ActiveGun->GetAimViewOffset(), AimBlend) + FVector(0.f, 0.f, -AimArc * AimTransitionDip);
+	HoldOffset.X = FMath::Lerp(ActiveGun->GetViewOffset().X, ActiveGun->GetAimViewOffset().X, ForwardBlend);
+	const FQuat HoldRotation = FQuat::Slerp(ActiveGun->GetViewRotation().Quaternion(), ActiveGun->GetAimViewRotation().Quaternion(), AimBlend)
+		* FRotator(0.f, 0.f, AimArc * AimTransitionRoll).Quaternion();
 
 	// Turn the loading port into view for the whole reload, then bring the gun back.
 	ReloadPoseAlpha = FMath::FInterpConstantTo(ReloadPoseAlpha, ActiveGun->IsReloading() ? 1.f : 0.f, DeltaSeconds, 1.f / ReloadPoseBlendTime);
 	const float PoseBlend = FMath::SmoothStep(0.f, 1.f, ReloadPoseAlpha);
-	const FVector PoseOffset = FMath::Lerp(ActiveGun->GetViewOffset(), ActiveGun->GetReloadViewOffset(), PoseBlend);
-	const FRotator PoseRotation = FQuat::Slerp(ActiveGun->GetViewRotation().Quaternion(), ActiveGun->GetReloadViewRotation().Quaternion(), PoseBlend).Rotator();
+	const FVector PoseOffset = FMath::Lerp(HoldOffset, ActiveGun->GetReloadViewOffset(), PoseBlend);
+	const FRotator PoseRotation = FQuat::Slerp(HoldRotation, ActiveGun->GetReloadViewRotation().Quaternion(), PoseBlend).Rotator();
 
 	// Lowered below the view on possession, during a swap and when hung on a rack.
 	const float Lowered = FMath::Max(FMath::Square(RaiseAlpha), FMath::Square(HandLowerAlpha)); // fast at first, settling softly
 	const FVector Raise(0.f, 0.f, -Lowered * RaiseDrop);
 	const FRotator RaiseRotation(-Lowered * RaisePitch, 0.f, 0.f);
 
-	GunMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + CurrentSway + KickRotation);
+	GunMesh->SetRelativeLocationAndRotation(PoseOffset + Raise + Lag + Bob + Kick, PoseRotation + RaiseRotation + AppliedSway + KickRotation);
 }
 
 AActor* AFirstPersonCameraPawn::GetAimedInteractable() const
@@ -833,6 +919,7 @@ void AFirstPersonCameraPawn::SetHandState(EPlayerHandState NewState)
 		ActiveGun->SetSecondaryHeld(false);
 		bTriggerHeld = false;
 		ActiveGun->SetTriggerHeld(false);
+		bWantsAimDownSights = false;
 	}
 	OnHandStateChanged.Broadcast(HandState);
 }
@@ -866,6 +953,7 @@ bool AFirstPersonCameraPawn::DrawWeapon(UWeaponRackComponent* Rack)
 	ActiveGun = Gun;
 	RecoilAlpha = 0.f;
 	ReloadPoseAlpha = 0.f;
+	AimAlpha = 0.f;
 	HandLowerAlpha = 0.f;
 	// (An item with its own Equip clip comes up by itself.)
 	RaiseAlpha = RaiseTime > 0.f && !Gun->AnimatesOwnSwap() ? 1.f : 0.f;

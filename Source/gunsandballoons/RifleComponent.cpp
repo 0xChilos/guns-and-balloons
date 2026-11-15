@@ -45,6 +45,17 @@ URifleComponent::URifleComponent()
 	ReloadViewRotation = FRotator(12.f, 20.f, -30.f);
 	RecoilKickBack = 7.f;
 	RecoilKickPitch = 8.f;
+	// Aimed: the eye sits over the barrel just in front of the action (which runs from 12cm behind the root to
+	// 4cm ahead of it, open on top), 6cm behind the rear sight (X 12-16). The whole action and the stock are
+	// behind the camera and never drawn: over the action the eye would look down into its loading slot, behind
+	// it the stock's wrist shows. The rear sight is a solid block (no notch), so the eye looks over its top
+	// edge: the front sight sits on top of the rear block at the centre of the screen. Z is set by eye in game
+	// (the rear block's top just under the centre). The near plane is pulled in so the barrel is not sliced.
+	// The slowest to raise and the strongest zoom. TBD, tune in game.
+	AimViewOffset = FVector(-6.f, 0.f, -3.f);
+	AimTime = 0.25f;
+	AimFieldOfView = 70.f;
+	AimNearClipPlane = 1.f;
 
 	// --- Martini-Henry handling (design, 2026-11-14) ---
 	Damage = 143.f;

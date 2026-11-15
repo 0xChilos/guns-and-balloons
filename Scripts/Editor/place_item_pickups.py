@@ -3,11 +3,13 @@
 The player starts with an empty hand and takes an item with LMB, so every item has to lie within reach
 (AFirstPersonCameraPawn.InteractRange, 400 cm) of the stationary camera. The items hang side-on in columns
 around the eyes, below the horizon so they do not cover the view ahead: revolver over hook to the left,
-rifle over shotgun straight ahead, extinguisher to the right. Sizes come from each mesh's bounds.
+rifle over shotgun straight ahead, extinguisher over wrench to the right. Sizes come from each mesh's bounds.
 
 Run headless: UnrealEditor-Cmd <project> -run=pythonscript -script="<this file>"
 or in the editor: py "<this file>". Re-running replaces the pickups it placed before (label prefix HandItem_).
 Writes a report to the path given by ITEM_PICKUP_REPORT (optional).
+ITEM_PICKUP_ONLY=Wrench,... (optional) places only those items and leaves the others where they are; the column
+below them is still laid out from the others' sizes (read from their placed pickups).
 """
 import math
 import os
@@ -16,13 +18,14 @@ import unreal
 LEVEL = '/Game/Scenes/Movement_Scene1'
 PREFIX = 'HandItem_'
 REPORT = os.environ.get('ITEM_PICKUP_REPORT')
+ONLY = {x.strip() for x in os.environ.get('ITEM_PICKUP_ONLY', '').split(',') if x.strip()}
 
 # (degrees to the right of straight ahead, items from the top down); an item is
 # (label, its component class on the player pawn).
 COLUMNS = [
     (-48.0, [('Revolver', unreal.RevolverComponent), ('Hook', unreal.HookComponent)]),
     (0.0, [('Rifle', unreal.RifleComponent), ('Shotgun', unreal.ShotgunComponent)]),
-    (48.0, [('Extinguisher', unreal.ExtinguisherComponent)]),
+    (48.0, [('Extinguisher', unreal.ExtinguisherComponent), ('Wrench', unreal.WrenchComponent)]),
 ]
 # TBD: prototype layout, needs tuning in the level (all cm).
 DISTANCE = 120.0    # from the eye to each column
@@ -62,10 +65,18 @@ content_dir = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_co
 old_files = [os.path.join(content_dir, str(d.actor_package)[len('/Game/'):] + '.uasset')
     for d in descs if str(d.label).startswith(PREFIX)]
 
+def placed(label):
+    return not ONLY or label[len(PREFIX):] in ONLY
+
+old_files = [f for f, d in zip(old_files, [d for d in descs if str(d.label).startswith(PREFIX)]) if placed(str(d.label))]
+kept = {}
 for a in actors.get_all_level_actors():
     if a.get_actor_label().startswith(PREFIX):
-        log('removing old', a.get_actor_label())
-        actors.destroy_actor(a)
+        if placed(a.get_actor_label()):
+            log('removing old', a.get_actor_label())
+            actors.destroy_actor(a)
+        else:
+            kept[a.get_actor_label()] = a
 
 for angle, items in COLUMNS:
     facing = math.radians(yaw + angle)
@@ -82,6 +93,13 @@ for angle, items in COLUMNS:
 
     top = TOP
     for label, item_class in items:
+        if not placed(PREFIX + label):
+            # Left where it is; only its size counts, for what goes below it.
+            other = kept.get(PREFIX + label)
+            if other:
+                b = other.get_editor_property('rack').get_editor_property('display_mesh').get_skeletal_mesh_asset().get_bounds()
+                top -= 2 * b.box_extent.z + ITEM_GAP
+            continue
         pickup = actors.spawn_actor_from_class(unreal.HandItemPickup, eye, rotation)
         pickup.set_actor_label(PREFIX + label)
         pickup.set_folder_path('HandItems')
