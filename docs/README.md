@@ -17,7 +17,7 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [features/grappling-hook.md](features/grappling-hook.md) | Grappling hook and resource gathering | Sokin |
 | [features/fire-extinguisher.md](features/fire-extinguisher.md) | Fire extinguisher: supply on a counter, PS1-style foam | Sokin |
 | [features/crosshair.md](features/crosshair.md) | Dynamic crosshair in the art style, inertia | Sokin |
-| [features/wrench.md](features/wrench.md) | Wrench: take it, turn it on LMB (animation only for now) | TBD |
+| [features/wrench.md](features/wrench.md) | Wrench: take it, turn it on the stove with LMB to repair the balloon | TBD |
 | [features/nemesis-airship.md](features/nemesis-airship.md) | The pursuing airship and its attacks | Vano |
 | [features/biomes.md](features/biomes.md) | Biome levels and their hazards | TBD |
 | [features/safe-zone.md](features/safe-zone.md) | Safe zone between levels: repairs, shop, upgrades | TBD |
@@ -29,7 +29,7 @@ A modular "living" GDD: instead of one big document, a short game overview and a
 | [tech/crosshair.md](tech/crosshair.md) | Technical reference for agents: crosshair HUD, material, spread and inertia | Sokin |
 | [tech/weapon-reload.md](tech/weapon-reload.md) | Technical reference for agents: ammo supplies and the reload state machines | Sokin |
 | [tech/balloon-flight.md](tech/balloon-flight.md) | Technical reference for agents: balloon flight C++ API, how to connect controls | Sokin |
-| [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses), FBX take split and import | TBD |
+| [tech/wrench.md](tech/wrench.md) | Technical reference for agents: wrench C++ (states, Fix rest poses, stove repair), FBX take split and import | TBD |
 | [tech/player-architecture.md](tech/player-architecture.md) | PlayerController, the single Pawn and interaction routing | Sokin |
 | [tech/level-generation.md](tech/level-generation.md) | Technical reference for agents: level generator pipeline, API, events, border proxies, interaction with the balloon | TBD |
 | [tech/BalloonLevel/STATUS.md](tech/BalloonLevel/STATUS.md) | Level generation implementation status vs spec, validation results, known defects | TBD |

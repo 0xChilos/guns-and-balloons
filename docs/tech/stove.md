@@ -38,6 +38,7 @@ player trace, door click, heat/burn/speed outputs, animation and lever drags
 4. Open-firebox click feeds only held fuel. Rejected fuel stays held; accepted fuel immediately empties the hand. Weapon/empty-hand mouth clicks are consumed without shooting.
 5. Fuel cannot be placed on weapon racks or exchanged for pickups; levers require an empty hand. Return fuel or feed it first.
 6. With the extinguisher in hand, LMB on the stove body, door or firebox sprays (cooling) instead of toggling the door.
+7. With the wrench in hand, LMB held on the stove body, door or firebox turns the wrench there and repairs the balloon (`ApplyRepair`) instead of toggling the door.
 
 ## Adjustable options and API
 Units: seconds, degrees, degrees/second; animation translations are centimeters. **TBD** = editable prototype value, not final balance.
@@ -81,7 +82,8 @@ How to read the **Edit** column:
 | `FindStove(Actor)` | BlueprintPure static | The actor's stove component, or null |
 | `CanAddFuel(Fuel)` / `AddFuel(Fuel)` | BlueprintPure / Callable | Require open door, valid nonnegative finite fuel values and burn capacity (or clamping); `AddFuel` returns success |
 | `ApplyCooling(Degrees)` | BlueprintCallable | Finite positive degrees lower current and pending heat, clamp to zero, keep fuel. Returns heat removed; updates overheat/flight immediately; extinguishes at zero |
-| `AcceptsCoolingHit(Hit)` | BlueprintPure | True for `CoolingBones` or `FireboxShape`; independent of the health damage filter. Use the same rule for the future repair tool (repair only through the stove) |
+| `AcceptsCoolingHit(Hit)` | BlueprintPure | True for `CoolingBones` or `FireboxShape`; independent of the health damage filter |
+| `ApplyRepair(Amount, Repairer)` / `AcceptsRepairHit(Hit)` | BlueprintCallable / BlueprintPure | The stove-only repair entry point (the [wrench](wrench.md) uses it): forwards to `Health.Repair`, returns HP restored (0 without Health). `AcceptsRepairHit` = `AcceptsCoolingHit` |
 | `SetDoorOpen(bool)` / `ToggleDoor()` | BlueprintCallable | Logical door state; the angle follows at `DoorSpeed` |
 | `IsDoorOpen()` / `GetDoorAngle()` | BlueprintPure | Logical state (feeding checks this) / animated angle |
 | `GetTemperature()` / `GetTemperature01()` | BlueprintPure | Degrees / `Temperature / GaugeMaxTemperature` clamped to 0..1 |
@@ -172,7 +174,7 @@ Take or drop it through the pawn: `TakeHandItem(GetFuelHand())` / `ConsumeHeldIt
 The stove ticks in `TG_PrePhysics`, adds itself as a flight tick prerequisite, and publishes `SetFlightModifier("Stove", 0, multiplier)` when changed. Other flight modifiers multiply with it; effective target speed remains clamped to flight MinSpeed/MaxSpeed. EndPlay clears the modifier and prerequisite. Use TargetSpeed 100 when checking x2 so MaxSpeed does not mask it.
 
 ## How to use it
-Add Stove and Health to the balloon owner; the stove discovers both Health and Flight in BeginPlay if unassigned. Overheat calls Health.ApplyDamage; other systems use ApplyDamage/Repair directly. OnDepleted is the balloon-destroyed integration event; game-over flow remains external. Run `configure_balloon_health.py` after the C++ build: it sets DamageBones = basket (with child bones), IgnoredBones = balloon and tags the basket collision boxes. Point damage counts once despite the matching actor any-damage callback. Repair is allowed only through the stove; Health.Repair stays a generic API, so the caller (repair tool, safe zone) enforces the stove target, e.g. with `AcceptsCoolingHit`.
+Add Stove and Health to the balloon owner; the stove discovers both Health and Flight in BeginPlay if unassigned. Overheat calls Health.ApplyDamage; other systems use ApplyDamage/Repair directly. OnDepleted is the balloon-destroyed integration event; game-over flow remains external. Run `configure_balloon_health.py` after the C++ build: it sets DamageBones = basket (with child bones), IgnoredBones = balloon and tags the basket collision boxes. Point damage counts once despite the matching actor any-damage callback. Repair is allowed only through the stove; Health.Repair stays a generic API, so repairs go through `UStoveComponent::ApplyRepair` (the wrench; later the safe zone), with `AcceptsRepairHit` for aimed tools.
 
 Typical Blueprint calls: get the stove with `FindStove(BalloonActor)`, then read `GetTemperature01` / `GetBurnTime01` for UI, bind `OnOverheatChanged` for warnings, call `AddFuel` from scripted events (door must be open), `ApplyCooling` for water/foam effects, and set `HeatRate` from a biome. Refill buckets with `AddFuel(Amount)` on each `UFuelSupplyComponent`.
 

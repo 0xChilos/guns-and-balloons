@@ -2,9 +2,13 @@
 
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
 #include "GunAnimInstance.h"
+#include "StoveComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -93,6 +97,41 @@ void UWrenchComponent::FindFixRestTimes()
 	}
 	// The clip loops back to its first frame, so its end is always a rest.
 	FixRestTimes.Add(Length);
+
+	// A turn ends where a rest starts after a swing: a gap in the rest samples (the opening hold isn't one).
+	FixTurnEndTimes.Reset();
+	for (int32 i = 1; i < FixRestTimes.Num(); ++i)
+	{
+		if (FixRestTimes[i] - FixRestTimes[i - 1] > FixRestSampleStep * 1.5f)
+		{
+			FixTurnEndTimes.Add(FixRestTimes[i]);
+		}
+	}
+	// No clip data to find the turns in: the whole clip is one turn.
+	if (FixTurnEndTimes.IsEmpty() && Length > 0.f)
+	{
+		FixTurnEndTimes.Add(Length);
+	}
+}
+
+int32 UWrenchComponent::CountTurnsEnded(float From, float To) const
+{
+	const float Length = AnimLength(FixAnim);
+	int32 Count = 0;
+	if (Length <= 0.f || To <= From)
+	{
+		return 0;
+	}
+	// To can run past the clip's end within a tick (Fix wraps after this): count the next loop's turns too.
+	for (float Loop = 0.f; Loop <= To; Loop += Length)
+	{
+		for (const float End : FixTurnEndTimes)
+		{
+			const float T = Loop + End;
+			Count += (T > From && T <= To) ? 1 : 0;
+		}
+	}
+	return Count;
 }
 
 float UWrenchComponent::GetNextFixRestTime(float Time) const
@@ -161,6 +200,59 @@ bool UWrenchComponent::IsReadyToHolster() const
 	return Action == EWrenchAction::Unequip && ActionTime <= 0.f;
 }
 
+// --- Repair ----------------------------------------------------------------------------------
+
+namespace
+{
+	/** The stove on the hit actor that accepts this hit as a repair target, or null. */
+	UStoveComponent* FindRepairableStove(const FHitResult& Hit)
+	{
+		AActor* HitActor = Hit.GetActor();
+		if (!HitActor)
+		{
+			return nullptr;
+		}
+		TInlineComponentArray<UStoveComponent*> Stoves(HitActor);
+		for (UStoveComponent* Stove : Stoves)
+		{
+			if (Stove->AcceptsRepairHit(Hit))
+			{
+				return Stove;
+			}
+		}
+		return nullptr;
+	}
+}
+
+bool UWrenchComponent::ShouldUseInsteadOfInteract(const FHitResult& Hit) const
+{
+	return FindRepairableStove(Hit) != nullptr;
+}
+
+float UWrenchComponent::ApplyTurnRepair(const FVector& Start, const FVector& Direction)
+{
+	const bool bOnWork = Action == EWrenchAction::Fix || Action == EWrenchAction::FinishTurn;
+	if (!bOnWork || !GetWorld() || !FMath::IsFinite(RepairPerTurn) || RepairPerTurn <= 0.f
+		|| !FMath::IsFinite(RepairRange) || RepairRange <= 0.f || Direction.IsNearlyZero())
+	{
+		return 0.f;
+	}
+	FHitResult Hit;
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(WrenchRepair), false, GetOwner());
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, Start + Direction.GetSafeNormal() * RepairRange,
+		RepairTraceChannel, Query))
+	{
+		return 0.f;
+	}
+	UStoveComponent* Stove = FindRepairableStove(Hit);
+	const float Restored = Stove ? Stove->ApplyRepair(RepairPerTurn, GetOwner()) : 0.f;
+	if (Restored > 0.f)
+	{
+		OnTurnRepaired.Broadcast();
+	}
+	return Restored;
+}
+
 float UWrenchComponent::GetCrosshairPin() const
 {
 	switch (Action)
@@ -200,7 +292,24 @@ void UWrenchComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 
 	const bool bWantFix = bTriggerHeld && !bHolstering;
 	const bool bBackwards = Action == EWrenchAction::FromFix || Action == EWrenchAction::Unequip;
+	const float PreviousTime = ActionTime;
 	ActionTime = bBackwards ? FMath::Max(0.f, ActionTime - DeltaTime) : ActionTime + DeltaTime;
+
+	// Each ratchet turn that comes back to rest repairs what the jaw is on. It is pinned under the crosshair,
+	// so trace along the view.
+	if (Action == EWrenchAction::Fix || Action == EWrenchAction::FinishTurn)
+	{
+		if (FixTurnEndTimes.IsEmpty())
+		{
+			FindFixRestTimes();
+		}
+		const float TurnedTo = Action == EWrenchAction::FinishTurn ? FMath::Min(ActionTime, FinishTime) : ActionTime;
+		const int32 Turns = Camera ? CountTurnsEnded(PreviousTime, TurnedTo) : 0;
+		for (int32 i = 0; i < Turns; ++i)
+		{
+			ApplyTurnRepair(Camera->GetComponentLocation(), Camera->GetForwardVector());
+		}
+	}
 
 	switch (Action)
 	{
