@@ -71,10 +71,10 @@ Shown when the engine is destroyed (`UEngineHealthComponent`: enemy hits, the ai
 - **Screen:** a silent-film title card over the frozen game, which is washed in sepia with film grain and dark corners; the grain jumps ~6 times a second (was 12); the card itself stays steady, without flicker (2026-11-15). A double line border around a dark field holds three things, all in English:
   - the title **ENGINE DESTROYED**;
   - what destroyed the engine, from the last hit: SHOT DOWN BY A TOWER CANNON, SHOT DOWN BY A CROP DUSTER, HIT BY THE AIRSHIP'S ROCKET, BLOWN UP BY A PARACHUTE MINE, HIT BY AN AA MISSILE, BROUGHT DOWN BY A FLOCK OF BIRDS, CAUGHT BY THE NEMESIS AIRSHIP (its turrets), otherwise THE ENGINE GAVE OUT;
-  - one row, **TRY AGAIN**, which restarts the level. It takes a click only after 1 s, so panicked clicking from the fight can't press it.
+  - two rows: **RETURN TO CHECKPOINT** and **MAIN MENU** (2026-11-15, replaced TRY AGAIN). There is no checkpoint system yet, so the checkpoint is the start of the current level (a level is one flight through a biome). MAIN MENU opens the main menu; the run is lost, as with the pause menu's QUIT TO MAIN MENU. The rows take a click only after 1 s, so panicked clicking from the fight can't press one.
 - Same font, rows, hover, sounds and pixel cursor as the other menus; mouse only. The panel is masked and dithered (PS1 stipple instead of soft transparency).
 - No run statistics (decided 2026-11-15).
-- **Test level:** `/Game/Scenes/DeathScreen_Test` (built by `Scripts/Editor/create_death_screen_test_level.py` from Enemies_Test): an `ADeathScreenPreview` plays the death 6 s after Play (`Delay`, `Cause`), and TRY AGAIN restarts the level, which shows it again. In any gameplay level the console command `DeathScreen` does the same.
+- **Test level:** `/Game/Scenes/DeathScreen_Test` (built by `Scripts/Editor/create_death_screen_test_level.py` from Enemies_Test): an `ADeathScreenPreview` plays the death 6 s after Play (`Delay`, `Cause`), and RETURN TO CHECKPOINT restarts the level, which shows it again. In any gameplay level the console command `DeathScreen` does the same.
 
 | Parameter | Value | Note |
 | --- | --- | --- |
