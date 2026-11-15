@@ -77,6 +77,8 @@ UHookComponent::UHookComponent()
 	ViewRotation = FRotator(0.f, -2.f, 0.f);
 	ReloadViewOffset = ViewOffset;
 	ReloadViewRotation = ViewRotation;
+	// RMB pumps the hook: it does not aim down sights.
+	bCanAimDownSights = false;
 
 	// A soft pneumatic kick. First-pass values, need tuning.
 	RecoilKickBack = 3.f;
