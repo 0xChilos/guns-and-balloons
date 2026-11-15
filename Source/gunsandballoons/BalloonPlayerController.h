@@ -22,7 +22,7 @@ class USoundBase;
  *
  * And the death screen (docs/features/ui-menus.md): when the engine is destroyed
  * (UEngineHealthComponent) the world slows down for DeathSlowMoTime with a blast at the basket, then
- * pauses under an ADeathScreen (ENGINE DESTROYED, the cause, TRY AGAIN). The console command
+ * pauses under an ADeathScreen (ENGINE DESTROYED, the cause, RETURN TO CHECKPOINT, MAIN MENU). The console command
  * "DeathScreen" plays it at once, to see it without dying.
  *
  * And the gameplay music (docs/features/ui-menus.md): Music plays from the top when the level

@@ -73,10 +73,11 @@ Shown when the engine is destroyed (`UEngineHealthComponent`: enemy hits, the ai
 - **Screen:** a silent-film title card over the frozen game, which is washed in sepia with film grain and dark corners; the grain jumps ~6 times a second (was 12); the card itself stays steady, without flicker (2026-11-15). A double line border around a dark field holds three things, all in English:
   - the title **ENGINE DESTROYED**;
   - what destroyed the engine, from the last hit: SHOT DOWN BY A TOWER CANNON, SHOT DOWN BY A CROP DUSTER, HIT BY THE AIRSHIP'S ROCKET, BLOWN UP BY A PARACHUTE MINE, HIT BY AN AA MISSILE, BROUGHT DOWN BY A FLOCK OF BIRDS, CAUGHT BY THE NEMESIS AIRSHIP (its turrets), otherwise THE ENGINE GAVE OUT;
-  - one row, **TRY AGAIN**, which restarts the level. It takes a click only after 1 s, so panicked clicking from the fight can't press it.
+  - two rows: **RETURN TO CHECKPOINT** and **MAIN MENU** (2026-11-15, replaced TRY AGAIN). There is no checkpoint system yet, so the checkpoint is the start of the current level (a level is one flight through a biome). MAIN MENU opens the main menu; the run is lost, as with the pause menu's QUIT TO MAIN MENU. The rows take a click only after 1 s, so panicked clicking from the fight can't press one.
+  - The item in hand is not drawn while a menu panel is up (death screen, pause): a gun raised to the eye sits nearer to the camera than the panel and covered the death screen (2026-11-15). The gun stays where it is; it is only hidden until the pause menu closes.
 - Same font, rows, hover, sounds and pixel cursor as the other menus; mouse only. The panel is masked and dithered (PS1 stipple instead of soft transparency).
 - No run statistics (decided 2026-11-15).
-- **Test level:** `/Game/Scenes/DeathScreen_Test` (built by `Scripts/Editor/create_death_screen_test_level.py` from Enemies_Test): an `ADeathScreenPreview` plays the death 6 s after Play (`Delay`, `Cause`), and TRY AGAIN restarts the level, which shows it again. In any gameplay level the console command `DeathScreen` does the same.
+- **Test level:** `/Game/Scenes/DeathScreen_Test` (built by `Scripts/Editor/create_death_screen_test_level.py` from Enemies_Test): an `ADeathScreenPreview` plays the death 6 s after Play (`Delay`, `Cause`), and RETURN TO CHECKPOINT restarts the level, which shows it again. In any gameplay level the console command `DeathScreen` does the same.
 
 | Parameter | Value | Note |
 | --- | --- | --- |
@@ -108,7 +109,18 @@ The speedometer reads the current speed from the flight component, which already
 | --- | --- | --- |
 | `SpeedometerMaxSpeed` | 0 | 0 = use `MaxSpeed`; a positive value sets the full scale in cm/s. Needs tuning. |
 
-**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
+**Enemies on the radar** (2026-11-15). Every enemy in the level shows: small dot = rockets, mines, AA missiles, bird flocks, beacons; larger dot = crop dusters, bombers, cannon towers, AA balloons; an oval about four times a plane dot = the nemesis airship (it filled the whole screen and hid the planes; shrunk 2026-11-15, then enlarged a little the same day). Distance is on a square-root scale, so enemies close to the balloon sit clearly off the centre icon (a crop duster 30 m away is at a third of the radius, the airship 250 m behind near the rim). This covers the C++ enemies and the team's Blueprint enemies the level generator places (BP_TurretTower, BP_Lighthouse, BP_BirdFlock, BP_RocketBalloon). An enemy leaves the radar the moment it stops being a threat, not when its wreck is gone: a plane as soon as it is shot down (it still falls for a few seconds), a cannon tower when its cannon or fuel tank blows up (the tower keeps standing), a beacon when its lamp is shot out, a bird flock when it is scared off. Checked 2026-11-15 in PIE: the dot is gone within 0.6 s for a crop duster and a tower. The team's Blueprint enemies (BP_TurretTower etc.) still drop off only when their actor is destroyed. Each enemy also drives the warning lamp:
+
+| Enemy | Lamp orange / red within | Note |
+| --- | --- | --- |
+| Rocket, mine, AA missile, birds | 60 / 25 m | TBD |
+| Crop duster, bomber | 200 / 80 m | TBD |
+| Nemesis airship | 300 / 150 m | TBD |
+| Cannon tower | 180 / 60 m | its range is 180 m. TBD |
+| AA balloon | 40 / 25 m | engages within 25 m. TBD |
+| Beacon / lighthouse | never | does no damage itself |
+
+**Radar jamming.** Near a jammer tower the radar turns into static: flickering snow, torn rows, a stuttering sweep and ghost targets jumping around the screen. The real targets disappear, so the player can't tell where attacks come from. The state builds up as the balloon gets closer to the jammer (full from 25 % jammer strength, TBD) and clears when the balloon leaves its radius or the jammer is shot down. The warning lamp keeps working: it shows how close the threat is, not its direction. The jammer reaches 120 m (`BP_JammerTower.JamRadiusM`, was 250 m; TBD), so full static starts about 90 m from the tower. **Shooting the dish down** (one hit from any weapon, `DishHealth`) ends the jamming at once: the dish falls off and `RadarJam` drops to 0. Checked 2026-11-15 in PIE: `BP_JammerTower` writes `RadarJam` (0.38 at 76 m), one rifle hit on the dish takes it to 0, with two jammers the stronger one wins, and the level generator places `BP_JammerTower` in the City (`DT_City_Placement`). In the City biome the radar is jammed, see [biomes.md](biomes.md). The engine's gauges are on the engine itself, see [engine-stove.md](engine-stove.md).
 
 ## Open questions
 - [ ] A detailed breakdown of the navigation panel: the full set of elements and how they look (TODO in the Director's Cut).

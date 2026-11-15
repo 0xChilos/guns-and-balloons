@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Interactable.h"
+#include "WeaponRackComponent.h"
 
 UPlayerInteractionComponent::UPlayerInteractionComponent()
 {
@@ -46,10 +47,40 @@ AActor* UPlayerInteractionComponent::FindAimedActor(const FHitResult& Hit) const
 	// The hit actor itself, or whoever owns it (e.g. an AInteractSwap owns the meshes it swaps).
 	for (AActor* Actor = Hit.GetActor(); Actor; Actor = Actor->GetOwner())
 	{
-		if (Actor->Implements<UInteractable>() || Actor->FindComponentByClass<UAmmoSupplyComponent>())
+		if (Actor->Implements<UInteractable>())
 		{
 			return Actor;
 		}
+	}
+	if (UAmmoSupplyComponent* Supply = UAmmoSupplyComponent::FindForHit(Hit))
+	{
+		return Supply->GetOwner();
+	}
+	return nullptr;
+}
+
+UAmmoSupplyComponent* UPlayerInteractionComponent::TraceSupply(const FVector& Start, const FRotator& View,
+	float Range, ECollisionChannel Channel, bool bDebugDraw) const
+{
+	if (!GetWorld()) return nullptr;
+	const FVector End = Start + View.Vector() * Range;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(FirstPersonAmmo), /*bTraceComplex=*/false, GetOwner());
+	FHitResult Hit;
+	for (int32 Attempt = 0; Attempt < 4; ++Attempt)
+	{
+		if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, Channel, Params)) break;
+		// A weapon rack's click box: look past it.
+		UPrimitiveComponent* HitComponent = Hit.GetComponent();
+		if (HitComponent && Cast<UWeaponRackComponent>(HitComponent->GetAttachParent()))
+		{
+			Params.AddIgnoredComponent(HitComponent);
+			continue;
+		}
+		if (bDebugDraw)
+		{
+			DrawDebugLine(GetWorld(), Start, Hit.ImpactPoint, FColor::Cyan, false, 1.f, 0, 1.f);
+		}
+		return UAmmoSupplyComponent::FindForHit(Hit);
 	}
 	return nullptr;
 }
@@ -65,7 +96,7 @@ bool UPlayerInteractionComponent::TryInteract(const FHitResult& Hit, APawn* Inst
 	}
 
 	// Ammo supplies (and whatever they sit on, e.g. the crate's lid) belong to RMB: see TryTakeRound.
-	if (Target && Target->FindComponentByClass<UAmmoSupplyComponent>())
+	if (UAmmoSupplyComponent::FindForHit(Hit))
 	{
 		return false;
 	}

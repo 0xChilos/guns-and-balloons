@@ -31,7 +31,7 @@ enum class EMainMenuAction : uint8
 	Resume,
 	/** Pause menu: open MainMenuLevel; the run is lost. */
 	QuitToMenu,
-	/** Death screen: restart the current level. */
+	/** Death screen: RETURN TO CHECKPOINT, for now restart the current level (no checkpoint system yet). */
 	Retry
 };
 

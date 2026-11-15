@@ -34,14 +34,17 @@ UWeaponRackComponent::UWeaponRackComponent()
 void UWeaponRackComponent::OnRegister()
 {
 	Super::OnRegister();
-	if (AActor* Owner = GetOwner(); Owner && GetAttachSocketName().IsNone())
+	if (AActor* Owner = GetOwner(); Owner && GetAttachSocketName().IsNone() && !AttachSocket.IsNone())
 	{
 		TInlineComponentArray<USkeletalMeshComponent*> Meshes(Owner);
 		for (USkeletalMeshComponent* Mesh : Meshes)
 		{
-			if (Mesh != DisplayMesh && Mesh->GetFName() == TEXT("Mesh") && Mesh->DoesSocketExist(TEXT("socket_small_weapon")))
+			if (Mesh != DisplayMesh && Mesh->GetFName() == TEXT("Mesh") && Mesh->DoesSocketExist(AttachSocket))
 			{
-				AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("socket_small_weapon"));
+				AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, AttachSocket);
+				// Keep the mesh's axes, not the socket bone's (their orientation and scale are an export artefact):
+				// DisplayOffset / DisplayRotation are then in the balloon mesh's space, wherever the socket is.
+				SetRelativeRotation(Mesh->GetSocketTransform(AttachSocket, RTS_Component).GetRotation().Inverse());
 				break;
 			}
 		}

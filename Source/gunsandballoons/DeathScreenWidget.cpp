@@ -42,10 +42,14 @@ namespace
 UDeathScreenWidget::UDeathScreenWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	FMainMenuItem Retry;
-	Retry.Label = LOCTEXT("Retry", "TRY AGAIN");
-	Retry.Action = EMainMenuAction::Retry;
-	Items = { Retry };
+	// There is no checkpoint system yet: the checkpoint is the start of the current level (EMainMenuAction::Retry).
+	FMainMenuItem Checkpoint;
+	Checkpoint.Label = LOCTEXT("Checkpoint", "RETURN TO CHECKPOINT");
+	Checkpoint.Action = EMainMenuAction::Retry;
+	FMainMenuItem Menu;
+	Menu.Label = LOCTEXT("MainMenu", "MAIN MENU");
+	Menu.Action = EMainMenuAction::QuitToMenu;
+	Items = { Checkpoint, Menu };
 	Title = LOCTEXT("Title", "ENGINE DESTROYED");
 	TitleFont = DeathFont(64, 200);
 	CauseFont = DeathFont(30, 100);

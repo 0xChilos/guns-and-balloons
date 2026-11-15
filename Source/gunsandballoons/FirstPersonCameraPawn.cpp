@@ -374,8 +374,7 @@ void AFirstPersonCameraPawn::Tick(float DeltaSeconds)
 	else
 	{
 		// Aiming at ammo opens the gun, ready for the RMB click that hands over a round.
-		const AActor* Aimed = TraceAimedTarget(/*bDebugDraw=*/false);
-		const UAmmoSupplyComponent* AimedSupply = Aimed ? Aimed->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
+		const UAmmoSupplyComponent* AimedSupply = TraceAimedSupply(/*bDebugDraw=*/false);
 		ActiveGun->SetAimingAtAmmo(bArmed && AimedSupply && AimedSupply->HasRounds());
 
 		// RMB held anywhere but on ammo (the hook pumps with it; a gun is raised to the eye, unless it is open).
@@ -774,6 +773,11 @@ AActor* AFirstPersonCameraPawn::TraceAimedTarget(bool bDebugDraw) const
 	return TraceAimed(Hit, bDebugDraw) ? Interaction->FindAimedActor(Hit) : nullptr;
 }
 
+UAmmoSupplyComponent* AFirstPersonCameraPawn::TraceAimedSupply(bool bDebugDraw) const
+{
+	return Interaction->TraceSupply(Camera->GetComponentLocation(), GetViewRotation(), InteractRange, InteractTraceChannel, bDebugDraw);
+}
+
 bool AFirstPersonCameraPawn::TryInteract()
 {
 	FHitResult Hit;
@@ -785,9 +789,9 @@ bool AFirstPersonCameraPawn::TryInteract()
 
 bool AFirstPersonCameraPawn::TryTakeRound()
 {
-	AActor* Target = GetAimedInteractable();
-	UAmmoSupplyComponent* Supply = Target ? Target->FindComponentByClass<UAmmoSupplyComponent>() : nullptr;
-	if (!Supply)
+	UAmmoSupplyComponent* Supply = TraceAimedSupply(bDebugInteractTrace);
+	AActor* Target = Supply ? Supply->GetOwner() : nullptr;
+	if (!Target)
 	{
 		return false;
 	}
@@ -901,6 +905,19 @@ void AFirstPersonCameraPawn::ReleaseGameplayInput()
 		ActiveGun->SetTriggerHeld(false);
 		ActiveGun->SetSecondaryHeld(false);
 		ActiveGun->SetAimingAtAmmo(false);
+	}
+}
+
+void AFirstPersonCameraPawn::SetFirstPersonHiddenForMenu(bool bHideForMenu)
+{
+	// Hidden in game is a flag of its own: the hand code's own visibility switching is left alone.
+	TInlineComponentArray<UPrimitiveComponent*> Primitives(this);
+	for (UPrimitiveComponent* P : Primitives)
+	{
+		if (P && P->FirstPersonPrimitiveType == EFirstPersonPrimitiveType::FirstPerson)
+		{
+			P->SetHiddenInGame(bHideForMenu);
+		}
 	}
 }
 

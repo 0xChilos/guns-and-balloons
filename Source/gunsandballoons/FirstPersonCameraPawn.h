@@ -72,6 +72,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Player|Input")
 	void ReleaseGameplayInput();
 
+	/**
+	 * Hide (or show again) everything drawn in first person: the item in hand and the hands' props. A menu
+	 * panel in front of the camera (pause, death screen) calls it: the panel sits a few cm from the eye, and a
+	 * gun raised to the eye is nearer still, so it would cover the menu. Nothing about the item changes.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Player|Input")
+	void SetFirstPersonHiddenForMenu(bool bHideForMenu);
+
 	UCameraComponent* GetCamera() const { return Camera; }
 	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 	USkeletalMeshComponent* GetRifleMesh() const { return RifleMesh; }
@@ -210,6 +218,9 @@ protected:
 
 	/** GetAimedInteractable, with the debug line optional (it runs every frame for the loading gate). */
 	AActor* TraceAimedTarget(bool bDebugDraw) const;
+
+	/** The ammo supply in front of the camera, for RMB (weapon racks' click boxes don't hide it). */
+	class UAmmoSupplyComponent* TraceAimedSupply(bool bDebugDraw) const;
 
 	/** The interaction trace from the eye along the view. */
 	bool TraceAimed(FHitResult& OutHit, bool bDebugDraw) const;
