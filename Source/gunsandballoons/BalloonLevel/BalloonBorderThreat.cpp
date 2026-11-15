@@ -37,3 +37,9 @@ void ABalloonBorderThreat::HandleOverlap(UPrimitiveComponent*, AActor* Other, UP
  if(Other && Other!=this && (Influence.Policy==EBalloonBorderInfluencePolicy::Damaging || Influence.Policy==EBalloonBorderInfluencePolicy::Pushback))
   OnBalloonInfluenceEntered(Other,Influence.Policy);
 }
+
+void ABalloonBorderThreat::CommitValidatedInfluence(const FBalloonBorderInfluence& Descriptor)
+{
+ Influence=Descriptor;
+ InfluenceCollision->SetSphereRadius(Descriptor.RadiusCm,false);
+}

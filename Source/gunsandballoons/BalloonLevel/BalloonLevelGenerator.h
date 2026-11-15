@@ -3,9 +3,12 @@
 #include "GameFramework/Actor.h"
 #include "BalloonLevelConfig.h"
 #include "BalloonSplinePlanner.h"
+#include "BalloonLevelEventManager.h"
 #include "BalloonLevelGenerator.generated.h"
 
 class USplineComponent;
+class ABalloonBorderThreat;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBalloonBorderChanged);
 
 UCLASS(Blueprintable)
 class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
@@ -13,6 +16,11 @@ class GUNSANDBALLOONS_API ABalloonLevelGenerator : public AActor
 	GENERATED_BODY()
 public:
 	ABalloonLevelGenerator();
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level|Events") TObjectPtr<UBalloonLevelEventManager> EventManager;
+ UPROPERTY(BlueprintAssignable, Category="Balloon Level|Events") FBalloonBorderChanged OnBorderChanged;
+ /** Explicit registration for existing proxies. Automatic realization belongs to M8. */
+ UFUNCTION(BlueprintCallable, Category="Balloon Level|Events") bool RegisterBorderProxy(ABalloonBorderThreat* Proxy);
+ bool TryEventBorderChange(const FBalloonLevelEventDefinition& Event, FString& Reason);
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<UBalloonLevelConfig> LevelConfig;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Balloon Level") TObjectPtr<USplineComponent> Spline;
  /** Selected balloon instance: active shape bounds and authored flight limits are inspected at generation. */
@@ -35,6 +43,7 @@ public:
  UFUNCTION(BlueprintCallable, Category="Balloon Level") void DrawBorderDebug(float Duration = 10.f) const;
  const FBalloonLevelPlan& GetPlan() const { return Plan; }
 private:
+ UPROPERTY(Transient) TMap<int32, TObjectPtr<ABalloonBorderThreat>> BorderProxies;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") EBalloonLevelGenerationStatus Status = EBalloonLevelGenerationStatus::NotStarted;
 	UPROPERTY(VisibleInstanceOnly, Category="Balloon Level") TArray<FString> Diagnostics;
 	FBalloonLevelPlan Plan;

@@ -33,3 +33,11 @@
 | M5-03 | 2026-11-15 | Global minimum width and all-query-object world collision; missing gameplay bounds and nonzero initial yaw fail closed. | Avoid unproved narrow profile dips, collision-channel omissions and instantaneous yaw transitions. May reject feasible routes. |
 | M5-04 | 2026-11-15 | Up to 12 deterministic placement retries; no count reduction, no geometry/border reseeding; border proposals validate exact current XY before commit. | Preserve requested density/count contracts and prevent unsafe live descriptor updates. Event/world proxy wiring stays M6. |
 | M5-05 | 2026-11-15 | Route cell=10m, safety=1m, wind=0m are editable prototype tuning values. | Not settled gameplay design; actual movement and collision are measured rather than invented. |
+# M6 implementation decisions — 2026-11-15
+
+- Explicit gameplay start after generator Ready: generation is still descriptor-only until M8, so neither generation nor BeginPlay implicitly consumes gameplay time.
+- One ActorComponent game-time clock; no real-time opt-in, per-event timers, or pause catch-up. Missed repeat cooldowns coalesce to bound dispatch work.
+- Stable per-domain threshold/priority/ID dispatch; normalized progress, meters, then time on automatic ticks. Multiple native actions commit sequentially; each group selection is one safety transaction.
+- Exact-once means one attempt, including rejection. Reset retains authored definitions and persistent BP delegate bindings, resets all per-run state, and cancels an in-flight batch. Recursive dispatch is suppressed.
+- Reuse M5's exact-current-position route validator; apply registered native sphere changes only after proof and publish one BorderChanged notification. No automatic world realization or enemy spawning; optional encounters are Blueprint receiver signals pending M8 ownership/safe spawn integration.
+- MVP radius updates are instantaneous Set/Add/Scale only. No unvalidated animation/interpolation API. Fixed lighting is snapshotted at start and never changed by events; invalid transition requests fail registration.

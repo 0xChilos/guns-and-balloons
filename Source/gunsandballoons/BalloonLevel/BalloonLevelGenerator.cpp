@@ -3,12 +3,15 @@
 #include "BalloonBorderPlanner.h"
 #include "BalloonPlacementPlanner.h"
 #include "BalloonHorizontalRouteValidator.h"
+#include "BalloonBorderThreat.h"
 #include "DrawDebugHelpers.h"
 #include "Components/SplineComponent.h"
+#include "Components/SphereComponent.h"
 
 ABalloonLevelGenerator::ABalloonLevelGenerator()
 {
 	PrimaryActorTick.bCanEverTick = false;
+ EventManager = CreateDefaultSubobject<UBalloonLevelEventManager>(TEXT("EventManager"));
 	Spline = CreateDefaultSubobject<USplineComponent>(TEXT("ProgressionSpline"));
 	SetRootComponent(Spline);
 	Spline->ClearSplinePoints();
@@ -16,6 +19,8 @@ ABalloonLevelGenerator::ABalloonLevelGenerator()
 
 void ABalloonLevelGenerator::ClearGeneratedLevel()
 {
+ EventManager->ResetEventTimeline();
+ BorderProxies.Reset();
 	Spline->ClearSplinePoints();
 	Plan = FBalloonLevelPlan();
 	Progress = FBalloonLevelProgress();
@@ -99,6 +104,67 @@ float ABalloonLevelGenerator::GetNormalizedProgress(const FVector& WorldPosition
 void ABalloonLevelGenerator::UpdateProgress(const FVector& WorldPosition, bool Teleported)
 {
  Progress.Update(Plan,WorldPosition,Teleported);
+ if(Plan.LengthCm>0.) EventManager->UpdatePlayerProgress(Progress.CurrentS/Plan.LengthCm,Progress.CurrentS/100.);
+}
+
+bool ABalloonLevelGenerator::RegisterBorderProxy(ABalloonBorderThreat* Proxy)
+{
+ if(!IsValid(Proxy) || !IsValid(Proxy->InfluenceCollision) || Proxy->GetWorld()!=GetWorld()) return false;
+ const auto T=Proxy->GetInfluence();
+ const auto* Descriptor=Plan.Borders.FindByPredicate([&](const auto& B){return B.InstanceId==T.InstanceId;});
+ if(!Descriptor || !Descriptor->Center.Equals(T.Center) || Descriptor->RadiusCm!=T.RadiusCm || Descriptor->Policy!=T.Policy ||
+    !Proxy->GetActorLocation().Equals(T.Center) || !Proxy->GetActorScale3D().Equals(FVector::OneVector) ||
+    !Proxy->InfluenceCollision->GetComponentLocation().Equals(T.Center) || !Proxy->InfluenceCollision->GetComponentScale().Equals(FVector::OneVector) ||
+    Proxy->InfluenceCollision->GetUnscaledSphereRadius()!=T.RadiusCm || BorderProxies.Contains(T.InstanceId)) return false;
+ BorderProxies.Add(T.InstanceId,Proxy);return true;
+}
+
+bool ABalloonLevelGenerator::TryEventBorderChange(const FBalloonLevelEventDefinition& Event,FString& Reason)
+{
+ if(Status!=EBalloonLevelGenerationStatus::Ready || !IsValid(RoutePawn) || !LevelConfig || !GetWorld() || Event.RequestsLightingSwap ||
+    !FMath::IsFinite(Event.Value) || Event.Action==EBalloonEventAction::Blueprint || uint8(Event.Action)>uint8(EBalloonEventAction::ScaleBorderRadius))
+ {Reason=TEXT("Border transaction requires Ready, a live Pawn, and a valid radius action; lighting swaps forbidden");return false;}
+ auto Candidate=Plan.Borders;
+ bool Matched=false;
+ for(auto& B:Candidate)
+ {
+  if(Event.BorderId>=0 && B.InstanceId!=Event.BorderId)continue;
+  if(Event.SegmentId>=0 && B.SegmentId!=Event.SegmentId)continue;
+  auto* Entry=BorderProxies.Find(B.InstanceId);
+  ABalloonBorderThreat* Proxy=Entry?Entry->Get():nullptr;
+  if(!Event.TargetTag.IsNone() && (!IsValid(Proxy) || !Proxy->ActorHasTag(Event.TargetTag)))continue;
+  // A registered but destroyed/moved/rescaled proxy invalidates the transaction before any commit.
+  if(Entry && (!IsValid(Proxy) || !IsValid(Proxy->InfluenceCollision) || !Proxy->GetActorLocation().Equals(B.Center) || !Proxy->GetActorScale3D().Equals(FVector::OneVector) ||
+     Proxy->GetInfluence().RadiusCm!=B.RadiusCm || Proxy->GetInfluence().Policy!=B.Policy ||
+     !Proxy->InfluenceCollision->GetComponentLocation().Equals(B.Center) || !Proxy->InfluenceCollision->GetComponentScale().Equals(FVector::OneVector) ||
+     Proxy->InfluenceCollision->GetUnscaledSphereRadius()!=B.RadiusCm))
+  {Reason=TEXT("Registered border proxy is stale or transformed");return false;}
+  const double Radius=Event.Action==EBalloonEventAction::ScaleBorderRadius ? B.RadiusCm*Event.Value :
+   Event.Action==EBalloonEventAction::AddBorderRadius ? B.RadiusCm+Event.Value*100. : Event.Value*100.;
+  if(!FMath::IsFinite(Radius) || Radius<=0. || Radius>MAX_flt) {Reason=TEXT("Radius must be finite and positive");return false;}
+  B.RadiusCm=Radius;
+  const FVector Center=BalloonSplinePlanning::PositionAt(Plan,B.DistanceCm);
+  const FVector Right=BalloonBorderPlanning::RightAt(Plan,B.DistanceCm);
+  double A=0.,Z=0.;B.IntrusionCm=0.f;
+  if(BalloonBorderPlanning::CrossSection(B,Center,Right,Plan.BalloonHalfHeightCm,0.,A,Z))
+  {
+   const double Half=BalloonSplinePlanning::WidthAt(Plan,B.DistanceCm)*.5;
+   B.IntrusionCm=FMath::Max(0.,FMath::Min(Z,Half)-FMath::Max(A,-Half));
+  }
+  Matched=true;
+ }
+ if(!Matched) {Reason=TEXT("Border selector matched no threats");return false;}
+ BalloonHorizontalRoute::FEnvelope Envelope;
+ if(!BalloonHorizontalRoute::InspectPawn(*RoutePawn,Envelope,Reason))return false;
+ Envelope.Safety=LevelConfig->RouteSafetyMeters*100.;Envelope.Wind=LevelConfig->RouteWindMeters*100.;
+ Envelope.MinimumRadius=FMath::Max(Envelope.MinimumRadius,double(LevelConfig->MinimumTurningRadiusMeters)*100.);
+ BalloonHorizontalRoute::FSettings Settings;Settings.CellCm=LevelConfig->RouteCellMeters*100.;Settings.MaxAttempts=1;
+ const auto Result=BalloonHorizontalRoute::TryBorders(Plan,Candidate,RoutePawn->GetActorLocation(),Envelope,Settings,BalloonHorizontalRoute::WorldSweep(*GetWorld(),RoutePawn));
+ if(!Result.Reachable) {Reason=Result.FailureReason;return false;}
+ // No BP callbacks until every native representation has committed.
+ for(const auto& B:Plan.Borders) if(auto* Entry=BorderProxies.Find(B.InstanceId); Entry && IsValid(Entry->Get())) Entry->Get()->CommitValidatedInfluence(B);
+ OnBorderChanged.Broadcast();
+ return true;
 }
 
 TArray<FBalloonBorderInfluence> ABalloonLevelGenerator::GetBorderInfluences() const { return Plan.Borders; }

@@ -1,6 +1,24 @@
 # Balloon level generation handoff
 
-Updated: 2026-11-15. Current milestone: M5. Stop before M6.
+Updated: 2026-11-15. Current milestone: M6. Stop before M7.
+
+## M6 timed gameplay events
+
+Implemented `UBalloonLevelEventManager` as the generator's default ActorComponent. Blueprint APIs: RegisterEventDefinitions, StartEventTimeline, PauseEventTimeline, ResetEventTimeline, UpdateElapsedGameTime, UpdatePlayerProgress, EmitCustomSignal, GetSnapshot; delegates OnLevelEventTriggered/Rejected. Definitions support elapsed seconds, normalized progress, absolute meters and custom signals, stable threshold/priority/ID order, one-shot/cooldown/crossing policies, selectors and scalar payload. Snapshot includes elapsed/progress/watermark/fired/cooldown state and fixed preset. Explicit Start after Ready excludes all planning time; native tick uses game time and the live RoutePawn. Clear/regenerate stops/resets; EndPlay also clears subscriptions. Recursive dispatch is suppressed; callback reset cancels pending events. Details and Blueprint receiver authoring contract are in API.md.
+
+Set/Add/Scale border actions use a single candidate group and M5 validation from the actual current Pawn position/heading/envelope. Native descriptors/proof commit before registered sphere components, followed by OnBorderChanged for BP visuals. Failed proposals preserve the entire previous state and consume one-shot attempts. Proxy registration is explicit (`RegisterBorderProxy`), same-world and matching/unscaled; tagged selection uses Actor tags. No automatic spawning/ownership until M8. Instant changes only; no animation API. Optional encounter/wind actions are BP notifications, not native spawn implementations. Blueprint receivers remain responsible for runtime collision safety of their spawns.
+
+No lighting transition action. Registration rejects explicit lighting-swap requests, recognized transition commands and unknown enums, including disabled definitions. Plan lighting remains unchanged. No environment/Pawn/asset edits, PIE, or profiling.
+
+Files: BalloonLevelEventManager.h/.cpp (new), BalloonLevelGenerator.h/.cpp, BalloonBorderThreat.h/.cpp; Tests/BalloonLevelM6Test.cpp and BalloonEventTestObserver.h (new); Scripts/Verify-BalloonLevelM6.ps1 (new); API.md, DESIGN_DECISIONS.md, TEST_REPORT.md, this handoff and docs/README.md.
+
+Verification: clean isolated UE 5.9 compilation passed, then final source refinements compiled and all 7 M1–M6 tests passed at 10:56:04 Europe/Kyiv. JSON: succeeded=7, failed=0, notRun=0, inProcess=0. All 28 feature/test/flight-component copies match by SHA256; whitespace check passed. Commands and limits are recorded in TEST_REPORT.md. Full-project build reproduces the existing FirstPersonCameraPawn.h:335 UHT merge-conflict error; untouched. Logs: Saved/Logs/M6-ProjectBuild.log, M6-IsolatedBuild.log, M6-Automation.log. Do not claim full-project/PIE integration. No commit; stop after M6.
+
+Next authorized milestone would be M7 fixed environment/biome atmosphere after resolving the unrelated build conflict and preparing authored preset assets. Do not start M7 in this task. Keep horizontal fixed-Z route safety, immutable Day/Night and plan → validate → realize boundaries.
+
+## Historical M5 handoff
+
+The following M5/M4 text describes prior milestone boundaries; M6 event/proxy contracts above supersede statements that M6 is pending.
 
 ## M5 horizontal route safety
 

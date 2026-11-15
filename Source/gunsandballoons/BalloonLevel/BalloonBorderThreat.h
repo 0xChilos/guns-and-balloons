@@ -20,6 +20,8 @@ public:
  /** Blueprint owns optional damage/pushback/warnings; never implemented as pursuing AI here. */
  UFUNCTION(BlueprintImplementableEvent, Category="Border") void OnBalloonInfluenceEntered(AActor* Balloon, EBalloonBorderInfluencePolicy Policy);
 private:
+ friend class ABalloonLevelGenerator;
+ void CommitValidatedInfluence(const FBalloonBorderInfluence& Descriptor);
  UPROPERTY(VisibleInstanceOnly, Category="Border") FBalloonBorderInfluence Influence;
  UFUNCTION() void HandleOverlap(UPrimitiveComponent* Component, AActor* Other, UPrimitiveComponent* OtherComponent, int32 BodyIndex, bool FromSweep, const FHitResult& Hit);
 };
