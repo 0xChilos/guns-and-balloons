@@ -41,7 +41,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHandStateChanged, EPlayerHandStat
  *   buckets to the stove).
  * - The hand starts empty and holds one item at a time. Each item lies on its own place in the world
  *   (UWeaponRackComponent: the basket's hooks, an AHandItemPickup): LMB on it takes the item, LMB on its
- *   empty place puts it back, LMB on another item swaps. There are no weapon keys. An item being put
+ *   empty place puts it back, LMB on another item does nothing until the held item is put back. There are no weapon keys. An item being put
  *   away first finishes and closes up, is lowered out of view, then the next one is raised.
  * - RMB held (not on an ammo supply) goes to the gun in hand as SetSecondaryHeld: the hook pumps with it.
  *   With a gun (CanAimDownSights) it also aims down the sights: the gun lifts to the eye line and the view
@@ -156,11 +156,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
 	bool DrawWeapon(UWeaponRackComponent* Rack);
 
-	/**
-	 * Swap the item in hand for the rack's: the one in hand finishes and closes, is lowered out of view
-	 * and goes back to the rack it was taken from, then the rack's item is raised. Needs that rack to be
-	 * free still; not while the item in hand is open for loading.
-	 */
+	/** Legacy Blueprint entry point: always returns false. Put the held item back before drawing another. */
 	UFUNCTION(BlueprintCallable, Category = "Weapon|Hand")
 	bool SwapWeapon(UWeaponRackComponent* Rack);
 

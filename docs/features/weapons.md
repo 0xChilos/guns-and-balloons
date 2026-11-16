@@ -1,6 +1,6 @@
 # Weapons
 
-> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-15 (items placed in the basket)
+> **Status:** Draft · **Owner:** Sokin · **Updated:** 2026-11-16 (explicit put-back before pickup)
 
 ## Why
 Every shot should be a decision: the weapons are awkward, rounds are scarce, and reloading is manual and takes time while the balloon flies and the stove dies down.
@@ -27,8 +27,8 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
   - **Where they are** (2026-11-15): on the walls of the basket, where the balloon model has a place for each. Weapon wall (right of the navigation display): the revolver hangs on its hook by the trigger guard, barrel down; the rifle and the shotgun stand upright in the gun rack, butts in the pockets, barrels in the notches of the top shelf. Tool board (left of the display): the wrench on its peg, the grappling hook diagonally on its two brackets, the extinguisher in its floor cup. Every item can be reached and clicked from the player's place. The revolver's hook sits behind the display housing, so from the player's place only the top of the revolver shows (clicking it works).
   - **Take:** LMB on an item with an empty hand: it rises into the hand (the extinguisher with its own animation).
   - **Put back:** LMB on the item's empty place: the item is lowered out of view and lies in its place; the hand is empty.
-  - **Swap:** LMB on another item while holding one: the held item goes back to where it was taken from, and the new one rises.
-  - An item first finishes what it started (a shot, the hook returning), and only then is lowered. A weapon can't be put back or swapped during a reload (while it's open). In its place an item keeps its rounds, cases, pressure and supply; it isn't loaded there.
+  - **Take another item:** first put the held item back in its own place and wait until the hand is empty. LMB on another item while holding one does nothing; there is no automatic swap.
+  - An item first finishes what it started (a shot, the hook returning), and only then is lowered. A weapon can't be put back during a reload (while it's open). In its place an item keeps its rounds, cases, pressure and supply; it isn't loaded there.
   - Each place fits its own item; another item can't be put in its place.
   - With an empty hand you can't shoot or take rounds, but you can work the [levers](balloon-controls.md).
 - New weapons and ammo come from the [safe zone](safe-zone.md).
@@ -57,7 +57,7 @@ Every shot should be a decision: the weapons are awkward, rounds are scarce, and
 | Reload time | Rifle 2.7 s, shotgun 4.7 s; revolver TBD | Animation time without pauses between RMB clicks |
 | Ammo box capacity | TBD | `BP_Balloon.AmmoBox` (`UAmmoSupplyComponent`, `HitBones` ammo_box, ammo_lid): `Rounds`, currently −1 = unlimited |
 | Item poses in the basket | TBD | One `UWeaponRackComponent` per item on `BP_Balloon` (`Rack_*`), snapped to its `SK_Balloon` socket (`AttachSocket`); the pose is `DisplayOffset` / `DisplayRotation` in the balloon mesh's axes, worked out by `Scripts/Editor/add_basket_item_racks.py` (tune by eye) |
-| Item click zone | TBD | Model size + `InteractPadding` 3 cm (placeholder) |
+| Item click zone | TBD | Model size + `InteractPadding` 3 cm; shotgun uses `ShotgunInteractPadding` 0.5 cm (placeholders, need tuning) |
 | Revolver rounds at start | TBD | `URevolverComponent::InitialRounds`, currently 6 |
 | Rifle round at start | TBD | `URifleComponent::bStartLoaded`, currently yes |
 | Shotgun rounds at start | TBD | `UShotgunComponent::InitialRounds`, currently 2 |

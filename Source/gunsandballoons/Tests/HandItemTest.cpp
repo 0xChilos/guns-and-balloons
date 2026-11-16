@@ -77,16 +77,23 @@ bool FHandItemTest::RunTest(const FString& Parameters)
 	// A spot takes its own kind of item only.
 	TestFalse(TEXT("The hook's spot does not take the rifle"), Pawn->HolsterWeapon(HookRack));
 
-	// Swap for the hook: the rifle goes back where it came from.
-	TestTrue(TEXT("Swap for the hook"), Pawn->SwapWeapon(HookRack));
-	TestFalse(TEXT("No second swap meanwhile"), Pawn->SwapWeapon(HookRack));
+	// Another occupied rack cannot replace the held item, through clicks or the public API.
+	TestFalse(TEXT("Held rifle cannot swap for hook"), Pawn->CanSwapWeapon(HookRack));
+	TestFalse(TEXT("Direct swap is rejected"), Pawn->SwapWeapon(HookRack));
+	IInteractable::Execute_Interact(HookRack, Pawn);
 	Advance(1.f);
-	TestEqual(TEXT("The hook is the item in hand"), Pawn->GetActiveGun(), static_cast<UGunComponent*>(Pawn->GetHook()));
-	TestTrue(TEXT("The hook is shown in hand"), Pawn->GetHook()->IsEquipped());
-	TestFalse(TEXT("The rifle is hidden"), Pawn->GetRifle()->IsEquipped());
-	TestTrue(TEXT("The rifle is back on its spot"), RifleRack->HasWeapon());
-	TestFalse(TEXT("The hook left its spot"), HookRack->HasWeapon());
-	TestEqual(TEXT("Still armed after the swap"), Pawn->GetHandState(), EPlayerHandState::Armed);
+	TestEqual(TEXT("Clicking another item retains rifle"), Pawn->GetActiveGun(), static_cast<UGunComponent*>(Pawn->GetRifle()));
+	TestTrue(TEXT("Hook remains on its spot"), HookRack->HasWeapon());
+	TestFalse(TEXT("Rifle remains off its spot"), RifleRack->HasWeapon());
+	TestTrue(TEXT("Return rifle first"), Pawn->HolsterWeapon(RifleRack));
+	TestFalse(TEXT("Cannot take hook while lowering rifle"), Pawn->DrawWeapon(HookRack));
+	Advance(1.f);
+	TestTrue(TEXT("Rifle returned before next pickup"), RifleRack->HasWeapon());
+	TestTrue(TEXT("Empty hand can now take hook"), Pawn->DrawWeapon(HookRack));
+	Advance(1.f);
+	TestEqual(TEXT("Hook is now held"), Pawn->GetActiveGun(), static_cast<UGunComponent*>(Pawn->GetHook()));
+	TestTrue(TEXT("Hook is equipped"), Pawn->GetHook()->IsEquipped());
+	TestFalse(TEXT("Rifle is unequipped"), Pawn->GetRifle()->IsEquipped());
 
 	// Put the hook back: the hand is empty again.
 	TestFalse(TEXT("The rifle's spot is taken and of another kind"), Pawn->HolsterWeapon(RifleRack));
@@ -97,14 +104,8 @@ bool FHandItemTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The hook is back on its spot"), HookRack->HasWeapon());
 	TestFalse(TEXT("The hook is hidden"), Pawn->GetHook()->IsEquipped());
 
-	// A swap is called off if the spot of the item in hand got taken meanwhile.
 	TestTrue(TEXT("Take the rifle again"), Pawn->DrawWeapon(RifleRack));
 	Advance(1.f);
-	TestTrue(TEXT("Start a swap"), Pawn->SwapWeapon(HookRack));
-	RifleRack->SetHasWeapon(true);
-	Advance(1.f);
-	TestEqual(TEXT("The rifle stays in hand"), Pawn->GetActiveGun(), static_cast<UGunComponent*>(Pawn->GetRifle()));
-	TestTrue(TEXT("The hook stays on its spot"), HookRack->HasWeapon());
 
 	// Fuel cannot replace a held gun or come from another pawn.
 	auto* Hand = Pawn->GetFuelHand();

@@ -997,11 +997,8 @@ bool AFirstPersonCameraPawn::CanDrawWeapon(const UWeaponRackComponent* Rack) con
 
 bool AFirstPersonCameraPawn::CanSwapWeapon(const UWeaponRackComponent* Rack) const
 {
-	const UGunComponent* Gun = IsValid(Rack) && Rack->HasWeapon() ? FindGun(Rack->ItemClass) : nullptr;
-	const UWeaponRackComponent* HomeRack = HeldItemRack.Get();
-	// The item in hand goes back where it was taken from, so that rack has to be there and free.
-	return !((!HomeRack && ActiveGun == FuelHand) || HandState != EPlayerHandState::Armed || !Gun || !ActiveGun || Gun == ActiveGun || PendingGun
-		|| ActiveGun->IsReloading() || !HomeRack || HomeRack->HasWeapon());
+	// Items must be returned explicitly before another can be picked up.
+	return false;
 }
 
 bool AFirstPersonCameraPawn::HolsterWeapon(UWeaponRackComponent* Rack)

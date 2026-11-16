@@ -10,7 +10,7 @@ class USkeletalMeshComponent;
 /**
  * A place where one of the player's hand items lies or hangs: the basket's hooks for the revolver, or a
  * spot in the world (AHandItemPickup). LMB on it with an empty hand takes the item; with that item in
- * hand puts it back; with another item in hand swaps (that one returns to the place it came from).
+ * hand puts it back; with another item in hand does nothing. Put the held item back before taking another.
  * Visual storage only: rounds, pressure and contents stay in the player's own component of ItemClass.
  */
 UCLASS(ClassGroup=(Weapon), meta=(BlueprintSpawnableComponent))
@@ -48,6 +48,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack") bool bFitInteractShape = false;
 	/** TBD: cm added around the mesh bounds by bFitInteractShape, so a thin item is easy to aim at (needs tuning). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack", meta=(ClampMin="0.0", EditCondition="bFitInteractShape")) float InteractPadding = 3.f;
+	/** TBD: tighter padding for the shotgun pickup area, in cm (needs tuning). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack", meta=(ClampMin="0.0", EditCondition="bFitInteractShape")) float ShotgunInteractPadding = 0.5f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon|Rack") TEnumAsByte<ECollisionChannel> InteractTraceChannel = ECC_Visibility;
 private:
 	/** The player's item of ItemClass on the pawn's class defaults: the source of the mesh and its texture. */

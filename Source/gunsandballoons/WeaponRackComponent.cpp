@@ -7,6 +7,7 @@
 #include "GunComponent.h"
 #include "FuelHandComponent.h"
 #include "RevolverComponent.h"
+#include "ShotgunComponent.h"
 
 UWeaponRackComponent::UWeaponRackComponent()
 {
@@ -76,7 +77,8 @@ void UWeaponRackComponent::RefreshDisplay()
 	{
 		const FBoxSphereBounds ItemBounds = Asset->GetBounds();
 		InteractShape->SetRelativeLocationAndRotation(DisplayOffset + DisplayRotation.RotateVector(ItemBounds.Origin), DisplayRotation);
-		InteractShape->SetBoxExtent(ItemBounds.BoxExtent + FVector(InteractPadding), /*bUpdateOverlaps=*/false);
+		const float Padding = ItemClass && ItemClass->IsChildOf(UShotgunComponent::StaticClass()) ? ShotgunInteractPadding : InteractPadding;
+		InteractShape->SetBoxExtent(ItemBounds.BoxExtent + FVector(Padding), /*bUpdateOverlaps=*/false);
 	}
 }
 
@@ -111,7 +113,6 @@ void UWeaponRackComponent::Interact_Implementation(APawn* InstigatorPawn)
 	{
 		// Each call checks the hand state itself, so a click mid-transition or mid-reload does nothing.
 		if (Pawn->IsHandEmpty()) Pawn->DrawWeapon(this);
-		else if (bHasWeapon) Pawn->SwapWeapon(this);
 		else Pawn->HolsterWeapon(this);
 	}
 }
