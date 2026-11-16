@@ -11,7 +11,7 @@ Level launch is a reusable Blueprint/C++ `StartLevel` method on the game-instanc
 | --- | --- |
 | Continue | Continue the last run (disabled until there are saves) |
 | New Run | Start a new run: the first level (Forest) opens right away |
-| Credits | Authors: Oleksii Nahorniak, Ivan Luzhanskiy, Ivan Petrenko, Rostyslav Ivlev |
+| Credits | Authors: Oleksii Nahorniak, Ivan Luzhanskyi, Ivan Petrenko, Rostyslav Ivliev |
 | Options | On/off switches (below) |
 | Quit | Quit the game |
 

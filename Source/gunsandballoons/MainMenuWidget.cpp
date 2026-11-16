@@ -147,7 +147,7 @@ UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
 	MainMenuLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Scenes/MainMenu.MainMenu")));
 
 	CreditsTitle = LOCTEXT("CreditsTitle", "CREDITS");
-	CreditsText = LOCTEXT("CreditsText", "OLEKSII NAHORNIAK\nIVAN LUZHANSKIY\nIVAN PETRENKO\nROSTYSLAV IVLEV");
+	CreditsText = LOCTEXT("CreditsText", "OLEKSII NAHORNIAK\nIVAN LUZHANSKYI\nIVAN PETRENKO\nROSTYSLAV IVLIEV");
 	OptionsTitle = LOCTEXT("OptionsTitle", "OPTIONS");
 	const FText On = LOCTEXT("On", "ON");
 	const FText Off = LOCTEXT("Off", "OFF");
