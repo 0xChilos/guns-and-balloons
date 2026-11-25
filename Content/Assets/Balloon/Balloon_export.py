@@ -2,9 +2,13 @@
 
 Creates scene "AirBalloon_Game" with:
   Armature   - skeleton: one bone per interactive/animated part + item socket bones
-  SK_Balloon - one mesh, every part rigidly skinned (weight 1.0) to its bone, one UV atlas
+  SK_Balloon*- one mesh per piece (obj["piece"] from Balloon_build.py), every part rigidly skinned
+               (weight 1.0) to its bone; all pieces share the skeleton and one UV atlas
 and writes into the asset folder:
-  SK_Balloon.fbx            skeletal mesh for Unreal
+  SK_Balloon.fbx            the balloon itself (basket, envelope, ropes, propeller): leader mesh in Unreal
+  SK_Balloon_<Piece>.fbx    Stove, NavConsole, Stoppers, FuelStorage, ToolStorage, WeaponWall. Every file holds
+                            the full skeleton, so all import onto SK_Balloon_Skeleton and follow SK_Balloon
+                            (Leader Pose). Bones, sockets and the physics asset stay on SK_Balloon.
   T_Balloon_BaseColor.png   1024 atlas, ~1.5 cm per texel, AO grime + ordered dither (sRGB)
   T_Balloon_ORM.png         R = ambient occlusion, G = roughness, B = metallic (linear)
   T_Balloon_Radar.png       radar CRT (balloon icon, 3 range rings), fills the radar disc's 0..1 UV (sRGB)
@@ -57,12 +61,13 @@ def ctx(active, **extra):
 win.scene = SRC
 dg = bpy.context.evaluated_depsgraph_get()
 dg.update()
-MATS, ranges = [], []
+MATS, ranges, pranges = [], [], []
 bm = bmesh.new()
 for o in sorted(SRC.objects, key=lambda x: x.name):
     if o.type != 'MESH':
         continue
     part = o.get("part", "basket")
+    piece = o.get("piece", "main")
     me = bpy.data.meshes.new_from_object(o.evaluated_get(dg))   # modifiers applied
     me.transform(o.matrix_world)
     remap = []
@@ -79,6 +84,7 @@ for o in sorted(SRC.objects, key=lambda x: x.name):
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
     ranges.append((part, a, len(bm.verts)))
+    pranges.append((piece, a, len(bm.verts)))
     bpy.data.meshes.remove(me)
 me_all = bpy.data.meshes.new("SK_Balloon")
 bm.to_mesh(me_all); bm.free()
@@ -93,6 +99,9 @@ for part, a, b in ranges:
     vg = obj.vertex_groups.get(part) or obj.vertex_groups.new(name=part)
     vg.add(list(range(a, b)), 1.0, 'REPLACE')
     vpart[a:b] = part
+vpiece = np.empty(len(me_all.vertices), dtype=object)
+for piece, a, b in pranges:
+    vpiece[a:b] = piece
 win.scene = gs
 
 # ---------------------------------------------------------------- 2. UV atlas
@@ -375,6 +384,7 @@ bm = bmesh.new(); bm.from_mesh(me_all)
 bm.verts.ensure_lookup_table()
 bmesh.ops.delete(bm, geom=[v for v in bm.verts if vpart[v.index] in item_parts], context='VERTS')
 bm.to_mesh(me_all); bm.free()
+vpiece = vpiece[np.array([p not in item_parts for p in vpart], bool)]     # delete keeps vertex order
 for part in item_parts:
     obj.vertex_groups.remove(obj.vertex_groups[part])
 
@@ -406,21 +416,49 @@ with ctx(arm):
 obj.parent = arm
 mod = obj.modifiers.new("Armature", 'ARMATURE'); mod.object = arm
 
-# ---------------------------------------------------------------- 7. FBX for Unreal (armature + mesh only)
-fbx = os.path.join(FOLDER, "SK_Balloon.fbx")
-for o in gs.objects:
-    o.select_set(o in (arm, obj), view_layer=vl)
-vl.objects.active = arm
-with bpy.context.temp_override(window=win, scene=gs, view_layer=vl, active_object=arm,
-                               selected_objects=[arm, obj]):
-    bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={'ARMATURE', 'MESH'},
-                             use_mesh_modifiers=True, mesh_smooth_type='FACE', add_leaf_bones=False,
-                             use_armature_deform_only=False, bake_anim=False, apply_unit_scale=True,
-                             primary_bone_axis='Y', secondary_bone_axis='X', path_mode='STRIP')
+# ---------------------------------------------------------------- 7. one FBX per piece (armature + that piece's mesh)
+# Every file carries the full skeleton (same bones, same order) so all pieces import onto SK_Balloon_Skeleton.
+PIECES = RIG.get("pieces", {"main": "SK_Balloon"})
+obj.name = "SK_Balloon_All"; me_all.name = "SK_Balloon_All"
+pieces = {}
+for pc, nm in PIECES.items():
+    keep = vpiece == pc
+    if not keep.any():
+        continue
+    pme = me_all.copy(); pme.name = nm
+    bm = bmesh.new(); bm.from_mesh(pme)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not keep[v.index]], context='VERTS')
+    used = sorted({f.material_index for f in bm.faces})          # only the material slots this piece uses
+    for f in bm.faces:
+        f.material_index = used.index(f.material_index)
+    bm.to_mesh(pme); bm.free()
+    pme.materials.clear()
+    for i in used:
+        pme.materials.append(me_all.materials[i])
+    po = bpy.data.objects.new(nm, pme)
+    gs.collection.objects.link(po)
+    for vg in obj.vertex_groups:                 # group names live on the mesh (copied); add any that are missing
+        if po.vertex_groups.get(vg.name) is None:
+            po.vertex_groups.new(name=vg.name)
+    po.parent = arm
+    po.modifiers.new("Armature", 'ARMATURE').object = arm
+    pieces[nm] = po
+    for o in gs.objects:
+        o.select_set(o in (arm, po), view_layer=vl)
+    vl.objects.active = arm
+    with bpy.context.temp_override(window=win, scene=gs, view_layer=vl, active_object=arm,
+                                   selected_objects=[arm, po]):
+        bpy.ops.export_scene.fbx(filepath=os.path.join(FOLDER, nm + ".fbx"), use_selection=True,
+                                 object_types={'ARMATURE', 'MESH'}, use_mesh_modifiers=True, mesh_smooth_type='FACE',
+                                 add_leaf_bones=False, use_armature_deform_only=False, bake_anim=False,
+                                 apply_unit_scale=True, primary_bone_axis='Y', secondary_bone_axis='X', path_mode='STRIP')
+obj.hide_set(True, view_layer=vl); obj.hide_render = True        # combined mesh kept only for reference
 gs.render.engine = 'BLENDER_EEVEE'
 
-tris = sum(len(p.vertices) - 2 for p in me_all.polygons)
-xs = [v.co for v in me_all.vertices]
-dims = [round(max(c[i] for c in xs) - min(c[i] for c in xs), 2) for i in range(3)]
-result = {"tris": tris, "bones": len(arm_data.bones), "size_m": dims,
-          "shrunk_islands": len(islands), "materials": [m.name for m in me_all.materials], "items": item_tris}
+def stats(me):
+    xs = np.empty(len(me.vertices) * 3, np.float32); me.vertices.foreach_get("co", xs); xs = xs.reshape(-1, 3)
+    return {"tris": sum(len(p.vertices) - 2 for p in me.polygons),
+            "size_m": [round(float(v), 2) for v in xs.max(0) - xs.min(0)], "materials": [m.name for m in me.materials]}
+result = {"bones": len(arm_data.bones), "all": stats(me_all), "shrunk_islands": len(islands), "items": item_tris,
+          "pieces": {nm: stats(po.data) for nm, po in pieces.items()}}
