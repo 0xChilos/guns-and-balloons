@@ -433,9 +433,13 @@ for pc, nm in PIECES.items():
     for f in bm.faces:
         f.material_index = used.index(f.material_index)
     bm.to_mesh(pme); bm.free()
+    idx = np.zeros(len(pme.polygons), np.int32)                  # materials.clear() zeroes every face index,
+    pme.polygons.foreach_get("material_index", idx)              # so save them and put them back afterwards
     pme.materials.clear()
     for i in used:
         pme.materials.append(me_all.materials[i])
+    pme.polygons.foreach_set("material_index", idx)
+    pme.update()
     po = bpy.data.objects.new(nm, pme)
     gs.collection.objects.link(po)
     for vg in obj.vertex_groups:                 # group names live on the mesh (copied); add any that are missing
