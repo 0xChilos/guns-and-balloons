@@ -86,7 +86,7 @@ Into /Game/Assets/Balloon/Parts. For each SK_Balloon_<Part>.fbx:
 
 ## 4. BP_Balloon: add the part components
 Open BP_Balloon (and BP_BalloonPlayer, if it has its own balloon mesh rather than inheriting `Mesh` from BP_Balloon). Keep every existing component. Add, only if missing, 6 SkeletalMeshComponents as children of `Mesh`:
-- Names: `Stove`, `NavConsole`, `Stoppers`, `FuelStorage`, `ToolStorage`, `WeaponWall`.
+- Names: `StoveMesh` (BP_Balloon already has the C++ StoveComponent named `Stove`), `NavConsole`, `Stoppers`, `FuelStorage`, `ToolStorage`, `WeaponWall`.
 - Settings for each:
   - Skeletal Mesh Asset = the matching part
   - relative transform zero
@@ -103,15 +103,15 @@ The game hides bones on `Mesh`:
 
 With Leader Pose the followers use the leader's bone transforms, so a bone hidden on `Mesh` should disappear on the part too. **Test it:**
 - In PIE, hide fuel_wood_1 and stove_damage_1 on `Mesh` (and unhide the bullet hole).
-- Check that the log and the hole on the FuelStorage and Stove components follow.
+- Check that the log and the hole on the FuelStorage and StoveMesh components follow.
 
-If they don't follow, don't change the C++. Add a small BP function `SyncHiddenBones` on BP_Balloon that copies the hidden state of every fuel_* and stove_damage_* bone from `Mesh` to the Stove and FuelStorage components. Call it on a 0.1 s timer from BeginPlay, without changing what BeginPlay already does. Then tell me, so the owner of StoveVfxComponent and the fuel code can do it in C++ later.
+If they don't follow, don't change the C++. Add a small BP function `SyncHiddenBones` on BP_Balloon that copies the hidden state of every fuel_* and stove_damage_* bone from `Mesh` to the StoveMesh and FuelStorage components. Call it on a 0.1 s timer from BeginPlay, without changing what BeginPlay already does. Then tell me, so the owner of StoveVfxComponent and the fuel code can do it in C++ later.
 
 ## 6. Redirect material calls to the right part
 Every graph node found in step 0 that changed materials on `Mesh` for a part that moved must now target that part's component. Keep the same logic and only change the target component:
 - **Warning lamp:** `SetWarningLamp` (DMI on slot M_WarningLamp) → **NavConsole**.
 - **Radar:** anything on M_Display → **NavConsole**. The radar itself is driven by MPC_Radar, which needs no change.
-- **Stove and furnace glow** (M_Glow parameters for the firebox or coals) → **Stove**. Crystal or coal glow in the bucket → **FuelStorage**. If one node changes M_Glow for both, run it on both components.
+- **Stove and furnace glow** (M_Glow parameters for the firebox or coals) → **StoveMesh**. Crystal or coal glow in the bucket → **FuelStorage**. If one node changes M_Glow for both, run it on both components.
 - Anything on M_Balloon that should affect the whole balloon (tint, damage, flash) → run it on `Mesh` and on all 6 parts (a ForEach over the parts is fine).
 
 List every node you changed: Blueprint, function, old target and new target.
