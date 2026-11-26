@@ -34,7 +34,8 @@ for coll in (bpy.data.meshes, bpy.data.materials, bpy.data.lights, bpy.data.came
 sc = bpy.data.scenes.new(SC)
 
 # Every mesh object is tagged obj["part"] = <game part / bone name>; RIG holds bone pivots + item sockets.
-# Balloon_export.py reads both to build the single skinned game mesh.
+# Each mesh also gets obj["piece"] (see PIECES at the end); Balloon_export.py reads all three to build one
+# skinned game mesh per piece, all sharing one skeleton and one texture atlas.
 import json
 PART = "basket"
 RIG = {"bones": {}, "sockets": {}, "display": {}}
@@ -1150,5 +1151,81 @@ prism("LanternGlass", 6, 0.06, 0.06, 0.92, 1.05, "Lamp", loc=lp)
 prism("LanternBase", 6, 0.075, 0.075, 0.89, 0.92, "Brass", loc=lp)
 
 update()
+
+# ================================================================ PIECES: split the balloon into separately editable parts
+# The balloon itself (basket + envelope + propeller) is the root; each subsidiary part is a child of it.
+# Every mesh gets obj["piece"]; Balloon_export.py writes one skeletal mesh per piece (all on the same skeleton):
+#   main -> SK_Balloon, stove -> SK_Balloon_Stove, ... (see PIECES).  Hierarchy in the outliner:
+#   PART_Balloon
+#     GRP_Basket, GRP_Envelope, GRP_Propeller        (the balloon itself, exported as SK_Balloon)
+#     PART_Stove, PART_NavConsole, PART_Stoppers, PART_FuelStorage, PART_ToolStorage, PART_WeaponWall
+# The empties sit at the origin: they only group. Pivots of animated parts come from the bones (RIG),
+# so change positions in this script, not by moving objects in the .blend.
+PIECES = {   # piece: (outliner empty, exported skeletal mesh)
+    "main": ("PART_Balloon", "SK_Balloon"),
+    "stove": ("PART_Stove", "SK_Balloon_Stove"),
+    "console": ("PART_NavConsole", "SK_Balloon_NavConsole"),
+    "stoppers": ("PART_Stoppers", "SK_Balloon_Stoppers"),
+    "fuel": ("PART_FuelStorage", "SK_Balloon_FuelStorage"),
+    "tools": ("PART_ToolStorage", "SK_Balloon_ToolStorage"),
+    "weapons": ("PART_WeaponWall", "SK_Balloon_WeaponWall"),
+}
+STOVE_PARTS = {"stove", "gauge", "gauge_needle", "furnace_door", "burn_arrow"}
+
+def piece_of(o):
+    part, n = o.get("part", "basket"), o.name[3:]
+    if part in STOVE_PARTS or part.startswith("stove_damage_"):
+        return "stove"                                   # stove, chimney, gauge, furnace, burn scale, bullet holes
+    if part in ("display", "speed_needle"):
+        return "console"                                 # radar, speedometer, warning lamp
+    if part.startswith(("stopper_", "lever_")) or n.startswith(("WingL", "WingR", "LeverL", "LeverR")):
+        return "stoppers"                                # wings + their levers, quadrants and hinge brackets
+    if part.startswith(("fuel_", "item_")):
+        return "fuel"                                    # wood crate, coal sack, crystal bucket + pieces
+    if n.startswith("ToolStand"):
+        return "tools"
+    if part in ("ammo_box", "ammo_lid") or n.startswith(("GunRack", "Revolver", "Ammo")):
+        return "weapons"                                 # gun rack, revolver hook, ammo box
+    return "main"
+
+def group_empty(name, par=None):
+    e = bpy.data.objects.new(name, None)
+    e.empty_display_type = 'PLAIN_AXES'; e.empty_display_size = 0.25
+    sc.collection.objects.link(e)
+    if par is not None:
+        e.parent = par
+    return e
+
+roots = {k: group_empty(v[0]) for k, v in PIECES.items()}
+for k, e in roots.items():
+    if k != "main":
+        e.parent = roots["main"]
+subs = {k: group_empty(n, roots["main"]) for k, n in (("basket", "GRP_Basket"), ("envelope", "GRP_Envelope"),
+                                                        ("propeller", "GRP_Propeller"))}
+PROP_DRIVE = ("DriveLink", "Gearbox", "BigGear", "Shaft", "Bearing", "Strut", "PropPivot")
+for o in list(sc.objects):
+    if o.name.startswith(("PART_", "GRP_")):
+        continue
+    top = o
+    while top.parent is not None:
+        top = top.parent
+    pc = piece_of(top) if o.type != 'MESH' else piece_of(o)
+    if o.type == 'MESH':
+        o["piece"] = pc
+    if o.parent is not None:
+        continue                                         # children (door vents, wing ribs, blades) follow their parent
+    if pc == "main":
+        part, n = o.get("part", "basket"), o.name[3:]
+        g = (subs["envelope"] if part in ("balloon", "ropes") else
+             subs["propeller"] if part == "propeller" or n.startswith(PROP_DRIVE) else subs["basket"])
+    else:
+        g = roots[pc]
+    mw = o.matrix_world.copy()
+    o.parent = g
+    o.matrix_world = mw
+RIG["pieces"] = {k: v[1] for k, v in PIECES.items()}
+
+update()
 sc["AB_rig"] = json.dumps(RIG)
-result = {"objects": len(sc.objects), "bones": list(RIG["bones"]), "sockets": list(RIG["sockets"])}
+result = {"objects": len(sc.objects), "bones": list(RIG["bones"]), "sockets": list(RIG["sockets"]),
+          "pieces": {k: sum(1 for o in sc.objects if o.get("piece") == k) for k in PIECES}}
